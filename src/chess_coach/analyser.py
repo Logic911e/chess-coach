@@ -43,6 +43,7 @@ class MoveRecord:
     uci: str
     fen_before: str
     best_uci: str
+    best_line_uci: list[str]  # engine principal variation from the position, UCI
     cp_best: int  # mover perspective, mate capped
     cp_played: int
     expected_points_lost: float
@@ -171,6 +172,7 @@ def analyse_game(
                 uci=move.uci(),
                 fen_before=board.fen(),
                 best_uci=best.best_move,
+                best_line_uci=best.pv,
                 cp_best=cp_best,
                 cp_played=cp_played,
                 expected_points_lost=round(loss, 3),
