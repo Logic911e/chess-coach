@@ -83,6 +83,13 @@ class Engine:
     ) -> None:
         self.close()
 
+    @property
+    def version(self) -> str:
+        """Engine name as reported over UCI, e.g. "Stockfish 17"."""
+        if self._engine is None:
+            raise RuntimeError("Engine is not running; use it as a context manager.")
+        return str(self._engine.id.get("name", "unknown"))
+
     def close(self) -> None:
         if self._engine is None:
             return

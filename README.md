@@ -41,10 +41,25 @@ docker-compose up -d
 PYTHONPATH=src python -m chess_coach.db        # applies migrations/*.sql in order
 ```
 
+Analyse real games and store them (skips games already stored; add `--explain` to also write
+explanations for key moments with the local model):
+
+```bash
+PYTHONPATH=src python -m chess_coach.import_games data/sample_games.pgn --depth 14
+PYTHONPATH=src python -m chess_coach.import_games games.pgn --depth 14 --explain
+```
+
+`data/sample_games.pgn` holds the public-domain Opera Game (Morphy, 1858) and a short illustrative
+trap game that I wrote, not a real game.
+
 Local model for explanations: `brew install ollama && ollama serve` and `ollama pull qwen2.5:7b-instruct`.
 
 ## Known limits
 
+- The explanation guardrail only checks move legality. In a live `--explain` run the model wrote
+  "leaves two pawns hanging on e4 and h5" when h5 holds White's queen, and it passed. The evaluation
+  harness has a piece-on-square check (`claims.py`) that is not yet wired into the live guardrail
+  and only matches phrasings like "pawn on h5".
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.
 - No full static exchange evaluation; pins on attackers are ignored.
 - Forks only look at immediate targets; only absolute pins are detected.
