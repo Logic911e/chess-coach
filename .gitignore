@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .env
 .env.*
+!.env.example
 *.key
 # Engine binaries are never committed (Stockfish is GPL; run it as an external process)
 stockfish*
