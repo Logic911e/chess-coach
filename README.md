@@ -12,8 +12,15 @@ Work in progress.
 - [x] Stockfish wrapper (`src/chess_coach/engine.py`)
 - [x] Game analyser (`src/chess_coach/analyser.py`)
 - [x] Explanation prompt + local LLM call (`explainer.py`, `llm.py`, Ollama)
-- [ ] Evaluation harness (false-claim rate with facts vs without)
+- [x] Evaluation harness (`evaluation.py`, results in `results/`)
 - [ ] Postgres layer
+
+## Result so far (small sample, read the caveats)
+
+Local `qwen2.5:7b-instruct`, 12 positions x 3 samples. Responses with at least one objectively
+false claim (an illegal move or a piece on the wrong square), after reading each flagged one:
+**2/36 with engine facts vs 8/36 with only the FEN and move.** The checker misses wrong verdicts,
+so the real gap is probably larger. Full detail and limits: `results/REVIEW.md`.
 
 ## Setup
 
