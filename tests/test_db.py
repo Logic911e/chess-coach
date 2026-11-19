@@ -77,3 +77,8 @@ def test_bad_migration_name_rejected(tmp_path):
     (tmp_path / "1_bad.sql").write_text("SELECT 1")
     with pytest.raises(ValueError):
         db.migration_files(tmp_path)
+
+
+def test_measured_indexes_exist(pg):
+    names = {r[0] for r in pg.execute("SELECT indexname FROM pg_indexes WHERE schemaname='public'")}
+    assert {"moves_game_color_ply_idx", "facts_gin_idx", "explanations_move_id_idx"} <= names

@@ -1,0 +1,31 @@
+Finalize GroupAggregate  (cost=8987.42..8988.34 rows=6 width=87) (actual time=81.818..83.990 rows=6 loops=1)
+  Group Key: m.phase, m.color
+  Buffers: shared hit=3708
+  ->  Gather Merge  (cost=8987.42..8988.11 rows=6 width=87) (actual time=81.794..83.960 rows=12 loops=1)
+        Workers Planned: 1
+        Workers Launched: 1
+        Buffers: shared hit=3708
+        ->  Sort  (cost=7987.41..7987.43 rows=6 width=87) (actual time=79.495..79.499 rows=6 loops=2)
+              Sort Key: m.phase, m.color
+              Sort Method: quicksort  Memory: 25kB
+              Buffers: shared hit=3708
+              Worker 0:  Sort Method: quicksort  Memory: 25kB
+              ->  Partial HashAggregate  (cost=7987.26..7987.34 rows=6 width=87) (actual time=79.469..79.473 rows=6 loops=2)
+                    Group Key: m.phase, m.color
+                    Batches: 1  Memory Usage: 24kB
+                    Buffers: shared hit=3700
+                    Worker 0:  Batches: 1  Memory Usage: 24kB
+                    ->  Parallel Hash Join  (cost=3176.44..6556.58 rows=81753 width=23) (actual time=25.374..56.318 rows=69490 loops=2)
+                          Hash Cond: (m.id = e.move_id)
+                          Buffers: shared hit=3700
+                          ->  Parallel Seq Scan on moves m  (cost=0.00..3165.53 rows=81753 width=23) (actual time=0.007..6.026 rows=69490 loops=2)
+                                Buffers: shared hit=2348
+                          ->  Parallel Hash  (cost=2154.53..2154.53 rows=81753 width=16) (actual time=24.920..24.921 rows=69490 loops=2)
+                                Buckets: 262144  Batches: 1  Memory Usage: 8896kB
+                                Buffers: shared hit=1337
+                                ->  Parallel Seq Scan on evaluations e  (cost=0.00..2154.53 rows=81753 width=16) (actual time=0.016..8.325 rows=69490 loops=2)
+                                      Buffers: shared hit=1337
+Planning:
+  Buffers: shared hit=18
+Planning Time: 0.207 ms
+Execution Time: 84.024 ms

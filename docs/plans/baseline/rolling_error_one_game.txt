@@ -1,0 +1,22 @@
+Sort  (cost=664.16..664.33 rows=67 width=48) (actual time=0.228..0.232 rows=98 loops=1)
+  Sort Key: m.ply
+  Sort Method: quicksort  Memory: 28kB
+  Buffers: shared hit=300
+  ->  WindowAgg  (cost=660.64..662.13 rows=67 width=48) (actual time=0.138..0.210 rows=98 loops=1)
+        Buffers: shared hit=300
+        ->  Sort  (cost=660.62..660.79 rows=67 width=16) (actual time=0.134..0.139 rows=98 loops=1)
+              Sort Key: m.color, m.ply
+              Sort Method: quicksort  Memory: 28kB
+              Buffers: shared hit=300
+              ->  Nested Loop  (cost=0.71..658.59 rows=67 width=16) (actual time=0.007..0.104 rows=98 loops=1)
+                    Buffers: shared hit=300
+                    ->  Index Scan using moves_game_id_ply_key on moves m  (cost=0.42..125.66 rows=67 width=21) (actual time=0.004..0.014 rows=98 loops=1)
+                          Index Cond: (game_id = 1234)
+                          Buffers: shared hit=6
+                    ->  Index Scan using evaluations_pkey on evaluations e  (cost=0.29..7.95 rows=1 width=11) (actual time=0.001..0.001 rows=1 loops=98)
+                          Index Cond: (move_id = m.id)
+                          Buffers: shared hit=294
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.085 ms
+Execution Time: 0.246 ms

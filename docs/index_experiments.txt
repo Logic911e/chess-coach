@@ -1,0 +1,9 @@
+candidate                           phase_error_ra  opening_error_  rolling_error_  worst_moment_p  facts_ignored_  blunders_of_pl  facts_rare_pat
+baseline (no extra index)                  44.76          279.31            0.25           26.26            3.83           22.35            3.31  
+games(white), games(black)                 75.82          269.49            0.19           19.71*           2.81           18.20*           2.79  
+facts GIN jsonb_path_ops                   68.27          221.01            0.25           20.58            1.63*          18.77            0.52* 
+evaluations partial (blunder)              53.48          225.72            0.18           19.27            2.67           17.81*           2.71  
+evaluations covering                       52.24          237.33            0.21*          21.36            3.43           24.88            3.73  
+moves(game_id, color, ply)                 53.54          219.25            0.18*           3.96*           2.99            2.84*           2.90  
+
+* = the planner used the candidate index. Times in ms.

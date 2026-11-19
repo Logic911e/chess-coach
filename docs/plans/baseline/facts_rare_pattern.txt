@@ -1,0 +1,6 @@
+Seq Scan on facts  (cost=0.00..672.38 rows=470 width=8) (actual time=0.003..3.089 rows=504 loops=1)
+  Filter: (facts @> '{"played": {"ignored_threats": [{"piece": "knight"}], "leaves_own_piece_hanging": [{"piece": "bishop"}]}, "classification": "blunder"}'::jsonb)
+  Rows Removed by Filter: 14966
+  Buffers: shared hit=479
+Planning Time: 0.044 ms
+Execution Time: 3.109 ms

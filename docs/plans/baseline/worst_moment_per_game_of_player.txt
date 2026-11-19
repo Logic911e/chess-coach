@@ -1,0 +1,37 @@
+Limit  (cost=4568.37..4568.38 rows=1 width=22) (actual time=24.621..24.625 rows=10 loops=1)
+  Buffers: shared hit=10609
+  ->  Sort  (cost=4568.37..4568.38 rows=1 width=22) (actual time=24.620..24.622 rows=10 loops=1)
+        Sort Key: own.expected_points_lost DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=10609
+        ->  Subquery Scan on own  (cost=4567.42..4568.36 rows=1 width=22) (actual time=24.306..24.602 rows=80 loops=1)
+              Filter: (own.rnk = 1)
+              Buffers: shared hit=10609
+              ->  WindowAgg  (cost=4567.42..4568.03 rows=27 width=30) (actual time=24.304..24.591 rows=80 loops=1)
+                    Run Condition: (rank() OVER (?) <= 1)
+                    Buffers: shared hit=10609
+                    ->  Sort  (cost=4567.42..4567.49 rows=27 width=22) (actual time=24.295..24.403 rows=2740 loops=1)
+                          Sort Key: g.id, e.expected_points_lost DESC, m.ply
+                          Sort Method: quicksort  Memory: 210kB
+                          Buffers: shared hit=10609
+                          ->  Nested Loop  (cost=72.48..4566.78 rows=27 width=22) (actual time=0.559..23.198 rows=2740 loops=1)
+                                Buffers: shared hit=10609
+                                ->  Hash Join  (cost=72.19..4557.00 rows=27 width=27) (actual time=0.553..20.732 rows=2740 loops=1)
+                                      Hash Cond: ((m.game_id = g.id) AND (m.color = CASE WHEN (g.white = 'synth_37'::text) THEN 'white'::text ELSE 'black'::text END))
+                                      Buffers: shared hit=2389
+                                      ->  Seq Scan on moves m  (cost=0.00..3737.80 rows=138980 width=29) (actual time=0.005..7.582 rows=138980 loops=1)
+                                            Buffers: shared hit=2348
+                                      ->  Hash  (cost=71.00..71.00 rows=79 width=21) (actual time=0.184..0.185 rows=80 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                                            Buffers: shared hit=41
+                                            ->  Seq Scan on games g  (cost=0.00..71.00 rows=79 width=21) (actual time=0.005..0.169 rows=80 loops=1)
+                                                  Filter: ((white = 'synth_37'::text) OR (black = 'synth_37'::text))
+                                                  Rows Removed by Filter: 1920
+                                                  Buffers: shared hit=41
+                                ->  Index Scan using evaluations_pkey on evaluations e  (cost=0.29..0.36 rows=1 width=11) (actual time=0.001..0.001 rows=1 loops=2740)
+                                      Index Cond: (move_id = m.id)
+                                      Buffers: shared hit=8220
+Planning:
+  Buffers: shared hit=26
+Planning Time: 0.317 ms
+Execution Time: 24.654 ms

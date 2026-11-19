@@ -1,0 +1,8 @@
+Aggregate  (cost=682.36..682.37 rows=1 width=8) (actual time=3.417..3.418 rows=1 loops=1)
+  Buffers: shared hit=479
+  ->  Seq Scan on facts  (cost=0.00..672.38 rows=3995 width=0) (actual time=0.004..3.231 rows=3975 loops=1)
+        Filter: (facts @> '{"played": {"ignored_threats": [{"piece": "knight"}]}}'::jsonb)
+        Rows Removed by Filter: 11495
+        Buffers: shared hit=479
+Planning Time: 0.055 ms
+Execution Time: 3.424 ms

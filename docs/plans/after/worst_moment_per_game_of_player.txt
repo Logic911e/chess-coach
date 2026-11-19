@@ -1,0 +1,34 @@
+Limit  (cost=3720.95..3720.95 rows=1 width=22) (actual time=6.217..6.220 rows=10 loops=1)
+  Buffers: shared hit=8672
+  ->  Sort  (cost=3720.95..3720.95 rows=1 width=22) (actual time=6.216..6.218 rows=10 loops=1)
+        Sort Key: own.expected_points_lost DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=8672
+        ->  Subquery Scan on own  (cost=3719.99..3720.94 rows=1 width=22) (actual time=5.812..6.192 rows=80 loops=1)
+              Filter: (own.rnk = 1)
+              Buffers: shared hit=8672
+              ->  WindowAgg  (cost=3719.99..3720.60 rows=27 width=30) (actual time=5.811..6.180 rows=80 loops=1)
+                    Run Condition: (rank() OVER (?) <= 1)
+                    Buffers: shared hit=8672
+                    ->  Sort  (cost=3719.99..3720.06 rows=27 width=22) (actual time=5.804..5.941 rows=2740 loops=1)
+                          Sort Key: g.id, e.expected_points_lost DESC, m.ply
+                          Sort Method: quicksort  Memory: 210kB
+                          Buffers: shared hit=8672
+                          ->  Nested Loop  (cost=0.72..3719.35 rows=27 width=22) (actual time=0.027..4.401 rows=2740 loops=1)
+                                Buffers: shared hit=8672
+                                ->  Nested Loop  (cost=0.42..3709.58 rows=27 width=27) (actual time=0.022..1.536 rows=2740 loops=1)
+                                      Buffers: shared hit=452
+                                      ->  Seq Scan on games g  (cost=0.00..71.00 rows=79 width=21) (actual time=0.010..0.218 rows=80 loops=1)
+                                            Filter: ((white = 'synth_37'::text) OR (black = 'synth_37'::text))
+                                            Rows Removed by Filter: 1920
+                                            Buffers: shared hit=41
+                                      ->  Index Scan using moves_game_color_ply_idx on moves m  (cost=0.42..45.71 rows=35 width=29) (actual time=0.005..0.012 rows=34 loops=80)
+                                            Index Cond: ((game_id = g.id) AND (color = CASE WHEN (g.white = 'synth_37'::text) THEN 'white'::text ELSE 'black'::text END))
+                                            Buffers: shared hit=411
+                                ->  Index Scan using evaluations_pkey on evaluations e  (cost=0.29..0.36 rows=1 width=11) (actual time=0.001..0.001 rows=1 loops=2740)
+                                      Index Cond: (move_id = m.id)
+                                      Buffers: shared hit=8220
+Planning:
+  Buffers: shared hit=26
+Planning Time: 0.397 ms
+Execution Time: 6.256 ms

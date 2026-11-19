@@ -1,0 +1,11 @@
+Bitmap Heap Scan on facts  (cost=32.62..532.51 rows=470 width=8) (actual time=0.506..1.457 rows=504 loops=1)
+  Recheck Cond: (facts @> '{"played": {"ignored_threats": [{"piece": "knight"}], "leaves_own_piece_hanging": [{"piece": "bishop"}]}, "classification": "blunder"}'::jsonb)
+  Heap Blocks: exact=321
+  Buffers: shared hit=335
+  ->  Bitmap Index Scan on facts_gin_idx  (cost=0.00..32.51 rows=470 width=0) (actual time=0.464..0.464 rows=504 loops=1)
+        Index Cond: (facts @> '{"played": {"ignored_threats": [{"piece": "knight"}], "leaves_own_piece_hanging": [{"piece": "bishop"}]}, "classification": "blunder"}'::jsonb)
+        Buffers: shared hit=14
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.147 ms
+Execution Time: 1.506 ms

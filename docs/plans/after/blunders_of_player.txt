@@ -1,0 +1,26 @@
+Limit  (cost=3719.43..3719.43 rows=2 width=22) (actual time=4.629..4.636 rows=50 loops=1)
+  Buffers: shared hit=8672
+  ->  Sort  (cost=3719.43..3719.43 rows=2 width=22) (actual time=4.628..4.631 rows=50 loops=1)
+        Sort Key: g.played_on DESC, m.ply
+        Sort Method: top-N heapsort  Memory: 30kB
+        Buffers: shared hit=8672
+        ->  Nested Loop  (cost=0.72..3719.42 rows=2 width=22) (actual time=0.045..4.571 rows=213 loops=1)
+              Buffers: shared hit=8672
+              ->  Nested Loop  (cost=0.42..3709.58 rows=27 width=27) (actual time=0.016..1.424 rows=2740 loops=1)
+                    Buffers: shared hit=452
+                    ->  Seq Scan on games g  (cost=0.00..71.00 rows=79 width=21) (actual time=0.008..0.217 rows=80 loops=1)
+                          Filter: ((white = 'synth_37'::text) OR (black = 'synth_37'::text))
+                          Rows Removed by Filter: 1920
+                          Buffers: shared hit=41
+                    ->  Index Scan using moves_game_color_ply_idx on moves m  (cost=0.42..45.71 rows=35 width=29) (actual time=0.005..0.010 rows=34 loops=80)
+                          Index Cond: ((game_id = g.id) AND (color = CASE WHEN (g.white = 'synth_37'::text) THEN 'white'::text ELSE 'black'::text END))
+                          Buffers: shared hit=411
+              ->  Index Scan using evaluations_pkey on evaluations e  (cost=0.29..0.36 rows=1 width=11) (actual time=0.001..0.001 rows=0 loops=2740)
+                    Index Cond: (move_id = m.id)
+                    Filter: (classification = 'blunder'::text)
+                    Rows Removed by Filter: 1
+                    Buffers: shared hit=8220
+Planning:
+  Buffers: shared hit=26
+Planning Time: 0.264 ms
+Execution Time: 4.655 ms

@@ -13,7 +13,8 @@ Work in progress.
 - [x] Game analyser (`src/chess_coach/analyser.py`)
 - [x] Explanation prompt + local LLM call (`explainer.py`, `llm.py`, Ollama)
 - [x] Evaluation harness (`evaluation.py`, results in `results/`)
-- [ ] Postgres layer
+- [x] Postgres layer: schema, migrations, indexes chosen with `EXPLAIN ANALYZE` (`docs/query_plans.md`)
+- [ ] pgvector / full-text retrieval of similar past mistakes (later)
 
 ## Result so far (small sample, read the caveats)
 
@@ -31,6 +32,16 @@ pytest -q
 ```
 
 Stockfish is needed from the engine step onward (`brew install stockfish` on macOS).
+
+Database (Docker, Postgres 17; uses port 5433 so it never clashes with a local Postgres):
+
+```bash
+cp .env.example .env            # then set a real POSTGRES_PASSWORD
+docker-compose up -d
+PYTHONPATH=src python -m chess_coach.db        # applies migrations/*.sql in order
+```
+
+Local model for explanations: `brew install ollama && ollama serve` and `ollama pull qwen2.5:7b-instruct`.
 
 ## Known limits
 

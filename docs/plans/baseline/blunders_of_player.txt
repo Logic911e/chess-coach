@@ -1,0 +1,29 @@
+Limit  (cost=4566.85..4566.86 rows=2 width=22) (actual time=22.200..22.207 rows=50 loops=1)
+  Buffers: shared hit=10609
+  ->  Sort  (cost=4566.85..4566.86 rows=2 width=22) (actual time=22.199..22.203 rows=50 loops=1)
+        Sort Key: g.played_on DESC, m.ply
+        Sort Method: top-N heapsort  Memory: 30kB
+        Buffers: shared hit=10609
+        ->  Nested Loop  (cost=72.48..4566.84 rows=2 width=22) (actual time=0.555..22.153 rows=213 loops=1)
+              Buffers: shared hit=10609
+              ->  Hash Join  (cost=72.19..4557.00 rows=27 width=27) (actual time=0.525..19.731 rows=2740 loops=1)
+                    Hash Cond: ((m.game_id = g.id) AND (m.color = CASE WHEN (g.white = 'synth_37'::text) THEN 'white'::text ELSE 'black'::text END))
+                    Buffers: shared hit=2389
+                    ->  Seq Scan on moves m  (cost=0.00..3737.80 rows=138980 width=29) (actual time=0.006..7.001 rows=138980 loops=1)
+                          Buffers: shared hit=2348
+                    ->  Hash  (cost=71.00..71.00 rows=79 width=21) (actual time=0.192..0.192 rows=80 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 13kB
+                          Buffers: shared hit=41
+                          ->  Seq Scan on games g  (cost=0.00..71.00 rows=79 width=21) (actual time=0.005..0.179 rows=80 loops=1)
+                                Filter: ((white = 'synth_37'::text) OR (black = 'synth_37'::text))
+                                Rows Removed by Filter: 1920
+                                Buffers: shared hit=41
+              ->  Index Scan using evaluations_pkey on evaluations e  (cost=0.29..0.36 rows=1 width=11) (actual time=0.001..0.001 rows=0 loops=2740)
+                    Index Cond: (move_id = m.id)
+                    Filter: (classification = 'blunder'::text)
+                    Rows Removed by Filter: 1
+                    Buffers: shared hit=8220
+Planning:
+  Buffers: shared hit=26
+Planning Time: 0.241 ms
+Execution Time: 22.231 ms

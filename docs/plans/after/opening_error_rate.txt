@@ -1,0 +1,34 @@
+Sort  (cost=29716.14..29716.20 rows=21 width=85) (actual time=251.104..251.108 rows=8 loops=1)
+  Sort Key: (round(avg(e.expected_points_lost), 4)) DESC
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=3726, temp read=1385 written=1387
+  ->  GroupAggregate  (cost=26934.81..29715.68 rows=21 width=85) (actual time=194.279..251.095 rows=8 loops=1)
+        Group Key: g.opening, g.eco
+        Filter: (count(DISTINCT g.id) >= 20)
+        Buffers: shared hit=3726, temp read=1385 written=1387
+        ->  Sort  (cost=26934.81..27282.26 rows=138980 width=29) (actual time=186.170..219.465 rows=138980 loops=1)
+              Sort Key: g.opening, g.eco, g.id
+              Sort Method: external merge  Disk: 6048kB
+              Buffers: shared hit=3726, temp read=1385 written=1387
+              ->  Hash Join  (cost=5229.05..11734.27 rows=138980 width=29) (actual time=25.049..81.138 rows=138980 loops=1)
+                    Hash Cond: (m.game_id = g.id)
+                    Buffers: shared hit=3726, temp read=629 written=629
+                    ->  Hash Join  (cost=5143.05..11282.68 rows=138980 width=16) (actual time=24.696..64.966 rows=138980 loops=1)
+                          Hash Cond: (m.id = e.move_id)
+                          Buffers: shared hit=3685, temp read=629 written=629
+                          ->  Seq Scan on moves m  (cost=0.00..3737.80 rows=138980 width=16) (actual time=0.002..8.570 rows=138980 loops=1)
+                                Buffers: shared hit=2348
+                          ->  Hash  (cost=2726.80..2726.80 rows=138980 width=16) (actual time=24.636..24.636 rows=138980 loops=1)
+                                Buckets: 262144  Batches: 2  Memory Usage: 5460kB
+                                Buffers: shared hit=1337, temp written=323
+                                ->  Seq Scan on evaluations e  (cost=0.00..2726.80 rows=138980 width=16) (actual time=0.002..9.411 rows=138980 loops=1)
+                                      Buffers: shared hit=1337
+                    ->  Hash  (cost=61.00..61.00 rows=2000 width=21) (actual time=0.342..0.342 rows=2000 loops=1)
+                          Buckets: 2048  Batches: 1  Memory Usage: 128kB
+                          Buffers: shared hit=41
+                          ->  Seq Scan on games g  (cost=0.00..61.00 rows=2000 width=21) (actual time=0.006..0.164 rows=2000 loops=1)
+                                Buffers: shared hit=41
+Planning:
+  Buffers: shared hit=28
+Planning Time: 0.268 ms
+Execution Time: 251.832 ms
