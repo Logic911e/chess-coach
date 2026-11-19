@@ -116,6 +116,7 @@ def run(
             client: ChatClient = client_factory(seed)
             for cond, msgs in (
                 ("facts", build_messages(facts)),
+                ("statements", build_messages(facts, "statements")),
                 ("fen_only", fen_only_messages(case.fen, san)),
             ):
                 results.append(score(case, cond, seed, client.chat(msgs), line))

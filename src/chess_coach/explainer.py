@@ -15,6 +15,7 @@ import chess
 
 from chess_coach.claims import check_claims, truth_boards
 from chess_coach.llm import ChatClient, Message
+from chess_coach.narrative import render_facts
 
 SYSTEM_PROMPT = """\
 You are a chess coach explaining one move to an improving club player.
@@ -34,7 +35,28 @@ Rules:
 - 3 to 5 sentences. Plain language. No lists, no headings."""
 
 
-def build_messages(facts: dict) -> list[Message]:
+STATEMENTS_SYSTEM_PROMPT = """\
+You are a chess coach explaining one move to an improving club player.
+
+You are given a numbered list of verified statements about the position and the move.
+Write a short explanation that uses ONLY those statements.
+
+Rules:
+- Do not add any fact, move, square, plan or judgement that is not in the statements.
+- Keep every piece colour and square exactly as written.
+- Name a move only if it appears in the statements.
+- Start with how good the move was, then say why, then what the engine's best move did better.
+- 3 to 5 sentences. Plain language. No lists, no headings."""
+
+
+def build_messages(facts: dict, style: str = "json") -> list[Message]:
+    """style 'json' = raw facts record; 'statements' = plain-English statements (narrative.py)."""
+    if style == "statements":
+        lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts), 1))
+        return [
+            {"role": "system", "content": STATEMENTS_SYSTEM_PROMPT},
+            {"role": "user", "content": "Statements:\n" + lines + "\n\nExplain this move."},
+        ]
     return [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
@@ -64,9 +86,10 @@ def explain(
     client: ChatClient,
     best_line_uci: list[str] | None = None,
     max_retries: int = 2,
+    style: str = "json",
 ) -> Explanation:
     boards = boards_for_check(facts, best_line_uci)
-    messages = build_messages(facts)
+    messages = build_messages(facts, style)
     report = check_claims("", boards)
     text = ""
     for attempt in range(1, max_retries + 2):
