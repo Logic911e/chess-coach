@@ -9,7 +9,7 @@ explains facts it is given. It never invents chess analysis.
 Work in progress.
 
 - [x] Feature extraction and move grading (`src/chess_coach/features.py`)
-- [ ] Stockfish wrapper
+- [x] Stockfish wrapper (`src/chess_coach/engine.py`)
 - [ ] Game analyser
 - [ ] Explanation prompt + LLM call
 - [ ] Evaluation harness (false-claim rate with facts vs without)
