@@ -10,7 +10,7 @@ Work in progress.
 
 - [x] Feature extraction and move grading (`src/chess_coach/features.py`)
 - [x] Stockfish wrapper (`src/chess_coach/engine.py`)
-- [ ] Game analyser
+- [x] Game analyser (`src/chess_coach/analyser.py`)
 - [ ] Explanation prompt + LLM call
 - [ ] Evaluation harness (false-claim rate with facts vs without)
 - [ ] Postgres layer
