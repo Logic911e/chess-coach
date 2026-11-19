@@ -59,3 +59,15 @@ def test_moves_deeper_in_engine_line_are_allowed():
     assert any(b.fen() != chess.Board(QH5).fen() for b in boards)
     client = ScriptedClient(["After g6, White might play Qf3."])
     assert not explain(_facts(), client, best_line_uci=LINE).flagged
+
+
+def test_false_piece_placement_triggers_retry_and_flag():
+    bad = "Nf6 leaves two pawns hanging on e4 and h5."  # h5 holds White's queen
+    good = "Nf6 ignored the threat to the pawn on f7. g6 was best."
+    client = ScriptedClient([bad, good])
+    result = explain(_facts(), client, best_line_uci=LINE)
+    assert not result.flagged and result.attempts == 2
+    assert "pawn on h5" in client.seen[1][-1]["content"]
+
+    stuck = explain(_facts(), ScriptedClient([bad] * 3), best_line_uci=LINE)
+    assert stuck.flagged and stuck.false_placements == ["pawn on h5"] and stuck.illegal_moves == []

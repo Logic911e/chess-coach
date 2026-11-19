@@ -24,11 +24,19 @@ _PIECES = {
     "queen": chess.QUEEN,
     "king": chess.KING,
 }
-# "the white knight on f6", "bishop at c4", "queens on d8"
+_PIECE_WORDS = "pawn|knight|bishop|rook|queen|king"
+_SQUARE = r"[a-h][1-8]"
+# "the white knight on f6", "bishop at c4", "two pawns hanging on e4 and h5".
+# Up to two filler words may sit between the piece and "on"; a filler word may not itself be a
+# piece word, so "the knight attacks the pawn on f7" claims the pawn is on f7, not the knight.
+# "a bishop would be better on d3" (three fillers) is a hypothetical and is deliberately skipped.
 _PLACEMENT = re.compile(
-    r"\b(?:(white|black)(?:'s)?\s+)?(pawn|knight|bishop|rook|queen|king)s?\s+(?:on|at)\s+([a-h][1-8])\b",
+    rf"\b(?:(white|black)(?:'s)?\s+)?({_PIECE_WORDS})s?\s+"
+    rf"(?:(?!{_PIECE_WORDS})[a-z']+\s+){{0,2}}(?:on|at)\s+"
+    rf"({_SQUARE}(?:\s*(?:,|and|or)\s*{_SQUARE})*)\b",
     re.IGNORECASE,
 )
+_ONE_SQUARE = re.compile(_SQUARE)
 
 
 @dataclass(frozen=True)
@@ -60,20 +68,23 @@ def truth_boards(fen: str, played_uci: str, best_line_uci: list[str]) -> list[ch
 
 
 def false_placements(text: str, boards: list[chess.Board]) -> list[str]:
+    """Piece-on-square claims that no truth position supports, e.g. "pawn on h5"."""
     bad = []
     for m in _PLACEMENT.finditer(text):
-        color_word, piece_word, square = m.groups()
+        color_word, piece_word, squares = m.groups()
         piece_type = _PIECES[piece_word.lower()]
-        sq = chess.parse_square(square.lower())
         color = None if color_word is None else color_word.lower() == "white"
-        ok = any(
-            (p := b.piece_at(sq)) is not None
-            and p.piece_type == piece_type
-            and (color is None or p.color == color)
-            for b in boards
-        )
-        if not ok:
-            bad.append(m.group(0))
+        for square in _ONE_SQUARE.findall(squares.lower()):
+            sq = chess.parse_square(square)
+            ok = any(
+                (p := b.piece_at(sq)) is not None
+                and p.piece_type == piece_type
+                and (color is None or p.color == color)
+                for b in boards
+            )
+            if not ok:
+                prefix = f"{color_word.lower()} " if color_word else ""
+                bad.append(f"{prefix}{piece_word.lower()} on {square}")
     return bad
 
 

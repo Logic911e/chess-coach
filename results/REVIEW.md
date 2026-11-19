@@ -29,3 +29,11 @@ afterwards.
 - Only 12 positions, and 3 samples of each are not independent. Treat 2/36 vs 8/36 as suggestive,
   not a measured rate. One model, one prompt, one temperature.
 - Positions and answer keys were written by the author of this repo, not an independent set.
+
+## Addendum: tightened placement check (after the review above)
+
+`claims.py` was later extended to read list phrasing ("pawns on e4 and h5"). Re-scoring the same 72
+saved responses with the new rule changed one verdict: a `facts` response saying "the black queen on
+h5" (it is White's queen) is now flagged. No other verdict changed. That makes the facts condition
+**3/36** with an objective false claim, up from 2/36 (the fen_only condition stays 8/36). The saved
+JSON was not rewritten; this note is the correction.

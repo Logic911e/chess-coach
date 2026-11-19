@@ -1,8 +1,9 @@
 """Turn a facts record into a short explanation, and check it before it reaches the user.
 
-The model sees only the facts. Every reply goes through `find_illegal_moves`;
-if it names a move that is not legal in the position or along the engine line,
-we ask again, and flag the result if the retries run out.
+The model sees only the facts. Every reply is checked for two kinds of objective error:
+moves that are not legal in the position or along the engine line, and pieces placed on
+squares that never hold them (see claims.py). On either, we ask again, and flag the result
+if the retries run out. This does NOT catch wrong judgements or vague filler.
 """
 
 from __future__ import annotations
@@ -12,8 +13,7 @@ from dataclasses import dataclass, field
 
 import chess
 
-from chess_coach import features as cf
-from chess_coach.claims import truth_boards
+from chess_coach.claims import check_claims, truth_boards
 from chess_coach.llm import ChatClient, Message
 
 SYSTEM_PROMPT = """\
@@ -49,6 +49,7 @@ class Explanation:
     text: str
     flagged: bool  # True = still named illegal moves after all retries
     illegal_moves: list[str] = field(default_factory=list)
+    false_placements: list[str] = field(default_factory=list)
     attempts: int = 1
 
 
@@ -66,22 +67,33 @@ def explain(
 ) -> Explanation:
     boards = boards_for_check(facts, best_line_uci)
     messages = build_messages(facts)
-    bad: list[str] = []
+    report = check_claims("", boards)
     text = ""
     for attempt in range(1, max_retries + 2):
         text = client.chat(messages)
-        bad = cf.find_illegal_moves(text, boards)
-        if not bad:
+        report = check_claims(text, boards)
+        if report.count == 0:
             return Explanation(text=text, flagged=False, attempts=attempt)
+        problems = []
+        if report.illegal_moves:
+            problems.append(f"these moves are not legal here: {', '.join(report.illegal_moves)}")
+        if report.false_placements:
+            problems.append(f"these piece placements are wrong: {', '.join(report.false_placements)}")
         messages = [
             *messages,
             {"role": "assistant", "content": text},
             {
                 "role": "user",
                 "content": (
-                    f"These moves are not legal here: {', '.join(bad)}. Rewrite the explanation "
-                    "using only moves that appear in the facts."
+                    "Check failed: " + "; ".join(problems) + ". Rewrite the explanation using "
+                    "only moves and squares that appear in the facts."
                 ),
             },
         ]
-    return Explanation(text=text, flagged=True, illegal_moves=bad, attempts=max_retries + 1)
+    return Explanation(
+        text=text,
+        flagged=True,
+        illegal_moves=report.illegal_moves,
+        false_placements=report.false_placements,
+        attempts=max_retries + 1,
+    )

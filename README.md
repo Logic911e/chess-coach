@@ -56,10 +56,12 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
 
 ## Known limits
 
-- The explanation guardrail only checks move legality. In a live `--explain` run the model wrote
-  "leaves two pawns hanging on e4 and h5" when h5 holds White's queen, and it passed. The evaluation
-  harness has a piece-on-square check (`claims.py`) that is not yet wired into the live guardrail
-  and only matches phrasings like "pawn on h5".
+- The explanation guardrail checks two things: named moves must be legal, and "<piece> on <square>"
+  claims (including lists like "pawns on e4 and h5") must match a real position. It does NOT check
+  relational claims such as "undefended", "pinned" or "attacked", or wrong verdicts. In a live test
+  of six samples for the same blunder (`...Nf6` into `Qxf7#`), all six passed and all six contained
+  errors of that kind, for example "the f7 pawn was already pinned", "Knight to g6" (g6 is a pawn
+  move) and the white queen described as "undefended on h5".
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.
 - No full static exchange evaluation; pins on attackers are ignored.
 - Forks only look at immediate targets; only absolute pins are detected.
