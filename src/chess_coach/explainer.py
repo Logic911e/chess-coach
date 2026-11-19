@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 import chess
 
 from chess_coach import features as cf
+from chess_coach.claims import truth_boards
 from chess_coach.llm import ChatClient, Message
 
 SYSTEM_PROMPT = """\
@@ -53,12 +54,8 @@ class Explanation:
 
 def boards_for_check(facts: dict, best_line_uci: list[str] | None) -> list[chess.Board]:
     """Positions in which a named move counts as legal: start, after the played move,
-    and along the engine line."""
-    start = chess.Board(facts["fen"])
-    boards = cf.positions_along_line(start, [facts["played"]["uci"]])  # start + after played
-    if best_line_uci:
-        boards += cf.positions_along_line(start, best_line_uci)[1:]
-    return boards
+    along the engine line, and the "side passes" position (for naming threats)."""
+    return truth_boards(facts["fen"], facts["played"]["uci"], best_line_uci or [])
 
 
 def explain(
