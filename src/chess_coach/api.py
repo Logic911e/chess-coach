@@ -55,6 +55,23 @@ def line_to_uci(fen: str, line_san: str) -> list[str]:
     return out
 
 
+def _move_flags(fen: str, uci: str) -> tuple[bool, bool]:
+    """(capture, check) for `uci` played from `fen`; check includes mate."""
+    board = chess.Board(fen)
+    move = chess.Move.from_uci(uci)
+    capture = board.is_capture(move)
+    board.push(move)
+    return capture, board.is_check()
+
+
+def suggest_player(counts: dict[str, int], total_games: int) -> str | None:
+    """The name appearing in more than half of the games, else None."""
+    for name, n in counts.items():
+        if total_games and n * 2 > total_games:
+            return name
+    return None
+
+
 def create_app(
     connect: Callable[[], psycopg.Connection] = db.connect,
     client_factory: Callable[[], object] = OllamaClient,
@@ -94,6 +111,25 @@ def create_app(
                 "moves", "key_moments", "errors")
         return [dict(zip(keys, r, strict=True)) for r in rows]
 
+    @app.get("/api/players")
+    def list_players() -> dict:
+        with connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT name, count(DISTINCT id) AS games
+                FROM (SELECT id, white AS name FROM games
+                      UNION ALL SELECT id, black FROM games) p
+                WHERE name IS NOT NULL AND name <> ''
+                GROUP BY name ORDER BY games DESC, name
+                """
+            ).fetchall()
+            total = conn.execute("SELECT count(*) FROM games").fetchone()[0]
+        counts = {name: n for name, n in rows}
+        return {
+            "players": [{"name": name, "games": n} for name, n in rows],
+            "suggested": suggest_player(counts, total),
+        }
+
     @app.get("/api/games/{game_id}")
     def get_game(game_id: int) -> dict:
         with connect() as conn:
@@ -121,7 +157,9 @@ def create_app(
             ).fetchall()
         moves = []
         for r in rows:
+            capture, check = _move_flags(r[6], r[5])
             moves.append({
+                "capture": capture, "check": check,
                 "id": r[0], "ply": r[1], "move_number": r[2], "color": r[3], "san": r[4],
                 "uci": r[5], "fen_before": r[6], "fen_after": _fen_after(r[6], r[5]), "phase": r[7],
                 "best_uci": r[8], "best_san": _best_san(r[6], r[8]),

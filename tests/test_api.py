@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from chess_coach.analyser import analyse_game
-from chess_coach.api import create_app, line_to_uci
+from chess_coach.api import create_app, line_to_uci, suggest_player
 from chess_coach.engine import Analysis
 from chess_coach.llm import LLMError
 from chess_coach.store import save_game
@@ -93,3 +93,33 @@ def test_explain_unknown_move_and_model_down(pg):
     assert http.post("/api/moves/999999/explain").status_code == 404
     move_id = pg.execute("SELECT move_id FROM facts LIMIT 1").fetchone()[0]
     assert http.post(f"/api/moves/{move_id}/explain").status_code == 503
+
+
+def _save(pg, pgn):
+    save_game(pg, pgn, analyse_game(pgn, Swingy(), depth=1), engine_depth=1, engine_version="fake")
+    pg.commit()
+
+
+def test_move_flags(app_and_client, pg):
+    http, _ = app_and_client
+    gid = http.get("/api/games").json()[0]["id"]
+    qh5 = http.get(f"/api/games/{gid}").json()["moves"][2]
+    assert qh5["san"] == "Qh5" and qh5["check"] is False and qh5["capture"] is False
+    _save(pg, '[White "Cy"]\n[Black "Di"]\n[Result "1-0"]\n\n1. e4 e5 2. Bc4 Nc6 3. Bxf7+ 1-0')
+    gid2 = max(g["id"] for g in http.get("/api/games").json())
+    bxf7 = http.get(f"/api/games/{gid2}").json()["moves"][4]
+    assert bxf7["san"] == "Bxf7+" and bxf7["capture"] is True and bxf7["check"] is True
+
+
+def test_suggest_player_majority_and_ties():
+    assert suggest_player({"Ann": 3, "Bo": 2}, 5) == "Ann"
+    assert suggest_player({"Ann": 2, "Bo": 2}, 4) is None
+    assert suggest_player({}, 0) is None
+
+
+def test_players_endpoint_counts_each_game_once(app_and_client, pg):
+    http, _ = app_and_client
+    _save(pg, '[White "Ann"]\n[Black "Ann"]\n[Result "1-0"]\n\n1. e4 e5 2. Qh5 1-0')
+    data = http.get("/api/players").json()
+    assert data["players"] == [{"name": "Ann", "games": 2}, {"name": "Bo", "games": 1}]
+    assert data["suggested"] == "Ann"
