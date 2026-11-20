@@ -1,0 +1,94 @@
+<h2>Which sounds would you want to hear for an hour?</h2>
+<p class="subtitle">Three sound palettes. Press the buttons to hear each event, then click the card you like. Keep your volume low to start. They are all quiet on purpose, and there would be a mute toggle plus a volume slider.</p>
+
+<style>
+.pal { padding:14px 18px; }
+.pal h3 { margin:0 0 4px; }
+.pal p { margin:0 0 10px; opacity:.7; }
+.pal .row { display:flex; flex-wrap:wrap; gap:8px; }
+.pal button { padding:8px 14px; border-radius:8px; border:1px solid rgba(128,128,128,.5); background:rgba(128,128,128,.12);
+  color:inherit; font:600 13px system-ui; cursor:pointer; }
+.pal button:hover { background:rgba(128,128,128,.28); }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="wood" onclick="toggleSelect(this)" style="display:block">
+    <div class="pal">
+      <h3>A · Wood — real-board clicks</h3>
+      <p>Dry, woody taps like pieces on a physical board. Heavier thud for captures. A dull low tone for blunders.</p>
+      <div class="row" data-pal="wood"></div>
+    </div>
+  </div>
+  <div class="option" data-choice="soft" onclick="toggleSelect(this)" style="display:block">
+    <div class="pal">
+      <h3>B · Felt — muted and padded</h3>
+      <p>Very soft, rounded thuds, like a felt-topped board. The least tiring over a long session.</p>
+      <div class="row" data-pal="soft"></div>
+    </div>
+  </div>
+  <div class="option" data-choice="chime" onclick="toggleSelect(this)" style="display:block">
+    <div class="pal">
+      <h3>C · Chime — glassy and musical</h3>
+      <p>Clean little pings and short melodic phrases. Best moves rise, blunders fall. More playful, more "app".</p>
+      <div class="row" data-pal="chime"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  let ctx = null;
+  const A = () => (ctx = ctx || new (window.AudioContext || window.webkitAudioContext)());
+  const out = () => { const c = A(); if (!out.g) { out.g = c.createGain(); out.g.gain.value = 0.5; out.g.connect(c.destination); } return out.g; };
+
+  function noise(t, dur, freq, q, gain) {            // filtered noise burst = "tap"
+    const c = A(), n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const s = c.createBufferSource(); s.buffer = buf;
+    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
+    const g = c.createGain(); g.gain.value = gain;
+    s.connect(f); f.connect(g); g.connect(out()); s.start(t);
+  }
+  function tone(t, f0, f1, dur, gain, type, attack) {   // pitched tone with exponential decay
+    const c = A(), o = c.createOscillator(), g = c.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + (attack || 0.005));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out()); o.start(t); o.stop(t + dur + 0.05);
+  }
+  const P = {
+    wood: {
+      "Move":       t => { noise(t, .05, 1100, 2.5, .9); tone(t, 200, 110, .07, .35); },
+      "Capture":    t => { noise(t, .07, 800, 2, 1.2); noise(t + .045, .05, 1200, 2, .7); tone(t, 150, 80, .1, .5); },
+      "Check":      t => { noise(t, .05, 1100, 2.5, .9); tone(t + .09, 880, 880, .18, .18, "triangle"); },
+      "Best move":  t => { noise(t, .05, 1100, 2.5, .7); tone(t + .06, 660, 990, .3, .2, "triangle", .02); },
+      "Blunder":    t => { noise(t, .06, 700, 1.5, .8); tone(t + .05, 200, 140, .45, .35); },
+      "Key moment": t => { tone(t, 440, 440, .9, .14, "sine", .25); }
+    },
+    soft: {
+      "Move":       t => { noise(t, .07, 450, 1.2, .8); tone(t, 140, 90, .1, .3); },
+      "Capture":    t => { noise(t, .09, 380, 1, 1.1); tone(t, 110, 65, .14, .45); },
+      "Check":      t => { noise(t, .07, 450, 1.2, .7); tone(t + .1, 520, 520, .25, .14); },
+      "Best move":  t => { noise(t, .06, 450, 1.2, .6); tone(t + .07, 392, 523, .4, .16, "sine", .04); },
+      "Blunder":    t => { noise(t, .08, 330, 1, .8); tone(t + .06, 160, 110, .55, .3); },
+      "Key moment": t => { tone(t, 330, 330, 1.1, .12, "sine", .35); }
+    },
+    chime: {
+      "Move":       t => { tone(t, 1250, 1250, .12, .16); },
+      "Capture":    t => { tone(t, 784, 784, .2, .2); tone(t + .05, 1568, 1568, .2, .1); },
+      "Check":      t => { tone(t, 988, 988, .14, .16); tone(t + .13, 988, 988, .2, .16); },
+      "Best move":  t => { [523, 659, 784].forEach((f, i) => tone(t + i * .09, f, f, .35, .16)); },
+      "Blunder":    t => { tone(t, 392, 392, .3, .18); tone(t + .17, 311, 311, .5, .18); },
+      "Key moment": t => { tone(t, 523, 523, 1.2, .14, "sine", .02); tone(t, 1046, 1046, 1.0, .05); }
+    }
+  };
+  document.querySelectorAll(".row[data-pal]").forEach(row => {
+    const set = P[row.dataset.pal];
+    Object.keys(set).forEach(name => {
+      const b = document.createElement("button"); b.textContent = "▶ " + name;
+      b.onclick = e => { e.stopPropagation(); const c = A(); if (c.state === "suspended") c.resume(); set[name](c.currentTime + .02); };
+      row.appendChild(b);
+    });
+  });
+})();
+</script>

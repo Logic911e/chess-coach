@@ -1,0 +1,107 @@
+<h2>Which mood feels right to look at for an hour?</h2>
+<p class="subtitle">Same screen, three moods. Real position from your game (move 11, Qb3, a mistake). Pieces are the Chessnut set. Click the one you'd want to live in.</p>
+
+<style>
+.mood { display:grid; grid-template-columns: 330px 1fr; gap:22px; padding:22px; border-radius:14px; align-items:start; }
+.mood .bd { display:grid; grid-template-columns:repeat(8,1fr); width:330px; height:330px; border-radius:6px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.45); }
+.mood .sq { position:relative; display:flex; }
+.mood .sq img { width:100%; height:100%; }
+.mood .sq.h::after { content:""; position:absolute; inset:0; background:var(--hl); }
+.mood h4 { margin:0 0 4px; font:600 13px system-ui; letter-spacing:.08em; text-transform:uppercase; opacity:.65; }
+.mood .tag { display:inline-block; padding:2px 10px; border-radius:99px; font:600 12px system-ui; background:var(--bad); color:#fff; margin-left:8px; vertical-align:middle; }
+.mood .head { font:600 22px var(--serif); margin-bottom:10px; }
+.mood .coach { font:17px/1.6 var(--serif); margin:0 0 14px; max-width:46ch; }
+.mood .chat { display:flex; gap:8px; margin-top:14px; }
+.mood .chat div { flex:1; padding:10px 14px; border-radius:10px; font:14px system-ui; opacity:.7; background:var(--panel2); }
+.mood .btn { padding:9px 16px; border-radius:10px; font:600 14px system-ui; background:var(--accent); color:var(--onaccent); }
+.mood .strip { display:flex; align-items:flex-end; gap:2px; height:38px; margin-top:16px; }
+.mood .strip i { flex:1; border-radius:2px 2px 0 0; background:var(--muted); }
+.mood .strip i.m { background:var(--warn); } .mood .strip i.b { background:var(--bad); }
+
+.walnut { --bg:radial-gradient(ellipse at 20% 0%, #3a2a1c 0%, #1c1612 60%); --panel2:#2c231b; --ink:#eadfce; --muted:#4a3d31;
+  --accent:#e0a458; --onaccent:#241a10; --hl:rgba(240,190,90,.38); --bad:#c8503c; --warn:#d98b3a; --serif:Georgia,'Iowan Old Style',serif;
+  --l:#e4c897; --d:#a8744a; background:var(--bg); color:var(--ink); }
+.slate { --bg:linear-gradient(160deg,#1b2128,#12161b); --panel2:#222a33; --ink:#d9e0e7; --muted:#303a45;
+  --accent:#6fbfae; --onaccent:#0d1a17; --hl:rgba(111,191,174,.34); --bad:#d9645a; --warn:#d9a24a; --serif:'Charter','Georgia',serif;
+  --l:#b7c4b0; --d:#6d8570; background:var(--bg); color:var(--ink); }
+.paper { --bg:#efe8da; --panel2:#e4dccb; --ink:#2b2620; --muted:#cfc5b0;
+  --accent:#a4492f; --onaccent:#fff7ee; --hl:rgba(196,120,60,.32); --bad:#b8402e; --warn:#c9822f; --serif:'Charter','Georgia',serif;
+  --l:#ecdcbc; --d:#b99b76; background:var(--bg); color:var(--ink); }
+.mood .l { background:var(--l); } .mood .d { background:var(--d); }
+.walnut .l, .walnut .d { background-image:var(--grain); background-blend-mode:multiply; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="walnut" onclick="toggleSelect(this)" style="padding:0;display:block">
+    <div class="mood walnut" id="m1">
+      <div class="bd"></div>
+      <div>
+        <h4>A · Walnut study — warm lamplight, wood, serif voice</h4>
+        <div class="head">11. Qb3 <span class="tag">mistake</span></div>
+        <p class="coach">This move gave up about 0.12 of your winning chances. The engine preferred the quiet b3, keeping the queen safe and the long diagonal open.</p>
+        <span class="btn">Ask the coach</span>
+        <div class="strip" id="s1"></div>
+        <div class="chat"><div>Why not take on d4?</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="slate" onclick="toggleSelect(this)" style="padding:0;display:block">
+    <div class="mood slate" id="m2">
+      <div class="bd"></div>
+      <div>
+        <h4>B · Slate night — cool, quiet, muted green board</h4>
+        <div class="head">11. Qb3 <span class="tag">mistake</span></div>
+        <p class="coach">This move gave up about 0.12 of your winning chances. The engine preferred the quiet b3, keeping the queen safe and the long diagonal open.</p>
+        <span class="btn">Ask the coach</span>
+        <div class="strip" id="s2"></div>
+        <div class="chat"><div>Why not take on d4?</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="paper" onclick="toggleSelect(this)" style="padding:0;display:block">
+    <div class="mood paper" id="m3">
+      <div class="bd"></div>
+      <div>
+        <h4>C · Paper and ink — light, low glare, like a printed study book</h4>
+        <div class="head">11. Qb3 <span class="tag">mistake</span></div>
+        <p class="coach">This move gave up about 0.12 of your winning chances. The engine preferred the quiet b3, keeping the queen safe and the long diagonal open.</p>
+        <span class="btn">Ask the coach</span>
+        <div class="strip" id="s3"></div>
+        <div class="chat"><div>Why not take on d4?</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const fen = "r1bqr1k1/ppp2pbp/3p1np1/4n3/2PNP3/2N3P1/PP3PBP/R1BQR1K1";
+  const grain = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.22' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 -1.1 1.15'/></filter><rect width='300' height='300' filter='url(%23g)'/></svg>\")";
+  document.querySelectorAll('.walnut').forEach(e => e.style.setProperty('--grain', grain));
+  const src = "http://localhost:8000/static/pieces/";
+  const hl = new Set(["d1", "b3"]);
+  ["m1", "m2", "m3"].forEach(id => {
+    const bd = document.querySelector("#" + id + " .bd"); let h = "";
+    fen.split("/").forEach((row, r) => {
+      let c = 0;
+      for (const ch of row) {
+        if (/\d/.test(ch)) { for (let i = 0; i < +ch; i++) { h += sq(r, c, null); c++; } }
+        else { h += sq(r, c, ch); c++; }
+      }
+    });
+    bd.innerHTML = h;
+  });
+  function sq(r, c, p) {
+    const name = "abcdefgh"[c] + (8 - r);
+    const cls = ((r + c) % 2 === 0 ? "l" : "d") + (hl.has(name) ? " h" : "");
+    const img = p ? `<img src="${src}${p === p.toUpperCase() ? "w" : "b"}${p.toUpperCase()}.svg">` : "";
+    return `<div class="sq ${cls}">${img}</div>`;
+  }
+  const bars = [0,0,0,0,1,0,0,0,0,0,3,0,0,0,0,0,2,0,0,0,0,0,0,0,3,0,0,4,0,0,0,0,0,2,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+  ["s1","s2","s3"].forEach(id => {
+    document.getElementById(id).innerHTML = bars.map(v => `<i class="${v>3?'b':v>1?'m':''}" style="height:${4+v*7}px"></i>`).join("");
+  });
+})();
+</script>

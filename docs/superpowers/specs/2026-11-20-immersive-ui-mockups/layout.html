@@ -1,0 +1,84 @@
+<h2>How should the whole screen be arranged?</h2>
+<p class="subtitle">Both shown in the Walnut theme. The coach's chat is part of the screen in both. Click the one that feels like where you'd want to spend time.</p>
+
+<style>
+.L { position:relative; border-radius:14px; overflow:hidden; color:#eadfce; font-family:system-ui;
+     background:radial-gradient(ellipse at 20% 0%, #3a2a1c 0%, #1c1612 62%); --l:#e4c897; --d:#a8744a; --accent:#e0a458; --panel:#2c231b; --bad:#c8503c; --hl:rgba(240,190,90,.38); }
+.L .bd { display:grid; grid-template-columns:repeat(8,1fr); border-radius:6px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.55); }
+.L .sq { display:flex; position:relative; } .L .sq img { width:100%; height:100%; }
+.L .l { background:var(--l);} .L .d { background:var(--d);} .L .sq.h::after { content:""; position:absolute; inset:0; background:var(--hl); }
+.L .tag { padding:2px 10px; border-radius:99px; font:600 12px system-ui; background:var(--bad); color:#fff; margin-left:8px; }
+.L .serif { font-family:Georgia,'Iowan Old Style',serif; }
+.L .dim { opacity:.6; }
+.L .pill { display:inline-block; padding:5px 12px; border-radius:99px; background:#ffffff14; font:13px system-ui; margin:0 6px 0 0; }
+.L .btn { display:inline-block; padding:8px 16px; border-radius:10px; background:var(--accent); color:#241a10; font:600 14px system-ui; }
+.L .bar { display:flex; align-items:center; gap:10px; padding:10px 16px; font-size:13px; opacity:.85; }
+.L .dots i { display:inline-block; width:14px; height:14px; border-radius:50%; margin-right:5px; border:1px solid #ffffff40; }
+.L .strip { display:flex; align-items:flex-end; gap:2px; height:30px; }
+.L .strip i { flex:1; background:#4a3d31; border-radius:2px 2px 0 0; } .L .strip i.m { background:#d98b3a; } .L .strip i.b { background:var(--bad); }
+.L .chatbox { background:#00000033; border-radius:12px; padding:12px; }
+.L .msg { padding:8px 12px; border-radius:10px; background:#ffffff12; margin-bottom:8px; font-size:14px; line-height:1.5; }
+.L .me { background:#e0a45833; margin-left:30px; }
+.L .input { padding:10px 14px; border-radius:10px; background:#00000055; font-size:14px; opacity:.7; }
+.A { display:grid; grid-template-columns:150px 380px 1fr; gap:18px; padding:16px; height:470px; }
+.A .rail div { padding:7px 8px; border-radius:8px; font-size:12px; margin-bottom:4px; background:#ffffff0c; }
+.A .rail div.on { background:#e0a45826; }
+.B { height:470px; }
+.B .stage { position:absolute; left:50%; top:46px; transform:translateX(-50%); width:330px; }
+.B .caption { position:absolute; left:50%; transform:translateX(-50%); bottom:56px; width:560px; background:#140f0bdd; border:1px solid #ffffff1f; border-radius:14px; padding:14px 18px; backdrop-filter:blur(6px); }
+.B .drawer { position:absolute; right:14px; bottom:14px; padding:8px 16px; border-radius:99px; background:#ffffff1a; font-size:13px; }
+.B .side { position:absolute; left:14px; top:46px; font-size:12px; opacity:.7; line-height:2; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="desk" onclick="toggleSelect(this)" style="padding:0;display:block">
+    <div class="L A" id="LA">
+      <div class="rail dim"><div class="on">vs hikaru_my_friend</div><div>vs inyourhead666</div><div>vs ChubbyGambler</div><div>vs suit_satria</div></div>
+      <div><div class="bd" id="bA" style="width:380px;height:380px"></div>
+        <div class="strip" id="sA" style="margin-top:12px"></div></div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div class="serif" style="font-size:22px;font-weight:600">11. Qb3 <span class="tag">mistake</span></div>
+        <div class="serif" style="font-size:16px;line-height:1.55">You gave up about 0.12 of your winning chances. The engine preferred the quiet b3, keeping the queen safe.</div>
+        <div><span class="pill">Guess the better move</span><span class="pill">Show the engine's move</span></div>
+        <div class="chatbox" style="flex:1">
+          <div class="msg me">Why not take on d4?</div>
+          <div class="msg">Taking on d4 loses a piece to the knight fork…</div>
+          <div class="input">Ask about this position…</div></div>
+      </div>
+      <div style="position:absolute;right:16px;top:8px" class="dots dim">🎨 <i style="background:#a8744a"></i><i style="background:#6d8570"></i><i style="background:#d8c9a8"></i> 🔊 Felt</div>
+    </div>
+    <div style="padding:10px 16px 14px" class="dim">A · Study desk — everything visible at once: game rail, board, coach and chat side by side.</div>
+  </div>
+
+  <div class="option" data-choice="theatre" onclick="toggleSelect(this)" style="padding:0;display:block">
+    <div class="L B" id="LB">
+      <div class="bar"><span class="serif" style="font-size:15px">Chess Coach</span><span class="dim">· vs hikaru_my_friend · move 11 of 42</span>
+        <span style="margin-left:auto" class="dots">🎨 <i style="background:#a8744a"></i><i style="background:#6d8570"></i><i style="background:#d8c9a8"></i> 🔊 Felt</span></div>
+      <div class="side">Games ›<br>Your patterns ›<br>Retry blunders ›</div>
+      <div class="stage"><div class="bd" id="bB" style="width:330px;height:330px"></div></div>
+      <div class="caption">
+        <div class="serif" style="font-size:18px;font-weight:600">11. Qb3 <span class="tag">mistake</span></div>
+        <div class="serif" style="margin:4px 0 10px;line-height:1.5">You gave up about 0.12 of your winning chances. The engine preferred the quiet b3.</div>
+        <span class="pill">Guess first</span><span class="pill">Show engine move</span>
+      </div>
+      <div class="drawer">💬 Ask the coach  ⌃</div>
+    </div>
+    <div style="padding:10px 16px 14px" class="dim">B · Theatre — the board is the stage. The coach speaks in a caption card. Chat slides up only when you want it. Fewer things on screen.</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const fen = "r1bqr1k1/ppp2pbp/3p1np1/4n3/2PNP3/2N3P1/PP3PBP/R1BQR1K1", src = "http://localhost:8000/static/pieces/", hl = new Set(["d1", "b3"]);
+  ["bA", "bB"].forEach(id => {
+    let h = "";
+    fen.split("/").forEach((row, r) => { let c = 0; for (const ch of row) {
+      if (/\d/.test(ch)) { for (let i = 0; i < +ch; i++) { h += sq(r, c, null); c++; } } else { h += sq(r, c, ch); c++; } } });
+    document.getElementById(id).innerHTML = h;
+  });
+  function sq(r, c, p) { const n = "abcdefgh"[c] + (8 - r);
+    return `<div class="sq ${(r + c) % 2 === 0 ? "l" : "d"}${hl.has(n) ? " h" : ""}">${p ? `<img src="${src}${p === p.toUpperCase() ? "w" : "b"}${p.toUpperCase()}.svg">` : ""}</div>`; }
+  const bars = [0,0,0,1,0,0,0,0,3,0,0,0,2,0,0,0,3,0,4,0,0,0,0,2,0,0,0,0,5,0,0,0,0,0,0,0,0];
+  document.getElementById("sA").innerHTML = bars.map(v => `<i class="${v > 3 ? "b" : v > 1 ? "m" : ""}" style="height:${4 + v * 5}px"></i>`).join("");
+})();
+</script>

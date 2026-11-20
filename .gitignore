@@ -12,3 +12,6 @@ __pycache__/
 stockfish*
 *.nnue
 .DS_Store
+
+# visual brainstorming scratch
+.superpowers/
