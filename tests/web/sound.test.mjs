@@ -156,3 +156,17 @@ test("test_web_audio_error_inside_play_is_swallowed", () => {
   player.play(["move"]);
   player.playKeyMoment();
 });
+
+test("test_key_sound_in_the_same_tick_as_the_move_sound_is_scheduled", () => {
+  const { player, log, ctx } = setup({ soundPalette: "felt" });
+  player.unlock();
+  ctx.currentTime = 5;
+  // The reveal after a matched guess: no clock advance between the cue and the key sound.
+  player.play([...soundsFor(mv({ classification: "best" })), "key"]);
+  assert.ok(log.freqs.includes(330), "felt key tone (330 Hz) was scheduled");
+  // And the old two-call form really is dropped by the throttle, which is why main.js must use one array.
+  const b = setup({ soundPalette: "felt" });
+  b.player.unlock(); b.ctx.currentTime = 5;
+  b.player.play(["move"]); const before = b.log.starts; b.player.playKeyMoment();
+  assert.equal(b.log.starts, before);
+});

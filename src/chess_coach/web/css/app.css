@@ -176,7 +176,10 @@ kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px s
 .guess-msg:empty { display: none; }
 .guess-msg.gentle { color: var(--muted); }
 .guess-msg.error { color: var(--bad); }
-#guessBtn[hidden] { display: none; }
+#guessBtn[hidden], #showAnswerBtn[hidden], .guess-form[hidden] { display: none; }
+.guess-form { display: flex; gap: 6px; margin: 2px 0 6px; }
+.guess-form input { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
 #boardWrap[data-guess="on"] .sq { cursor: pointer; }
 
 /* very small screens: the top bar wraps and the strip drops to its own row, so no control is clipped */

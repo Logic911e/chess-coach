@@ -16,6 +16,25 @@ export function canGuess(move, me, game) {
   return mover === me;
 }
 
+/**
+ * True while the page must stay neutral for a move: it is the user's own key moment and the guess
+ * has neither been spent nor skipped with "Show the answer" this visit (covers an active guess too).
+ */
+export function isHidden(move, me, game, flow, answered) {
+  return canGuess(move, me, game) && !flow.resultFor(move) && !answered.has(move.id);
+}
+
+/** Strip bar height in px: neutral bars are all the same height so the loss cannot leak. */
+export function stripBarHeight(view, loss) {
+  return view.stripNeutral ? 4 : Math.max(4, loss * 30);
+}
+
+/** Typed move: trimmed, lower case, 4-5 chars of UCI shape; else null. Legality stays on the server. */
+export function parseTypedMove(text) {
+  const t = String(text || "").trim().toLowerCase();
+  return /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(t) ? t : null;
+}
+
 export function revealLine(r) {
   if (r.matched) return `Your guess: ${r.san} matched the engine's move.`;
   const what = PHRASE[r.classification] || `a ${r.classification} move`;
@@ -90,18 +109,28 @@ export function createGuessFlow({ api, ui }) {
         g.from = square; ui.select(square); return;
       }
       if (g.from === square) { g.from = null; ui.select(null); return; }
-      const uci = toUci(g.move.fen_before, g.from, square);
-      g.busy = true; ui.pending(true);
-      let r, err = null;
-      try { r = await api.guessMove(g.move.id, uci); } catch (e) { err = e; }
-      if (cur !== g) return;  // cancelled or moved away while scoring: paint nothing
-      g.busy = false; g.from = null; ui.pending(false); ui.select(null);
-      if (err) { ui.message(err.message || "Could not score the guess.", "error"); return; }
-      if (!r.legal) { ui.message("That is not a legal move here. Try another.", "gentle"); return; }
-      const line = revealLine(r);
-      results.set(g.move.id, line);
-      cur = null;
-      ui.reveal(g.move, r, line);
+      return submit(g, toUci(g.move.fen_before, g.from, square));
+    },
+    // A move typed as text (e2e4, e7e8q): same submit path as two clicks.
+    async typed(text) {
+      if (!cur || cur.busy) return;
+      const g = cur, t = parseTypedMove(text);
+      if (!t) { ui.message("Type a move like e2e4 (a promotion like e7e8q).", "gentle"); return; }
+      return submit(g, t.length === 4 ? toUci(g.move.fen_before, t.slice(0, 2), t.slice(2)) : t);
     },
   };
+
+  async function submit(g, uci) {
+    g.busy = true; ui.pending(true);
+    let r, err = null;
+    try { r = await api.guessMove(g.move.id, uci); } catch (e) { err = e; }
+    if (cur !== g) return;  // cancelled or moved away while scoring: paint nothing
+    g.busy = false; g.from = null; ui.pending(false); ui.select(null);
+    if (err) { ui.message(err.message || "Could not score the guess.", "error"); return; }
+    if (!r.legal) { ui.message("That is not a legal move here. Try another.", "gentle"); return; }
+    const line = revealLine(r);
+    results.set(g.move.id, line);
+    cur = null;
+    ui.reveal(g.move, r, line);
+  }
 }

@@ -5,7 +5,7 @@ import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
-import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName } from "./guess.js";
+import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
 
@@ -14,6 +14,9 @@ const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: f
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const QUIET = ["best", "excellent", "good"];
+const answered = new Set();  // move ids whose answer the user chose to see this visit (not persisted)
+// Neutral until the user has guessed or chosen "Show the answer" (also true during an active guess).
+const hiddenNow = (mv) => isHidden(mv, state.me, state.game, guessFlow, answered);
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -65,11 +68,12 @@ function render(animate = false) {
   const g = state.game; if (!g || !g.moves.length) return;
   const mv = cur();
   const guessing = guessFlow.active();
+  const hidden = hiddenNow(mv);
   renderBoard($("boardWrap"), mv.fen_before, {
     flipped: state.flipped,
-    // While guessing, nothing on the board may give the answer away: no arrows, no played-move highlight.
-    highlight: guessing ? (state.guess.from ? [state.guess.from] : []) : [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
-    arrows: guessing ? [] : moveArrows(mv, labelColors(), { hideBest: !state.showEngine }),
+    // Until the user guesses or asks, nothing on the board may give the answer away: no arrows, no played-move highlight.
+    highlight: hidden ? (guessing && state.guess.from ? [state.guess.from] : []) : [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
+    arrows: hidden ? [] : moveArrows(mv, labelColors(), { hideBest: !state.showEngine }),
     slides: state.slides,
     motion: animate,
   });
@@ -78,40 +82,55 @@ function render(animate = false) {
 
   $("gameTitle").textContent = `${g.white} vs ${g.black} · ${g.result}`;
   $("counter").textContent = `move ${state.idx + 1} of ${g.moves.length}`;
-  const view = guessView(mv, guessing);
+  const view = guessView(mv, hidden);
   $("moveName").textContent = view.heading;
   $("labelPill").replaceChildren(...(view.showPill ? [el("span", { className: "pill " + mv.classification, textContent: mv.classification })] : []));
   $("reasons").replaceChildren(...(view.showReasons ? mv.reasons.map((r) =>
     el("span", { className: "reason", textContent: "key moment: " + r.replace("_", " ") })) : []));
   const bestTxt = mv.best_uci === mv.uci ? "the engine's best move" : `the engine preferred ${mv.best_san}`;
-  $("happened").textContent = guessing ? "" :
+  $("happened").textContent = hidden ? "" :
     `${mv.color === "white" ? g.white : g.black} lost ${mv.expected_points_lost.toFixed(3)} expected points; ${bestTxt}.`;
-  renderGuessUi(mv, guessing);
+  renderGuessUi(mv, guessing, hidden);
   renderAsk();
-  if (!guessing) renderExplain(mv);
+  if (!hidden) renderExplain(mv);
   renderStrip();
   renderMoveList();
   $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));  // one signal: static label + pressed state
+  $("engineBtn").disabled = hidden;  // it would give the answer away
+  $("engineBtn").title = hidden ? "Available once you have guessed or shown the answer" : "";
   $("prevKey").disabled = keyIndex(g.moves, state.idx, -1) < 0;
   $("nextKey").disabled = keyIndex(g.moves, state.idx, 1) < 0;
   $("first").disabled = $("prev").disabled = state.idx === 0;
   $("last").disabled = $("next").disabled = state.idx === g.moves.length - 1;
 }
 
-function renderGuessUi(mv, guessing) {
-  const g = state.game, btn = $("guessBtn"), msg = $("guessMsg");
+function renderGuessUi(mv, guessing, hidden) {
+  const g = state.game, btn = $("guessBtn"), msg = $("guessMsg"), form = $("guessForm"), input = $("guessInput");
   const can = canGuess(mv, state.me, g), done = guessFlow.resultFor(mv);
   btn.hidden = !can;
-  btn.disabled = !can || (!!done && !guessing);
+  const shown = answered.has(mv.id);
+  btn.disabled = !can || (!!done && !guessing) || (shown && !guessing);
   btn.textContent = guessing ? "Cancel guess" : "Guess first";
-  btn.title = done && !guessing ? "One guess per key moment" : "Guess the better move (G)";
+  btn.title = shown && !guessing ? "You have already seen the answer" : done && !guessing ? "One guess per key moment" : "Guess the better move (G)";
+  $("showAnswerBtn").hidden = !(hidden && !guessing);
+  // Focus must not be lost when the typed-move field disappears (Esc, reveal).
+  const hadFocus = form.contains(document.activeElement);
+  form.hidden = !guessing;
+  if (!guessing) {
+    input.value = "";
+    if (hadFocus) (btn.disabled || btn.hidden ? $("engineBtn") : btn).focus();
+  }
+  input.disabled = guessing && state.guess.busy;
   msg.className = "guess-msg" + (guessing && state.guess.kind ? " " + state.guess.kind : "");
+  if (hidden) {
+    $("explainBox").replaceChildren(el("div", { className: "note", textContent: guessing
+      ? "The explanation is hidden until you guess." : "The explanation is hidden until you guess or show the answer." }));
+    $("explainAct").replaceChildren();
+  }
   if (guessing) {
     msg.textContent = state.guess.busy ? "Scoring your move with the engine. This can take a few seconds…"
-      : state.guess.msg || (state.guess.from ? "Now click where it goes." : "Click the piece you would move.");
-    $("explainBox").replaceChildren(el("div", { className: "note", textContent: "The explanation is hidden until you guess." }));
-    $("explainAct").replaceChildren();
-  } else msg.textContent = done || "";
+      : state.guess.msg || (state.guess.from ? "Now click where it goes." : "Click the piece you would move, or type it below.");
+  } else msg.textContent = hidden ? "Your key moment. Guess the better move first, or show the answer." : done || "";
 }
 
 // While a guess is active the chat is off, so an answer (which may name the engine's best move) cannot leak it.
@@ -122,18 +141,20 @@ const GUESS_FIRST = "Finish your guess first.";
 const guessFlow = createGuessFlow({
   api: { guessMove },
   ui: {
-    enter() { state.guess = { from: null, busy: false, msg: "", kind: "" }; render(); },
+    enter() { state.guess = { from: null, busy: false, msg: "", kind: "" }; render(); $("guessInput").focus(); },
     select(sq) { state.guess.from = sq; state.guess.msg = ""; state.guess.kind = ""; if (guessFlow.active()) render(); },
-    pending(b) { state.guess.busy = b; if (b) { state.guess.msg = ""; state.guess.kind = ""; } if (guessFlow.active()) render(); },
+    pending(b) { state.guess.busy = b; if (b) { state.guess.msg = ""; state.guess.kind = ""; }
+      if (guessFlow.active()) { render(); if (!b && document.activeElement === document.body) $("guessInput").focus(); } },
     message(text, kind) { state.guess.msg = text; state.guess.kind = kind; if (guessFlow.active()) render(); },
     cancelled() { if (state.game) render(); },
     spentAlready() {},
     reveal(mv, result) {
       if (cur() !== mv) return;  // the flow is cancelled on navigation; this is a second guard
       render();
+      if (document.activeElement === document.body) $("engineBtn").focus();  // the disabled field lost focus
       if (motionAllowed()) {
-        player.play(soundsFor({ classification: result.classification }));
-        if (result.matched) player.playKeyMoment();
+        // One call: sound.js drops a second play in the same tick, which would swallow the key sound.
+        player.play([...soundsFor({ classification: result.classification }).slice(1), ...(result.matched ? ["key"] : [])]);
       }
       if (!mv.explanation) explain(mv, false);
     },
@@ -142,12 +163,24 @@ const guessFlow = createGuessFlow({
 function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
-  if (!canGuess(mv, state.me, state.game)) return;
+  if (!canGuess(mv, state.me, state.game) || answered.has(mv.id)) return;
   setChat(false);
   chat.invalidate();  // an answer still in flight could name the best move
   guessFlow.begin(mv);
 }
 function cancelGuess() { guessFlow.cancel(); }
+function showAnswer() {
+  if (!state.game || !state.game.moves.length || guessFlow.active()) return;
+  const mv = cur();
+  if (!hiddenNow(mv)) return;
+  answered.add(mv.id);
+  render();
+  if (motionAllowed()) {  // the base sound already played on arrival; add the label's cue
+    const cue = soundsFor(mv).slice(1);
+    if (cue.length) player.play(cue);
+  }
+  $("engineBtn").focus();  // the button that was pressed has just gone
+}
 
 const HONESTY = "Written by a small local model from engine facts. It is checked for legal moves and piece squares only, so it can still contain mistakes.";
 
@@ -174,9 +207,9 @@ function renderExplain(mv) {
 
 async function explain(mv, regenerate) {
   const box = $("explainBox");
-  // A guess hides the explanation: writes from a request in flight are skipped, and the result is
+  // A hidden (not yet guessed) move hides the explanation: writes from a request in flight are skipped, and the result is
   // cached on the move so render() shows it after the reveal or a cancel.
-  if (mayWriteExplain(guessFlow.active())) {
+  if (mayWriteExplain(hiddenNow(mv))) {
     $("explainAct").replaceChildren();
     box.replaceChildren(el("div", { className: "note", textContent: "Asking the local model…" }));
   }
@@ -185,7 +218,7 @@ async function explain(mv, regenerate) {
     mv.explanation = r.body; mv.explanation_flagged = r.flagged;
   } catch (e) {
     if (cur() === mv) {
-      if (!mayWriteExplain(guessFlow.active())) return;
+      if (!mayWriteExplain(hiddenNow(mv))) return;
       box.replaceChildren(el("div", { className: "warn", textContent: e.message }));
       const retry = el("button", { type: "button", textContent: mv.explanation ? "Regenerate" : "Explain this move" });
       retry.onclick = () => explain(mv, regenerate);
@@ -193,7 +226,7 @@ async function explain(mv, regenerate) {
       return;
     }
   }
-  if (cur() === mv && mayWriteExplain(guessFlow.active())) renderExplain(mv);
+  if (cur() === mv && mayWriteExplain(hiddenNow(mv))) renderExplain(mv);
 }
 
 // Rebuilding a list drops focus; put it back on the current item when it was inside the list.
@@ -206,12 +239,12 @@ function renderStrip() {
   const strip = $("strip"), hadFocus = strip.contains(document.activeElement);
   strip.replaceChildren();
   state.game.moves.forEach((mv, i) => {
-    const guessing = guessFlow.active() && i === state.idx;
+    const guessing = i === state.idx && hiddenNow(mv);
     const view = guessView(mv, guessing);
     const b = el("button", { type: "button", title: view.stripTitle, tabIndex: i === state.idx ? 0 : -1 });
     b.setAttribute("aria-label", moveA11yName(mv, guessing));
     if (i === state.idx) b.setAttribute("aria-current", "step");
-    b.style.height = Math.max(4, mv.expected_points_lost * 30) + "px";
+    b.style.height = stripBarHeight(view, mv.expected_points_lost) + "px";
     if (!view.stripNeutral && !QUIET.includes(mv.classification)) b.style.background = css("--" + mv.classification);
     if (i === state.idx) b.classList.add("cur");
     b.onclick = () => go(i);
@@ -225,7 +258,7 @@ function renderMoveList() {
   const list = $("moveList"), hadFocus = list.contains(document.activeElement);
   list.replaceChildren(...state.game.moves.map((mv, i) => {
     const b = el("button", { type: "button", tabIndex: i === state.idx ? 0 : -1,
-      textContent: moveA11yName(mv, guessFlow.active() && i === state.idx) });
+      textContent: moveA11yName(mv, i === state.idx && hiddenNow(mv)) });
     if (i === state.idx) b.setAttribute("aria-current", "step");
     b.onclick = () => go(i);
     return el("li", {}, b);
@@ -244,7 +277,8 @@ function go(i) {
   state.idx = j;
   chat.sync();
   render(moved && motionAllowed());
-  if (moved && motionAllowed()) player.play(soundsFor(cur()));
+  // A hidden move only gets its base sound: the best/blunder cue would give the answer away.
+  if (moved && motionAllowed()) player.play(soundsFor(hiddenNow(cur()) ? { capture: cur().capture, check: cur().check } : cur()));
 }
 function goKey(dir) {
   if (!state.game || !state.game.moves.length) return;
@@ -453,6 +487,8 @@ $("prev").onclick = () => go(state.idx - 1);
 $("next").onclick = () => go(state.idx + 1);
 $("prevKey").onclick = () => goKey(-1);
 $("nextKey").onclick = () => goKey(1);
+$("showAnswerBtn").onclick = showAnswer;
+$("guessForm").addEventListener("submit", (e) => { e.preventDefault(); guessFlow.typed($("guessInput").value); });
 $("guessBtn").onclick = () => { if (guessFlow.active()) cancelGuess(); else startGuess(); };
 $("boardWrap").addEventListener("click", (e) => {
   if (modalOpen() || $("chatDrawer").classList.contains("open") || !guessFlow.active()) return;

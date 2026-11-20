@@ -58,8 +58,13 @@ try {
     <div id="happened" class="happened"></div>
     <div id="guessMsg" class="guess-msg" role="status"></div>
     <div id="explainBox" class="explain-scroll"></div>
+    <form id="guessForm" class="guess-form" hidden autocomplete="off">
+      <input id="guessInput" type="text" placeholder="Type your move, e.g. e2e4" aria-label="Type your move in UCI form, for example e2e4, then press Enter. Escape cancels the guess." maxlength="12" spellcheck="false" autocapitalize="off" autocorrect="off">
+      <button type="submit" id="guessSubmit">Guess</button>
+    </form>
     <div class="cap-actions">
       <button type="button" id="guessBtn" hidden title="Guess the better move (G)">Guess first</button>
+      <button type="button" id="showAnswerBtn" hidden>Show the answer</button>
       <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
       <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
       <span id="explainAct" class="explain-act"></span>

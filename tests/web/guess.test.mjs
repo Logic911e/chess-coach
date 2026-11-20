@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain, moveA11yName } from "../../src/chess_coach/web/js/guess.js";
+import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain, moveA11yName,
+  stripBarHeight, isHidden, parseTypedMove } from "../../src/chess_coach/web/js/guess.js";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const game = { white: "Alice", black: "Bob" };
@@ -146,4 +147,68 @@ test("moveA11yName names a move, and never reveals the current move during a gue
   const g = moveA11yName(m, true);
   assert.equal(g, "Move 11, your move");
   assert.ok(!g.includes("Qb3") && !g.includes("mistake"));
+});
+
+test("strip bar height is 4px when neutral whatever the loss, scaled otherwise", () => {
+  assert.equal(stripBarHeight({ stripNeutral: true }, 0.6), 4);
+  assert.equal(stripBarHeight({ stripNeutral: true }, 0), 4);
+  assert.equal(stripBarHeight({ stripNeutral: false }, 0.6), 18);
+  assert.equal(stripBarHeight({ stripNeutral: false }, 0.01), 4);
+});
+
+test("isHidden: a guessable move with no result and not answered is hidden", () => {
+  const flow = { resultFor: (m) => (m.id === 9 ? "line" : null) };
+  const answered = new Set([8]);
+  assert.equal(isHidden(mv(), "Alice", game, flow, answered), true);
+  assert.equal(isHidden(mv({ id: 9 }), "Alice", game, flow, answered), false);   // guess spent
+  assert.equal(isHidden(mv({ id: 8 }), "Alice", game, flow, answered), false);   // show the answer chosen
+  assert.equal(isHidden(mv({ color: "black" }), "Alice", game, flow, answered), false);  // opponent
+  assert.equal(isHidden(mv({ is_key_moment: false }), "Alice", game, flow, answered), false);
+  assert.equal(isHidden(mv(), null, game, flow, answered), false);               // me not chosen
+});
+
+test("parseTypedMove trims, lowercases and accepts only uci shapes", () => {
+  assert.equal(parseTypedMove("  E2E4 "), "e2e4");
+  assert.equal(parseTypedMove("e7e8q"), "e7e8q");
+  assert.equal(parseTypedMove("E7E8Q"), "e7e8q");
+  for (const bad of ["", "e2", "e2e", "e2e4qq", "e2e9", "i2e4", "e2e4x", "Nf3", "e2 e4"]) assert.equal(parseTypedMove(bad), null, bad);
+});
+
+test("typed move: malformed text never calls the api and keeps the attempt open", async () => {
+  const { flow, sent, calls } = setup([]);
+  const m = mv();
+  flow.begin(m);
+  await flow.typed("hello");
+  assert.equal(sent.length, 0);
+  assert.ok(calls.some((c) => c[0] === "message" && c[2] === "gentle"));
+  assert.equal(flow.active(), true);
+});
+
+test("typed move: goes through the same path as a pick (trim, lowercase, queen letter, illegal keeps open, reveal spends)", async () => {
+  const promo = { id: 3, color: "white", is_key_moment: true, fen_before: "8/4P1k1/8/8/8/8/8/K7 w - - 0 1" };
+  const { flow, sent, calls } = setup([{ legal: false }, ok(), ok()]);
+  flow.begin(promo);
+  await flow.typed(" E7E8 ");
+  assert.deepEqual(sent[0], [3, "e7e8q"]);           // queen letter appended like a click
+  assert.equal(flow.active(), true);                 // illegal: still open
+  assert.ok(calls.some((c) => c[0] === "message" && c[2] === "gentle"));
+  await flow.typed("e7e8q");
+  assert.deepEqual(sent[1], [3, "e7e8q"]);
+  assert.equal(flow.active(), false);
+  assert.ok(calls.some((c) => c[0] === "reveal"));
+  await flow.typed("e7e8q");                          // spent: nothing more is sent
+  assert.equal(sent.length, 2);
+});
+
+test("typed move: cancelling while scoring paints nothing", async () => {
+  let release; const api = { guessMove: () => new Promise((r) => { release = r; }) };
+  const calls = []; const rec = (n) => (...a) => calls.push([n, ...a]);
+  const flow = createGuessFlow({ api, ui: { enter: rec("enter"), select: rec("select"), pending: rec("pending"),
+    message: rec("message"), reveal: rec("reveal"), cancelled: rec("cancelled"), spentAlready: rec("spentAlready") } });
+  flow.begin(mv());
+  const p = flow.typed("e2e4");
+  flow.cancel();
+  release(ok());
+  await p;
+  assert.ok(!calls.some((c) => c[0] === "reveal"));
 });

@@ -43,8 +43,12 @@ shows how much each move cost (taller means more expected points lost).
 - **Study mode:** removes all sound and motion. The page does the same when your system asks for reduced motion.
 - **Keyboard:** Left/Right step through moves, `j`/`k` jump to the next/previous key moment, `g` starts a
   guess, `/` opens the chat, `m` mutes or unmutes, `?` lists the shortcuts, Esc closes a panel.
-- **Guess first:** on a key moment you played, "Guess first" hides the label, arrows and explanation. Click the
-  piece you would move, then the square. The engine scores your move and then reveals the answer.
+- **Guess first:** when you arrive on a key moment you played (by opening a game, stepping, `j`/`k` or the
+  strip), the page stays neutral: "Move N, your move", no label, no arrows, no engine text, no explanation,
+  and only the plain move sound. Choose "Guess first" (or `g`) or "Show the answer"; the answer stays shown
+  for the rest of the visit. To guess, click the piece and the square, or type the move in the field that
+  appears (UCI such as `e2e4`, or `e7e8q`; Enter submits, Esc cancels). The engine scores it, then the page
+  reveals the answer.
 - **Chat:** "Ask the coach" asks the local model about the position on screen. History is dropped when you
   change move, and chat is off during a guess so an answer cannot give the move away.
 - **Which player are you:** guess-first needs to know which player is you. The server may suggest one;
@@ -136,7 +140,8 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   by unit tests, the outline colours by a computed-contrast test, and the small-screen layout was measured at
   320px wide and 300px tall but not looked at on a real phone.
 - Guess-first needs the engine and takes a few seconds to score a guess.
-- There is no keyboard-only way to pick squares during a guess yet; it needs the mouse or touch.
+- The typed-move field takes UCI only (`e2e4`), not SAN, and has not been tried with a screen reader.
+- Chat is not switched off in the neutral view before you guess, only during an active guess, so an answer there can name the engine's move.
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.
 - No full static exchange evaluation; pins on attackers are ignored.
 - Forks only look at immediate targets; only absolute pins are detected.
