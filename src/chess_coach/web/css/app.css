@@ -4,8 +4,9 @@
   --best: #3fae6a; --excellent: #3fae6a; --good: #9bb84a; --inaccuracy: #dcae2a;
   --mistake: #e8812c; --blunder: #e0584a;
   --topbar-h: 46px;
-  /* board + card (max 168px) + nav (42px) + gaps must fit: nothing may overlap the board */
-  --boardw: min(calc(100vh - var(--topbar-h) - 250px), 92vw);
+  --cardw: clamp(300px, 28vw, 400px);
+  /* beside the board: only the top bar, nav row and padding take height */
+  --boardw: min(calc(100vh - var(--topbar-h) - 82px), calc(100vw - var(--cardw) - 64px));
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -42,7 +43,7 @@ button:disabled { opacity: .45; cursor: default; }
 #studyToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* stage */
-#stage { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 14px; }
+#stage { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 14px 20px 0; }
 #boardCol { width: var(--boardw); display: flex; flex-direction: column; }
 #boardWrap {
   position: relative; width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
@@ -60,20 +61,21 @@ button:disabled { opacity: .45; cursor: default; }
 .sq i.f { right: 3px; bottom: 1px; } .sq i.r { left: 3px; top: 1px; }
 .arrows { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-/* caption card over the lower edge of the board */
+/* caption card: a quiet column beside the board, as tall as the board; never over it */
 .caption {
-  position: relative; z-index: 3; margin: 6px 0 0; padding: 10px 16px 12px;
-  background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line);
-  border-radius: 14px; backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-  max-height: 168px; overflow: auto;
+  width: var(--cardw); height: var(--boardw); display: flex; flex-direction: column; flex: none;
+  padding: 14px 16px; background: color-mix(in srgb, var(--panel) 70%, transparent);
+  border: 1px solid var(--line); border-radius: 14px;
 }
+.explain-scroll { flex: 1; min-height: 0; overflow: auto; margin: 6px 0; }
 .cap-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .move-name { font-size: 18px; font-weight: 600; }
 .happened { color: var(--muted); font-size: 13px; margin: 2px 0 4px; }
 .explain-text { margin: 4px 0; white-space: pre-wrap; font-size: 15px; line-height: 1.5; }
-#explainBox button, .cap-actions button { font-size: 13px; }
-.cap-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.cap-actions button { border-radius: 99px; }
+.cap-actions button { font-size: 13px; }
+.cap-actions { display: flex; flex-wrap: wrap; gap: 6px; flex: none; }
+.explain-act { display: contents; }
+
 .pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 99px;
   font-size: 12px; font-weight: 600; color: var(--ink); border: 1px solid var(--pill, var(--line));
@@ -121,4 +123,11 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
   .counter { display: none; }
   .topbar { gap: 10px; padding: 0 12px; }
   .nav > button { padding: 3px 6px; }
+}
+
+/* narrow windows: card stacks under the board at a fixed height (so the board never jumps) */
+@media (max-width: 820px) {
+  :root { --capH: 190px; --boardw: min(calc(100vh - var(--topbar-h) - 82px - var(--capH) - 10px), 92vw); }
+  #stage { flex-direction: column; align-items: center; gap: 10px; }
+  .caption { width: min(92vw, 520px); height: var(--capH); }
 }

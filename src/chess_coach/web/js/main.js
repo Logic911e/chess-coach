@@ -41,7 +41,7 @@ function labelColors() {
 }
 
 function render() {
-  const g = state.game; if (!g) return;
+  const g = state.game; if (!g || !g.moves.length) return;
   const mv = cur();
   renderBoard($("boardWrap"), mv.fen_before, {
     flipped: state.flipped,
@@ -73,7 +73,8 @@ function render() {
 const HONESTY = "Written by a small local model from engine facts. It is checked for legal moves and piece squares only, so it can still contain mistakes.";
 
 function renderExplain(mv) {
-  const box = $("explainBox"); box.replaceChildren();
+  const box = $("explainBox"), act = $("explainAct");
+  box.replaceChildren(); act.replaceChildren();
   if (mv.explanation) {
     box.append(el("p", { className: "explain-text", textContent: mv.explanation }));
     if (mv.explanation_flagged) box.append(el("div", { className: "warn",
@@ -81,22 +82,32 @@ function renderExplain(mv) {
     box.append(el("div", { className: "note", textContent: HONESTY }));
     const again = el("button", { type: "button", textContent: "Regenerate" });
     again.onclick = () => explain(mv, true);
-    box.append(again);
+    act.append(again);
   } else if (mv.is_key_moment) {
     const b = el("button", { type: "button", textContent: "Explain this move" });
     b.onclick = () => explain(mv, false);
-    box.append(b);
+    act.append(b);
+  } else {
+    box.append(el("div", { className: "note", textContent:
+      "Not a key moment, so there is no explanation. Key moments are mistakes, blunders, big swings and brilliant finds." }));
   }
 }
 
 async function explain(mv, regenerate) {
   const box = $("explainBox");
+  $("explainAct").replaceChildren();
   box.replaceChildren(el("div", { className: "note", textContent: "Asking the local model…" }));
   try {
     const r = await explainMove(mv.id, regenerate);
     mv.explanation = r.body; mv.explanation_flagged = r.flagged;
   } catch (e) {
-    if (cur() === mv) { box.replaceChildren(el("div", { className: "warn", textContent: e.message })); return; }
+    if (cur() === mv) {
+      box.replaceChildren(el("div", { className: "warn", textContent: e.message }));
+      const retry = el("button", { type: "button", textContent: mv.explanation ? "Regenerate" : "Explain this move" });
+      retry.onclick = () => explain(mv, regenerate);
+      $("explainAct").append(retry);
+      return;
+    }
   }
   if (cur() === mv) renderExplain(mv);
 }
@@ -115,16 +126,24 @@ function renderStrip() {
 
 // ---------- navigation ----------
 function go(i) {
-  if (!state.game) return;
+  if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
   state.animateFrom = j === state.idx + 1 ? state.game.moves[state.idx].uci : undefined;
   state.idx = j;
   render();
 }
 function goKey(dir) {
-  if (!state.game) return;
+  if (!state.game || !state.game.moves.length) return;
   const i = keyIndex(state.game.moves, state.idx, dir);
   if (i >= 0) go(i);
+}
+
+function showEmpty() {
+  $("gameTitle").textContent = "This game has no moves";
+  $("counter").textContent = "";
+  $("boardWrap").replaceChildren();
+  for (const id of ["moveName", "labelPill", "reasons", "happened", "explainBox", "explainAct", "strip"]) $(id).replaceChildren();
+  for (const id of ["prevKey", "nextKey", "first", "prev", "next", "last"]) $(id).disabled = true;
 }
 
 async function selectGame(id) {
@@ -133,7 +152,7 @@ async function selectGame(id) {
   state.idx = startIndex(state.game.moves);
   state.animateFrom = undefined;
   document.querySelectorAll("#gameList button").forEach((b) => b.classList.toggle("sel", Number(b.dataset.id) === id));
-  if (!state.game.moves.length) { $("gameTitle").textContent = "This game has no moves"; return; }
+  if (!state.game.moves.length) { showEmpty(); return; }
   render();
 }
 

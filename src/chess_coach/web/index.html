@@ -34,16 +34,6 @@ try {
 <main id="stage">
   <div id="boardCol">
     <div id="boardWrap"></div>
-    <section id="caption" class="caption" aria-live="polite">
-      <div class="cap-head"><span id="moveName" class="move-name"></span><span id="labelPill"></span><span id="reasons"></span></div>
-      <div id="happened" class="happened"></div>
-      <div id="explainBox"></div>
-      <div class="cap-actions">
-        <button type="button" id="guessBtn" disabled title="Guessing arrives in a later step">Guess first</button>
-        <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
-        <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
-      </div>
-    </section>
     <nav class="nav" aria-label="Move navigation">
       <button type="button" id="prevKey" title="Previous key moment">&lsaquo; Key</button>
       <button type="button" id="first" aria-label="First move">&laquo;</button>
@@ -55,6 +45,17 @@ try {
       <button type="button" id="flip" title="Flip the board">Flip</button>
     </nav>
   </div>
+  <section id="caption" class="caption" aria-live="polite">
+    <div class="cap-head"><span id="moveName" class="move-name"></span><span id="labelPill"></span><span id="reasons"></span></div>
+    <div id="happened" class="happened"></div>
+    <div id="explainBox" class="explain-scroll"></div>
+    <div class="cap-actions">
+      <button type="button" id="guessBtn" disabled title="Guessing arrives in a later step">Guess first</button>
+      <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
+      <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
+      <span id="explainAct" class="explain-act"></span>
+    </div>
+  </section>
 </main>
 
 <div id="gamesOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="Games" hidden>

@@ -42,7 +42,7 @@ export function startIndex(moves) {
 }
 
 export function clampIndex(moves, i) {
-  return Math.max(0, Math.min(moves.length - 1, i));
+  return Math.max(0, Math.min(moves.length - 1, i));  // empty game: 0
 }
 
 function svgArrow(svg, uci, color, flipped) {

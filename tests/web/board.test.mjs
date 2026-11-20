@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseFen, squareXY, moveArrows, keyIndex, startIndex } from "../../src/chess_coach/web/js/board.js";
+import { parseFen, squareXY, moveArrows, keyIndex, startIndex, clampIndex } from "../../src/chess_coach/web/js/board.js";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const colors = { best: "#2e9d5b", mistake: "#e07a1f" };
@@ -60,4 +60,10 @@ test("key_moment_navigation_both_directions", () => {
 test("empty_game_is_safe", () => {
   assert.equal(startIndex([]), 0);
   assert.equal(keyIndex([], 0, 1), -1);
+});
+
+test("clamp_index_never_goes_negative_on_an_empty_game", () => {
+  assert.equal(clampIndex([], 5), 0);
+  assert.equal(clampIndex([], -3), 0);
+  assert.equal(clampIndex(mk([false, false]), 9), 1);
 });
