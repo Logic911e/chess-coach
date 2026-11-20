@@ -7,7 +7,8 @@ The page that uses it lives in src/chess_coach/web/.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import chess
@@ -17,6 +18,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from chess_coach import db
+from chess_coach.engine_service import EngineService
 from chess_coach.explainer import explain
 from chess_coach.llm import LLMError, OllamaClient
 from chess_coach.store import save_explanation
@@ -56,8 +58,19 @@ def line_to_uci(fen: str, line_san: str) -> list[str]:
 def create_app(
     connect: Callable[[], psycopg.Connection] = db.connect,
     client_factory: Callable[[], object] = OllamaClient,
+    engine_service: EngineService | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="chess-coach")
+    engine = engine_service or EngineService()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            engine.close()
+
+    app = FastAPI(title="chess-coach", lifespan=lifespan)
+    app.state.engine = engine
 
     @app.get("/api/games")
     def list_games() -> list[dict]:
