@@ -60,16 +60,40 @@ function svgArrow(svg, uci, color, flipped) {
 }
 
 /**
- * Draw the position into `el` (replaces its children). animateFrom is an optional UCI move whose
- * piece slides from the source to the destination square (skipped in study mode / reduced motion).
+ * Pieces that moved between two positions, for the slide animation. Rule: a square that gains a
+ * piece P is matched with a square that lost the same piece P (first match); the piece slides from
+ * the lost square to the gained one. This is direction-agnostic (works stepping back too), covers
+ * captures (the captured piece just vanishes) and castling (king and rook both slide), and leaves
+ * unmatched changes such as promotions to appear without sliding.
  */
-export function renderBoard(el, fen, { flipped = false, highlight = [], arrows = [], animateFrom } = {}) {
+export function pieceSlides(fenFrom, fenTo) {
+  const a = parseFen(fenFrom), b = parseFen(fenTo), lost = [], gained = [];
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+    if (a[r][f] === b[r][f]) continue;
+    const name = FILES[f] + (8 - r);
+    if (a[r][f]) lost.push({ name, piece: a[r][f] });
+    if (b[r][f]) gained.push({ name, piece: b[r][f] });
+  }
+  const out = [];
+  for (const g of gained) {
+    const i = lost.findIndex((l) => l.piece === g.piece);
+    if (i >= 0) { out.push({ from: lost[i].name, to: g.name }); lost.splice(i, 1); }
+  }
+  return out;
+}
+
+/**
+ * Draw the position into `el` (replaces its children). `slides` ({from, to}[], see pieceSlides)
+ * animate pieces sliding in, and the arrows fade in, only when `motion` is true (the caller passes
+ * motionAllowed()). Replacing the children cancels any animation still running: nothing queues.
+ */
+export function renderBoard(el, fen, { flipped = false, highlight = [], arrows = [], slides = [], motion = false } = {}) {
   const grid = parseFen(fen);
   const board = document.createElement("div");
   board.className = "board-grid";
   board.setAttribute("role", "img");
   board.setAttribute("aria-label", "Chess board");
-  let slide = null;
+  const imgs = new Map();
   for (let r = 0; r < 8; r++) {
     for (let f = 0; f < 8; f++) {
       const rr = flipped ? 7 - r : r, ff = flipped ? 7 - f : f;
@@ -85,7 +109,7 @@ export function renderBoard(el, fen, { flipped = false, highlight = [], arrows =
         img.alt = (white ? "white " : "black ") + piece.toLowerCase();
         img.draggable = false;
         sq.append(img);
-        if (animateFrom && name === animateFrom.slice(2, 4)) slide = img;
+        imgs.set(name, img);
       }
       if (f === 0) { const i = document.createElement("i"); i.className = "r"; i.textContent = String(8 - rr); sq.append(i); }
       if (r === 7) { const i = document.createElement("i"); i.className = "f"; i.textContent = FILES[ff]; sq.append(i); }
@@ -99,15 +123,16 @@ export function renderBoard(el, fen, { flipped = false, highlight = [], arrows =
   for (const a of arrows) svgArrow(svg, a.uci, a.color, flipped);
   el.replaceChildren(board, svg);
 
-  if (slide && animateFrom && typeof slide.animate === "function" && motionAllowed()) {
-    const [x1, y1] = squareXY(animateFrom.slice(0, 2), flipped), [x2, y2] = squareXY(animateFrom.slice(2, 4), flipped);
-    const size = board.getBoundingClientRect().width / 8;
-    slide.animate([{ transform: `translate(${(x1 - x2) * size}px, ${(y1 - y2) * size}px)` },
-                   { transform: "translate(0, 0)" }], { duration: 220, easing: "ease-out" });
+  if (!motion) return;
+  const size = board.getBoundingClientRect().width / 8;
+  for (const { from, to } of slides) {
+    const img = imgs.get(to);
+    if (!img || typeof img.animate !== "function") continue;
+    const [x1, y1] = squareXY(from, flipped), [x2, y2] = squareXY(to, flipped);
+    img.animate([{ transform: `translate(${(x1 - x2) * size}px, ${(y1 - y2) * size}px)` },
+                 { transform: "translate(0, 0)" }], { duration: 200, easing: "ease-out" });
   }
-}
-
-function motionAllowed() {
-  if (document.documentElement.dataset.study === "on") return false;
-  return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  if (arrows.length && typeof svg.animate === "function") {
+    svg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
+  }
 }

@@ -119,7 +119,12 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
 #chatForm { display: flex; gap: 6px; }
 #chatForm input { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
 
-/* motion off in study mode and under reduced motion */
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 6px 0 4px; }
+.keys dt, .keys dd { margin: 0; }
+kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; background: var(--bg); }
+
+/* motion off in study mode and under reduced motion (main.js mirrors motionAllowed() into data-motion) */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation: none !important; transition: none !important; }
 :root[data-study="on"] *, :root[data-study="on"] *::before, :root[data-study="on"] *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 

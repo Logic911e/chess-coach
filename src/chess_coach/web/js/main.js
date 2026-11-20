@@ -1,10 +1,12 @@
 // Theatre page. All text from the server is inserted with textContent, never innerHTML.
 import { getGames, getGame, explainMove } from "./api.js";
-import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex } from "./board.js";
+import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
+import { motionAllowed } from "./motion.js";
+import { createKeyHandler, toggleMute } from "./keys.js";
 import { createSettings } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 
-const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, animateFrom: undefined };
+const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [] };
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 const QUIET = ["best", "excellent", "good"];
@@ -25,7 +27,12 @@ const settings = createSettings(store);
 window.chessCoachSettings = settings;
 const player = createPlayer({ settings, audioContextFactory: () => new (window.AudioContext || window.webkitAudioContext)() });
 window.chessCoachPlayer = player;
-const reducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+// CSS switches transitions off through data-motion, from the same predicate as the JS animations.
+function syncMotion() { if (motionAllowed()) delete root.dataset.motion; else root.dataset.motion = "off"; }
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (mq.addEventListener) mq.addEventListener("change", syncMotion);
+}
 function applySettings() {
   const theme = settings.get("theme", "walnut");
   root.dataset.theme = theme;
@@ -38,6 +45,7 @@ function applySettings() {
   document.querySelectorAll("[data-sound-choice]")
     .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.soundChoice === pal)));
   $("volume").value = String(settings.get("volume", DEFAULT_VOLUME));
+  syncMotion();
   if (state.game) render();  // arrow colours are read from the theme
 }
 
@@ -55,9 +63,10 @@ function render() {
     flipped: state.flipped,
     highlight: [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
     arrows: moveArrows(mv, labelColors(), { hideBest: !state.showEngine }),
-    animateFrom: state.animateFrom,
+    slides: state.slides,
+    motion: motionAllowed(),
   });
-  state.animateFrom = undefined;
+  state.slides = [];
 
   $("gameTitle").textContent = `${g.white} vs ${g.black} · ${g.result}`;
   $("counter").textContent = `move ${state.idx + 1} of ${g.moves.length}`;
@@ -136,11 +145,12 @@ function renderStrip() {
 function go(i) {
   if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
-  state.animateFrom = j === state.idx + 1 ? state.game.moves[state.idx].uci : undefined;
   const moved = j !== state.idx;
+  // Slide only single steps (either direction); jumps just redraw.
+  state.slides = Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
   render();
-  if (moved && !reducedMotion()) player.play(soundsFor(cur()));
+  if (moved && motionAllowed()) player.play(soundsFor(cur()));
 }
 function goKey(dir) {
   if (!state.game || !state.game.moves.length) return;
@@ -160,26 +170,68 @@ async function selectGame(id) {
   try { state.game = await getGame(id); }
   catch (e) { $("gameTitle").textContent = "Could not open the game: " + e.message; return; }
   state.idx = startIndex(state.game.moves);
-  state.animateFrom = undefined;
+  state.slides = [];
   document.querySelectorAll("#gameList button").forEach((b) => b.classList.toggle("sel", Number(b.dataset.id) === id));
   if (!state.game.moves.length) { showEmpty(); return; }
   render();
 }
 
 // ---------- overlays ----------
-function setGames(open) {
-  const was = !$("gamesOverlay").hidden;
-  $("gamesOverlay").hidden = !open;
-  if (!open && !was) return;
-  if (open) $("gameList").querySelector("button.sel, button")?.focus(); else $("gamesBtn").focus();
+// Modal dialogs (Games, shortcuts) make the page behind them inert, so focus cannot leave them,
+// and give focus back to what opened them.
+const modalOpen = () => !$("gamesOverlay").hidden || !$("helpOverlay").hidden;
+function setModal(id, open, first, opener) {
+  const ov = $(id), was = !ov.hidden;
+  if (open === was) return;
+  ov.hidden = !open;
+  $("topbar").inert = $("stage").inert = modalOpen();
+  if (open) {
+    ov.returnTo = document.activeElement;
+    first().focus();
+  } else {
+    const back = ov.returnTo && ov.returnTo.isConnected && !ov.returnTo.disabled ? ov.returnTo : opener;
+    back.focus();
+  }
 }
-function setChat(open) {
+const setGames = (open) => setModal("gamesOverlay", open,
+  () => $("gameList").querySelector("button.sel, button") || $("gamesClose"), $("gamesBtn"));
+const setHelp = (open) => setModal("helpOverlay", open, () => $("helpClose"), $("helpBtn"));
+function setChat(open, focusInput = false) {
   const d = $("chatDrawer");
+  const hadFocus = d.contains(document.activeElement);
   d.classList.toggle("open", open);
   d.setAttribute("aria-hidden", String(!open));
   d.inert = !open;
   $("askBtn").setAttribute("aria-expanded", String(open));
+  if (open && focusInput) {  // the input is disabled until the chat arrives; fall back to Close
+    const input = $("chatInput");
+    (input.disabled ? $("chatClose") : input).focus();
+  }
+  if (!open && hadFocus) $("askBtn").focus();
 }
+
+// ---------- keyboard ----------
+function toggleSoundMute() {
+  const r = toggleMute(settings.get("soundPalette", "felt"), settings.get("mutedFrom", undefined));
+  if (r.prev) settings.set("mutedFrom", r.prev);
+  settings.set("soundPalette", r.palette);
+  applySettings();
+}
+const handleKey = createKeyHandler({
+  step: (d) => { if (modalOpen() || !state.game) return false; go(state.idx + d); },
+  nextKey: () => { if (modalOpen() || !state.game) return false; goKey(1); },
+  prevKey: () => { if (modalOpen() || !state.game) return false; goKey(-1); },
+  guess: () => { if (modalOpen()) return false; $("guessBtn").click(); },  // Task 9 wires the flow
+  chat: () => { if (modalOpen()) return false; setChat(true, true); },
+  close: () => {
+    if (!$("helpOverlay").hidden) setHelp(false);
+    else if (!$("gamesOverlay").hidden) setGames(false);
+    else if ($("chatDrawer").classList.contains("open")) setChat(false);
+    else return false;
+  },
+  mute: () => { if (modalOpen()) return false; toggleSoundMute(); },
+  help: () => { if ($("helpOverlay").hidden && !$("gamesOverlay").hidden) return false; setHelp($("helpOverlay").hidden); },
+});
 
 async function init() {
   applySettings();
@@ -220,9 +272,8 @@ $("gamesOverlay").addEventListener("click", (e) => { if (e.target === $("gamesOv
 $("askBtn").onclick = () => setChat(!$("chatDrawer").classList.contains("open"));
 $("chatClose").onclick = () => setChat(false);
 $("chatForm").addEventListener("submit", (e) => e.preventDefault());
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { setGames(false); setChat(false); return; }
-  if (!state.game || e.target.tagName === "INPUT" || !$("gamesOverlay").hidden) return;
-  if (e.key === "ArrowLeft") go(state.idx - 1); else if (e.key === "ArrowRight") go(state.idx + 1);
-});
+document.addEventListener("keydown", (e) => { if (handleKey(e)) e.preventDefault(); });
+$("helpBtn").onclick = () => setHelp(true);
+$("helpClose").onclick = () => setHelp(false);
+$("helpOverlay").addEventListener("click", (e) => { if (e.target === $("helpOverlay")) setHelp(false); });
 init();

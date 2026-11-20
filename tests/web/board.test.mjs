@@ -67,3 +67,26 @@ test("clamp_index_never_goes_negative_on_an_empty_game", () => {
   assert.equal(clampIndex([], -3), 0);
   assert.equal(clampIndex(mk([false, false]), 9), 1);
 });
+
+import { pieceSlides } from "../../src/chess_coach/web/js/board.js";
+const AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+
+test("test_piece_slides_simple_move_both_directions", () => {
+  assert.deepEqual(pieceSlides(START, AFTER_E4), [{ from: "e2", to: "e4" }]);
+  assert.deepEqual(pieceSlides(AFTER_E4, START), [{ from: "e4", to: "e2" }]);
+});
+
+test("test_piece_slides_capture_and_castling", () => {
+  // white bishop takes a black pawn: only the bishop slides
+  assert.deepEqual(pieceSlides("4k3/8/8/3p4/8/1B6/8/4K3 w - - 0 1", "4k3/8/8/3B4/8/8/8/4K3 b - - 0 1")
+    .map((s) => s.to + s.from), ["d5b3"]);
+  // kingside castling: king and rook both slide
+  const s = pieceSlides("4k3/8/8/8/8/8/8/4K2R w K - 0 1", "4k3/8/8/8/8/8/8/5RK1 b - - 1 1");
+  assert.deepEqual(s.map((x) => x.from + x.to).sort(), ["e1g1", "h1f1"]);
+});
+
+test("test_piece_slides_nothing_when_unmatched_or_same", () => {
+  assert.deepEqual(pieceSlides(START, START), []);
+  // promotion: the pawn disappears and a queen appears; no match, no slide
+  assert.deepEqual(pieceSlides("4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "Q3k3/8/8/8/8/8/8/4K3 b - - 0 1"), []);
+});
