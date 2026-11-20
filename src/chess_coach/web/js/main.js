@@ -5,7 +5,7 @@ import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
-import { canGuess, createGuessFlow, guessView, mayWriteExplain } from "./guess.js";
+import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
 
@@ -90,8 +90,8 @@ function render(animate = false) {
   renderAsk();
   if (!guessing) renderExplain(mv);
   renderStrip();
-  $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));
-  $("engineBtn").textContent = state.showEngine ? "Hide engine move" : "Show engine move";
+  renderMoveList();
+  $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));  // one signal: static label + pressed state
   $("prevKey").disabled = keyIndex(g.moves, state.idx, -1) < 0;
   $("nextKey").disabled = keyIndex(g.moves, state.idx, 1) < 0;
   $("first").disabled = $("prev").disabled = state.idx === 0;
@@ -196,17 +196,41 @@ async function explain(mv, regenerate) {
   if (cur() === mv && mayWriteExplain(guessFlow.active())) renderExplain(mv);
 }
 
+// Rebuilding a list drops focus; put it back on the current item when it was inside the list.
+function refocus(container, hadFocus) {
+  if (hadFocus) { const c = container.querySelector("[aria-current]"); if (c) c.focus(); }
+}
+
+// The strip is one tab stop (roving tabindex: only the current bar is focusable by Tab).
 function renderStrip() {
-  const strip = $("strip"); strip.replaceChildren();
+  const strip = $("strip"), hadFocus = strip.contains(document.activeElement);
+  strip.replaceChildren();
   state.game.moves.forEach((mv, i) => {
-    const view = guessView(mv, guessFlow.active() && i === state.idx);
-    const b = el("button", { type: "button", title: view.stripTitle });
+    const guessing = guessFlow.active() && i === state.idx;
+    const view = guessView(mv, guessing);
+    const b = el("button", { type: "button", title: view.stripTitle, tabIndex: i === state.idx ? 0 : -1 });
+    b.setAttribute("aria-label", moveA11yName(mv, guessing));
+    if (i === state.idx) b.setAttribute("aria-current", "step");
     b.style.height = Math.max(4, mv.expected_points_lost * 30) + "px";
     if (!view.stripNeutral && !QUIET.includes(mv.classification)) b.style.background = css("--" + mv.classification);
     if (i === state.idx) b.classList.add("cur");
     b.onclick = () => go(i);
     strip.append(b);
   });
+  refocus(strip, hadFocus);
+}
+
+// Visually hidden move list for screen readers; shown as a chip while one of its buttons has focus.
+function renderMoveList() {
+  const list = $("moveList"), hadFocus = list.contains(document.activeElement);
+  list.replaceChildren(...state.game.moves.map((mv, i) => {
+    const b = el("button", { type: "button", tabIndex: i === state.idx ? 0 : -1,
+      textContent: moveA11yName(mv, guessFlow.active() && i === state.idx) });
+    if (i === state.idx) b.setAttribute("aria-current", "step");
+    b.onclick = () => go(i);
+    return el("li", {}, b);
+  }));
+  refocus(list, hadFocus);
 }
 
 // ---------- navigation ----------
@@ -232,7 +256,7 @@ function showEmpty() {
   $("gameTitle").textContent = "This game has no moves";
   $("counter").textContent = "";
   $("boardWrap").replaceChildren();
-  for (const id of ["moveName", "labelPill", "reasons", "happened", "guessMsg", "explainBox", "explainAct", "strip"]) $(id).replaceChildren();
+  for (const id of ["moveName", "labelPill", "reasons", "happened", "guessMsg", "explainBox", "explainAct", "strip", "moveList"]) $(id).replaceChildren();
   for (const id of ["prevKey", "nextKey", "first", "prev", "next", "last"]) $(id).disabled = true;
 }
 
@@ -316,12 +340,26 @@ const chat = createChat({
       if (flagged) m.append(el("div", { className: "warn", textContent: FLAG_WARNING }));
       m.append(el("div", { className: "note", textContent: HONESTY_NOTE }));
       $("chatLog").append(m);
-      scrollChat();
+      scrollToStart(m);  // a long answer is read from its beginning; focus is not moved
+      announce(body);
     },
     error(msg) { chatStatus(msg, "error"); },
   },
 });
 function scrollChat() { const l = $("chatLog"); l.scrollTop = l.scrollHeight; }
+function scrollToStart(m) {
+  const l = $("chatLog");
+  l.scrollTop += m.getBoundingClientRect().top - l.getBoundingClientRect().top;
+}
+// Only the assistant's answers are announced (the log itself is not a live region); errors go through #chatStatus.
+let announceTimer;
+function announce(text) {
+  const a = $("chatAnnounce");
+  a.textContent = "";
+  setTimeout(() => { a.textContent = text; }, 50);
+  clearTimeout(announceTimer);
+  announceTimer = setTimeout(() => { a.textContent = ""; }, 4000);
+}
 
 // ---------- who "me" is ----------
 function showMe() {

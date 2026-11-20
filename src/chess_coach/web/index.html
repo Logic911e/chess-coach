@@ -28,32 +28,33 @@ try {
       <button type="button" data-theme-choice="paper" aria-label="Paper theme" title="Paper"></button>
     </div>
     <div class="sound-ctl" role="group" aria-label="Sound">
-      <button type="button" data-sound-choice="felt" aria-pressed="true" title="Felt sounds">Felt</button>
-      <button type="button" data-sound-choice="wood" aria-pressed="false" title="Wood sounds">Wood</button>
-      <button type="button" data-sound-choice="off" aria-pressed="false" title="Sound off">Off</button>
+      <button type="button" data-sound-choice="felt" aria-pressed="true" aria-label="Felt sounds" title="Felt sounds">Felt</button>
+      <button type="button" data-sound-choice="wood" aria-pressed="false" aria-label="Wood sounds" title="Wood sounds">Wood</button>
+      <button type="button" data-sound-choice="off" aria-pressed="false" aria-label="Sound off" title="Sound off">Off</button>
       <input type="range" id="volume" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
     </div>
-    <button type="button" id="helpBtn" aria-haspopup="dialog" aria-controls="helpOverlay" title="Keyboard shortcuts (?)">?</button>
-    <button type="button" id="studyToggle" aria-pressed="false" title="Study mode: no sound, no motion">Study mode</button>
+    <button type="button" id="helpBtn" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-controls="helpOverlay" title="Keyboard shortcuts (?)">?</button>
+    <button type="button" id="studyToggle" aria-pressed="false" aria-label="Study mode" title="Study mode: no sound, no motion">Study mode</button>
   </div>
 </header>
 
 <main id="stage">
   <div id="boardCol">
-    <div id="boardWrap"></div>
+    <div id="boardWrap" role="group" aria-label="Chess board. The moves are listed in the move list."></div>
     <nav class="nav" aria-label="Move navigation">
-      <button type="button" id="prevKey" title="Previous key moment">&lsaquo; Key</button>
+      <button type="button" id="prevKey" aria-label="Previous key moment" title="Previous key moment">&lsaquo; Key</button>
       <button type="button" id="first" aria-label="First move">&laquo;</button>
       <button type="button" id="prev" aria-label="Previous move">&lsaquo;</button>
-      <div id="strip" title="Each bar is one move. Taller = more expected points lost."></div>
+      <div id="strip" role="group" aria-label="Move strip" title="Each bar is one move. Taller = more expected points lost."></div>
       <button type="button" id="next" aria-label="Next move">&rsaquo;</button>
       <button type="button" id="last" aria-label="Last move">&raquo;</button>
-      <button type="button" id="nextKey" title="Next key moment">Key &rsaquo;</button>
-      <button type="button" id="flip" title="Flip the board">Flip</button>
+      <button type="button" id="nextKey" aria-label="Next key moment" title="Next key moment">Key &rsaquo;</button>
+      <button type="button" id="flip" aria-label="Flip the board" title="Flip the board">Flip</button>
     </nav>
+    <ul id="moveList" class="sr-only" aria-label="Moves of this game"></ul>
   </div>
-  <section id="caption" class="caption" aria-live="polite">
-    <div class="cap-head"><span id="moveName" class="move-name"></span><span id="labelPill"></span><span id="reasons"></span></div>
+  <section id="caption" class="caption" aria-label="Move commentary">
+    <div class="cap-head"><span class="cap-live" aria-live="polite" aria-atomic="true"><span id="moveName" class="move-name"></span><span id="labelPill"></span></span><span id="reasons"></span></div>
     <div id="happened" class="happened"></div>
     <div id="guessMsg" class="guess-msg" role="status"></div>
     <div id="explainBox" class="explain-scroll"></div>
@@ -99,7 +100,8 @@ try {
 
 <aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
   <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>
-  <div id="chatLog" class="chat-log" role="log" aria-live="polite"></div>
+  <div id="chatLog" class="chat-log" role="log" aria-live="off" aria-label="Conversation"></div>
+  <div id="chatAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="chatStatus" class="chat-status" role="status"></div>
   <div class="note">Answers are checked for legal moves and piece squares only, so they can still contain mistakes.</div>
   <form id="chatForm"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Ask about this position (Enter sends, Shift+Enter for a new line)" aria-label="Your question"></textarea><button type="submit" id="chatSend">Send</button></form>

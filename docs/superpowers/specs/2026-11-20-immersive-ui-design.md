@@ -1,6 +1,6 @@
 # Immersive review UI: design
 
-Status: draft for approval. Date: 2026-11-20.
+Status: implemented 2026-11-20 (see docs/superpowers/plans/2026-11-20-immersive-ui.md).
 
 ## Intent and why
 

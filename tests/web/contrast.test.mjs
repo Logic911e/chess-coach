@@ -55,3 +55,11 @@ for (const name of ["walnut", "slate", "paper"]) {
     }
   });
 }
+
+test("the focus outline colour (accent) has >= 3:1 against the page and the panel in every theme", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    for (const bg of ["--bg", "--panel"]) {
+      assert.ok(ratio(t["--accent"], t[bg]) >= 3, `${name} accent on ${bg}: ${ratio(t["--accent"], t[bg]).toFixed(2)}`);
+    }
+  }
+});

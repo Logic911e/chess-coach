@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain } from "../../src/chess_coach/web/js/guess.js";
+import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain, moveA11yName, liveText } from "../../src/chess_coach/web/js/guess.js";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const game = { white: "Alice", black: "Bob" };
@@ -137,4 +137,19 @@ test("guess_view_hides_quality_while_guessing", () => {
 test("explain_may_write_only_outside_a_guess", () => {
   assert.equal(mayWriteExplain(true), false);
   assert.equal(mayWriteExplain(false), true);
+});
+
+test("moveA11yName names a move, and never reveals the current move during a guess", () => {
+  const m = { move_number: 11, color: "white", san: "Qb3", classification: "mistake" };
+  assert.equal(moveA11yName(m, false), "11. Qb3, mistake");
+  assert.equal(moveA11yName({ ...m, color: "black" }, false), "11... Qb3, mistake");
+  const g = moveA11yName(m, true);
+  assert.equal(g, "Move 11, your move");
+  assert.ok(!g.includes("Qb3") && !g.includes("mistake"));
+});
+
+test("liveText is the move name and label, neutral while guessing", () => {
+  const m = { move_number: 4, color: "black", san: "Nf6", classification: "blunder" };
+  assert.equal(liveText(m, false), "4... Nf6, blunder");
+  assert.equal(liveText(m, true), "Move 4, your move");
 });

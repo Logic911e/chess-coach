@@ -197,3 +197,10 @@ def test_guess_endpoint_does_not_relabel_programming_errors(pg):
     r = http.post(f"/api/moves/{m['id']}/guess", json={"uci": other})
     assert r.status_code == 500
     assert "engine unavailable" not in r.text
+
+
+def test_index_has_live_region_and_move_list_container(app_and_client):
+    http, _ = app_and_client
+    html = http.get("/").text
+    assert "aria-live" in html
+    assert 'id="moveList"' in html
