@@ -55,9 +55,10 @@ try {
   <section id="caption" class="caption" aria-live="polite">
     <div class="cap-head"><span id="moveName" class="move-name"></span><span id="labelPill"></span><span id="reasons"></span></div>
     <div id="happened" class="happened"></div>
+    <div id="guessMsg" class="guess-msg" role="status"></div>
     <div id="explainBox" class="explain-scroll"></div>
     <div class="cap-actions">
-      <button type="button" id="guessBtn" disabled title="Guessing arrives in a later step">Guess first</button>
+      <button type="button" id="guessBtn" hidden title="Guess the better move (G)">Guess first</button>
       <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
       <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
       <span id="explainAct" class="explain-act"></span>

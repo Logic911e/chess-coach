@@ -141,3 +141,11 @@ kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px s
   #stage { flex-direction: column; align-items: center; gap: 10px; }
   .caption { width: min(92vw, 520px); height: var(--capH); }
 }
+
+/* guess first */
+.guess-msg { font-size: 14px; margin: 2px 0 4px; }
+.guess-msg:empty { display: none; }
+.guess-msg.gentle { color: var(--muted); }
+.guess-msg.error { color: var(--bad); }
+#guessBtn[hidden] { display: none; }
+#boardWrap[data-guess="on"] .sq { cursor: pointer; }
