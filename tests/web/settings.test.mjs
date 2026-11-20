@@ -49,3 +49,14 @@ test("rejects bad soundPalette and clamps volume", () => {
   s.set("volume", 7);
   assert.equal(s.get("volume", 0.5), 1);
 });
+
+test("me and meDismissed are validated and can be cleared", () => {
+  const s = createSettings(memoryStorage());
+  s.set("me", "Ann"); assert.equal(s.get("me", null), "Ann");
+  s.set("me", 42); assert.equal(s.get("me", null), "Ann");
+  s.set("me", ""); assert.equal(s.get("me", null), "Ann");
+  s.set("meDismissed", true); assert.equal(s.get("meDismissed", false), true);
+  s.set("meDismissed", "yes"); assert.equal(s.get("meDismissed", false), true);
+  s.set("meDismissed", false); assert.equal(s.get("meDismissed", false), false);
+  s.set("me", null); assert.equal(s.get("me", "x"), null);
+});

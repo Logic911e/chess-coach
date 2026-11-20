@@ -23,3 +23,8 @@ test("resolve me with no players never prompts", () => {
 test("resolve me ignores a suggested name that is not among the players", () => {
   assert.deepEqual(resolveMe({ stored: null, players, suggested: "Ghost" }), { me: null, needsPrompt: true });
 });
+
+test("a dismissed prompt is not shown again, but a valid stored or suggested name still wins", () => {
+  assert.deepEqual(resolveMe({ stored: null, players, suggested: null, dismissed: true }), { me: null, needsPrompt: false });
+  assert.deepEqual(resolveMe({ stored: "Bob", players, suggested: null, dismissed: true }), { me: "Bob", needsPrompt: false });
+});

@@ -9,6 +9,8 @@ function sanitize(key, value) {
   if (key === "volume") {
     return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : undefined;
   }
+  if (key === "me") return value === null || (typeof value === "string" && value !== "") ? value : undefined;
+  if (key === "meDismissed") return typeof value === "boolean" ? value : undefined;
   if (key === "studyMode") return typeof value === "boolean" ? value : undefined;
   return value;
 }
