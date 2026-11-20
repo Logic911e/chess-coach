@@ -6,6 +6,7 @@ The page that uses it lives in src/chess_coach/web/.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -13,6 +14,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import chess
+import chess.engine
 import psycopg
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -20,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from chess_coach import db
+from chess_coach.engine import EngineNotFoundError
 from chess_coach.engine_service import EngineService
 from chess_coach.explainer import explain
 from chess_coach.guess import score_guess
@@ -27,6 +30,15 @@ from chess_coach.llm import LLMError, OllamaClient
 from chess_coach.store import save_explanation
 
 WEB_DIR = Path(__file__).parent / "web"
+
+
+log = logging.getLogger(__name__)
+
+# What a dead, missing or hung Stockfish raises (the cases EngineService restarts on).
+ENGINE_FAILURES = (
+    chess.engine.EngineError, chess.engine.EngineTerminatedError, EngineNotFoundError,
+    OSError, TimeoutError,
+)
 
 
 class GuessBody(BaseModel):
@@ -222,8 +234,12 @@ def create_app(
         fen, best_uci, cp_best, depth = row
         try:
             result = score_guess(fen, body.uci, best_uci, cp_best, depth, engine)
-        except Exception as exc:
+        except ENGINE_FAILURES as exc:
+            log.exception("engine failed scoring a guess on move %s", move_id)
             raise HTTPException(503, f"engine unavailable: {exc}") from exc
+        except Exception:
+            log.exception("unexpected error scoring a guess on move %s", move_id)
+            raise
         return {**asdict(result), "best_san": _best_san(fen, best_uci)}
 
     if WEB_DIR.exists():

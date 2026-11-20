@@ -132,7 +132,7 @@ class Raising:
     def analyse(self, board, depth=None, time=None, multipv=1):
         if self.fail:
             self.fail = False
-            raise RuntimeError("engine died")
+            raise TimeoutError("engine died")
         return [Analysis(cp=0, mate=None, best_move="a2a3", pv=["a2a3"], depth=depth)]
 
 
@@ -179,3 +179,21 @@ class _Ctx:
 
     def __exit__(self, *a):
         return False
+
+
+def test_guess_endpoint_does_not_relabel_programming_errors(pg):
+    from chess_coach.engine_service import EngineService
+
+    class Buggy:
+        def analyse(self, board, depth=None, time=None, multipv=1):
+            return []  # IndexError inside scoring, not an engine failure
+
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    app = create_app(connect=lambda: NoClose(pg), engine_service=EngineService(lambda: _Ctx(Buggy())))
+    http = TestClient(app, raise_server_exceptions=False)
+    m = _first_move(http)
+    other = "a2a3" if m["best_uci"] != "a2a3" else "b2b3"
+    r = http.post(f"/api/moves/{m['id']}/guess", json={"uci": other})
+    assert r.status_code == 500
+    assert "engine unavailable" not in r.text
