@@ -1,15 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="walnut">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chess Coach</title>
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/css/themes.css">
+<link rel="stylesheet" href="/static/css/app.css">
+<script>
+// Apply the saved theme before first paint (no flash); the page works without localStorage.
+try {
+  var t = JSON.parse(localStorage.getItem("chesscoach.theme"));
+  if (t === "walnut" || t === "slate" || t === "paper") document.documentElement.dataset.theme = t;
+  if (JSON.parse(localStorage.getItem("chesscoach.studyMode")) === true) document.documentElement.dataset.study = "on";
+} catch (e) {}
+</script>
 </head>
 <body>
 <header>
   <h1>Chess Coach</h1>
   <span class="sub">Stockfish decides. A local model explains. Checked for legal moves and piece squares only.</span>
+  <div class="topbar-tools">
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="walnut" aria-label="Walnut theme" title="Walnut"></button>
+      <button type="button" data-theme-choice="slate" aria-label="Slate theme" title="Slate"></button>
+      <button type="button" data-theme-choice="paper" aria-label="Paper theme" title="Paper"></button>
+    </div>
+    <button type="button" id="studyToggle" aria-pressed="false" title="Study mode: no sound, no motion">Study mode</button>
+  </div>
 </header>
 <main>
   <aside id="games" aria-label="Games"><h2>Games</h2><ul id="gameList"></ul></aside>
@@ -38,5 +56,25 @@
   </section>
 </main>
 <script src="/static/app.js"></script>
+<script type="module">
+import { createSettings } from "/static/js/settings.js";
+let store; try { store = window.localStorage; } catch (e) { store = undefined; }
+const settings = createSettings(store);
+const root = document.documentElement;
+const dots = document.querySelectorAll("[data-theme-choice]");
+const study = document.getElementById("studyToggle");
+function render() {
+  const theme = settings.get("theme", "walnut");
+  root.dataset.theme = theme;
+  dots.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeChoice === theme)));
+  const on = settings.get("studyMode", false);
+  if (on) root.dataset.study = "on"; else delete root.dataset.study;
+  study.setAttribute("aria-pressed", String(on));
+}
+dots.forEach((b) => b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); render(); }));
+study.addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); render(); });
+window.chessCoachSettings = settings;
+render();
+</script>
 </body>
 </html>
