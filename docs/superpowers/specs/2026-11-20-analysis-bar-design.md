@@ -104,10 +104,23 @@ assistant's call.
   argument to `EngineService.analyse`) so one request cannot hold the lock long. Response:
   `{ "version": str, "depth": int, "lines": [ { "score": { "cp": int | null, "mate": int | null }, "moves": [ { "san":
   str, "uci": str, "fen": str, "capture": bool, "check": bool } ] } ] }`, scores in **White's perspective**
-  (`mate` is plies-to-mate in moves, signed: positive = White mates), `moves` being the principal variation
+  (`mate` is moves-to-mate, the UCI/python-chess convention carried by `Analysis.mate`, signed: positive = White
+  mates; the page prints `M<n>` and `-M<n>`), `moves` being the principal variation
   (capped at a sensible length such as 12 plies); `fen` is the position AFTER that move, so the page can show each
   step without chess logic.
-- Cached per `(normalised fen, depth, lines)` in a bounded in-memory LRU (builder chooses size, for example 256).
+- **Search limit.** Use both limits together (`chess.engine.Limit(depth=<requested>, time=<cap>)`, whichever is reached
+  first); `Engine.analyse` and `EngineService.analyse` gain the optional time argument with tests. The response
+  `depth` is the depth **actually reached** (shown in the header), the cache is keyed by the **requested**
+  `(normalised fen, depth, lines)` and stores the reached depth with the result, bounded in-memory LRU (builder
+  chooses size, for example 256).
+- **Engine contention.** The shared engine has one lock and no cancellation, so the endpoint must bound how long
+  analysis can delay a guess or chat: at most **one** analysis request waits for the engine at a time (a newer
+  request replaces an older waiting one, which returns quickly as "superseded"/busy and is simply dropped by the
+  page), an analysis waits for the engine for at most about two seconds before answering 503 "engine busy", and an
+  analysis must not take the engine ahead of a waiting guess or chat (guess/chat get priority when both wait). The
+  guarantee: a guess or chat waits for at most one running analysis (one time cap), never a queue of them. The page
+  treats "busy"/"superseded" as retry-quietly while the position is still selected. The mechanism is the builder's
+  choice; the guarantee is tested with a fake slow engine.
 - Errors: engine failure gives 503 with a message, other exceptions are logged and surface as 500, same as guess.
 
 ### Evaluation bar (page)
@@ -137,13 +150,17 @@ assistant's call.
 
 ### Exploring mode (page)
 
-- State: the real game position (selected move) plus `exploring: { lineIndex, step }` and the explored line's
-  moves (with FENs) from the server response. Entering: click a line (or press Enter on it). The board shows the
+- State: the real game position (selected move) plus `exploring: { path, step }` where `path` is the list of moves
+  (each with its FEN and capture/check flags, from the server) walked since leaving the game position, and `step` the
+  current index in it. Entering: click a line (or press Enter on it): the path becomes that line's moves.
+  **Clicking a line while already exploring** (the panel then shows lines for the explored position) keeps the
+  path up to the current step and appends the clicked line's moves, so exploration continues from where the user is
+  and Left still walks all the way back to the game position. The board shows the
   position after the clicked line's first move, highlights the last move, shows no engine arrows, and plays the
   base move sound (capture/check/move) per step from the server's flags. The bar and lines update for the
   explored position (a new analysis request per step, cached).
-- Stepping: Left/Right (and the line's move buttons) move within the line; at the start of the line one more Left
-  returns to the game position; at the end of the line Right does nothing. A banner states "Exploring a line" with
+- Stepping: Left/Right (and the path's move buttons) move within the path; at the start of the path one more Left
+  returns to the game position; at the end of the path Right does nothing. A banner states "Exploring a line" with
   the line text and a **Back to the game (Esc)** button.
 - Leaving: Esc, the Back button, selecting another game, or navigating the game with `j`/`k`/first/last/the strip
   restores the real game position and exits exploring; nothing explored persists. Esc ordering becomes: modal >
@@ -171,6 +188,10 @@ they behave normally. All existing neutrality rules from the immersive UI spec s
 - Hidden-until-guess behaviour as above (the bar's value would also hint at the answer's quality).
 - Chat and Explain stay about the real game move while exploring; `j`/`k`/strip navigation exits exploring.
 - Per-step sounds while exploring: the base move/capture/check sound only (never best/blunder cues).
+- Clicking a line while exploring extends the path from the current step (Chess.com behaviour); mate distance is
+  in moves; the search uses depth and time limits together and shows the depth actually reached.
+- Engine contention policy: one waiting analysis at most, newest wins, analysis defers to guess/chat, about a
+  two-second wait before "busy".
 - No opening name and no visible move list in this version.
 
 ## Left to the builder
@@ -189,7 +210,7 @@ they behave normally. All existing neutrality rules from the immersive UI spec s
   and Esc returns to exactly where the user was.
 - At a guessable unanswered key moment and during a guess nothing about the engine's evaluation or lines is visible
   and no analysis request is sent (verified by test or network inspection).
-- A stuck or slow analysis never blocks a guess or a chat request for longer than the time cap; the 503 path shows a
-  clear message.
+- A guess or chat request waits for at most one running analysis (one time cap), never a queue of them, verified with
+  a fake slow engine; the 503/busy paths show a clear message or retry quietly.
 - Toggling analysis off removes the bar and tab and stops requests; the choice survives a reload.
 - Scores are correct in White's perspective in both colours' turns and for mates, covered by tests.
