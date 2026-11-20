@@ -205,7 +205,7 @@ document.querySelectorAll("[data-sound-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("soundPalette", b.dataset.soundChoice); applySettings(); }));
 $("volume").addEventListener("input", () => { settings.set("volume", Number($("volume").value)); });
 // Browsers block audio until a gesture: create the context on the first pointer or key event.
-for (const type of ["pointerdown", "keydown"]) document.addEventListener(type, () => player.unlock(), { capture: true });
+for (const type of ["pointerdown", "pointerup", "click", "touchend", "keydown"]) document.addEventListener(type, () => player.unlock(), { capture: true });
 $("first").onclick = () => go(0);
 $("last").onclick = () => go(Infinity);
 $("prev").onclick = () => go(state.idx - 1);

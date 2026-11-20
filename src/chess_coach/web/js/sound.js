@@ -4,6 +4,7 @@
 // (Felt = "B", Wood = "A"). The rejected Chime palette is not included.
 
 export const DEFAULT_VOLUME = 0.6;
+export const MIN_GAP = 0.07;  // seconds: plays closer than this to the previous one are dropped
 const MASTER = 0.5;  // the mockup's output level; the volume slider scales it
 
 export function soundsFor(move) {
@@ -34,11 +35,18 @@ const PALETTES = {
 };
 
 export function createPlayer({ settings, audioContextFactory }) {
-  let ctx = null, master = null, kit = null, failed = false;
+  let ctx = null, master = null, kit = null, failed = false, lastAt = -Infinity;
+  const resume = () => {
+    try { const p = ctx.resume && ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* still blocked */ }
+  };
 
   function build() {
     master = ctx.createGain();
-    master.connect(ctx.destination);
+    const comp = ctx.createDynamicsCompressor();  // keeps overlapping tails from clipping
+    comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 6;
+    comp.attack.value = 0.003; comp.release.value = 0.15;
+    master.connect(comp);
+    comp.connect(ctx.destination);
     kit = {
       noise(t, dur, freq, q, gain) {  // filtered noise burst = "tap"
         const n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
@@ -60,8 +68,8 @@ export function createPlayer({ settings, audioContextFactory }) {
   }
 
   function unlock() {
-    if (ctx || failed) { if (ctx && ctx.state === "suspended" && ctx.resume) ctx.resume(); return; }
-    try { ctx = audioContextFactory(); build(); if (ctx.state === "suspended" && ctx.resume) ctx.resume(); }
+    if (ctx || failed) { if (ctx && ctx.state !== "running") resume(); return; }
+    try { ctx = audioContextFactory(); build(); if (ctx.state !== "running") resume(); }
     catch (e) { ctx = null; failed = true; }
   }
 
@@ -71,14 +79,20 @@ export function createPlayer({ settings, audioContextFactory }) {
   }
 
   function run(names) {
-    if (!ctx) return;  // nothing plays before the first user gesture
-    if (settings.get("studyMode", false)) return;
-    const pal = PALETTES[settings.get("soundPalette", "felt")];
-    const vol = volume();
-    if (!pal || vol <= 0) return;
-    master.gain.value = vol * MASTER;
-    const t = ctx.currentTime + .02;
-    for (const n of names) if (pal[n]) pal[n](t, kit);
+    try {
+      if (!ctx) return;  // nothing plays before the first user gesture
+      if (ctx.state !== "running") { resume(); return; }  // a suspended clock would queue sounds and burst later
+      if (settings.get("studyMode", false)) return;
+      const pal = PALETTES[settings.get("soundPalette", "felt")];
+      const vol = volume();
+      if (!pal || vol <= 0) return;
+      const now = ctx.currentTime;
+      if (now - lastAt < MIN_GAP) return;  // rapid stepping: drop, do not stack
+      lastAt = now;
+      master.gain.value = vol * MASTER;
+      const t = now + .02;
+      for (const n of names) if (pal[n]) pal[n](t, kit);
+    } catch (e) { /* audio must never break navigation */ }
   }
 
   return { unlock, play: (events) => run(events), playKeyMoment: () => run(["key"]) };
