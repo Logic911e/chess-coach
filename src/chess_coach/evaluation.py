@@ -21,6 +21,7 @@ from chess_coach.claims import check_claims, truth_boards
 from chess_coach.engine import Engine
 from chess_coach.eval_cases import CASES, Case
 from chess_coach.explainer import build_messages
+from chess_coach.guess import score_after
 from chess_coach.llm import ChatClient, Message, OllamaClient
 
 FEN_ONLY_SYSTEM = """\
@@ -61,10 +62,8 @@ def prepare(case: Case, engine: Engine, depth: int) -> tuple[dict, list[str], st
     after.push_uci(case.played_uci)
     if case.played_uci == best.best_move:
         cp_played = best.cp_capped
-    elif after.is_game_over():
-        cp_played = cf.MATE_CP if after.is_checkmate() else 0
     else:
-        cp_played = min(best.cp_capped, -engine.analyse(after, depth=depth)[0].cp_capped)
+        cp_played = score_after(after, best.cp_capped, depth, engine)
     facts = cf.build_facts(
         case.fen, case.played_uci, best.best_move, best.cp_capped, cp_played, best_line_uci=best.pv
     )

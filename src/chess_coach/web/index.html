@@ -1,42 +1,116 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="walnut">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chess Coach</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/css/themes.css">
+<link rel="stylesheet" href="/static/css/app.css">
+<script>
+// Apply the saved theme before first paint (no flash); the page works without localStorage.
+try {
+  var t = JSON.parse(localStorage.getItem("chesscoach.theme"));
+  if (t === "walnut" || t === "slate" || t === "paper") document.documentElement.dataset.theme = t;
+  if (JSON.parse(localStorage.getItem("chesscoach.studyMode")) === true) document.documentElement.dataset.study = "on";
+} catch (e) {}
+</script>
 </head>
 <body>
-<header>
+<header class="topbar" id="topbar">
   <h1>Chess Coach</h1>
-  <span class="sub">Stockfish decides. A local model explains. Checked for legal moves and piece squares only.</span>
+  <span id="gameTitle" class="game-title">Pick a game</span>
+  <span id="counter" class="counter"></span>
+  <button type="button" id="gamesBtn" aria-haspopup="dialog" aria-controls="gamesOverlay">Games</button>
+  <div class="topbar-tools">
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-theme-choice="walnut" aria-label="Walnut theme" title="Walnut"></button>
+      <button type="button" data-theme-choice="slate" aria-label="Slate theme" title="Slate"></button>
+      <button type="button" data-theme-choice="paper" aria-label="Paper theme" title="Paper"></button>
+    </div>
+    <div class="sound-ctl" role="group" aria-label="Sound">
+      <button type="button" data-sound-choice="felt" aria-pressed="true" aria-label="Felt sounds" title="Felt sounds">Felt</button>
+      <button type="button" data-sound-choice="wood" aria-pressed="false" aria-label="Wood sounds" title="Wood sounds">Wood</button>
+      <button type="button" data-sound-choice="off" aria-pressed="false" aria-label="Sound off" title="Sound off">Off</button>
+      <input type="range" id="volume" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
+    </div>
+    <button type="button" id="helpBtn" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-controls="helpOverlay" title="Keyboard shortcuts (?)">?</button>
+    <button type="button" id="studyToggle" aria-pressed="false" aria-label="Study mode" title="Study mode: no sound, no motion">Study mode</button>
+  </div>
 </header>
-<main>
-  <aside id="games" aria-label="Games"><h2>Games</h2><ul id="gameList"></ul></aside>
 
-  <section id="boardCol">
-    <div id="gameTitle" class="title">Pick a game</div>
-    <div id="boardWrap">
-      <div id="board" role="img" aria-label="Chess board"></div>
-      <svg id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
+<main id="stage">
+  <div id="boardCol">
+    <div id="boardWrap" role="group" aria-label="Chess board. The moves are listed in the move list."></div>
+    <nav class="nav" aria-label="Move navigation">
+      <button type="button" id="prevKey" aria-label="Previous key moment" title="Previous key moment">&lsaquo; Key</button>
+      <button type="button" id="first" aria-label="First move">&laquo;</button>
+      <button type="button" id="prev" aria-label="Previous move">&lsaquo;</button>
+      <div id="strip" role="group" aria-label="Move strip" title="Each bar is one move. Taller = more expected points lost."></div>
+      <button type="button" id="next" aria-label="Next move">&rsaquo;</button>
+      <button type="button" id="last" aria-label="Last move">&raquo;</button>
+      <button type="button" id="nextKey" aria-label="Next key moment" title="Next key moment">Key &rsaquo;</button>
+      <button type="button" id="flip" aria-label="Flip the board" title="Flip the board">Flip</button>
+    </nav>
+    <ul id="moveList" class="sr-only" aria-label="Moves of this game"></ul>
+  </div>
+  <section id="caption" class="caption" aria-label="Move commentary">
+    <div class="cap-head"><span class="cap-live" aria-live="polite" aria-atomic="true"><span id="moveName" class="move-name"></span><span id="labelPill"></span></span><span id="reasons"></span></div>
+    <div id="happened" class="happened"></div>
+    <div id="guessMsg" class="guess-msg" role="status"></div>
+    <div id="explainBox" class="explain-scroll"></div>
+    <form id="guessForm" class="guess-form" hidden autocomplete="off">
+      <input id="guessInput" type="text" placeholder="Type your move, e.g. e2e4" aria-label="Type your move in UCI form, for example e2e4, then press Enter. Escape cancels the guess." maxlength="12" spellcheck="false" autocapitalize="off" autocorrect="off">
+      <button type="submit" id="guessSubmit">Guess</button>
+    </form>
+    <div class="cap-actions">
+      <button type="button" id="guessBtn" hidden title="Guess the better move (G)">Guess first</button>
+      <button type="button" id="showAnswerBtn" hidden>Show the answer</button>
+      <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
+      <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
+      <span id="explainAct" class="explain-act"></span>
     </div>
-    <div id="strip" title="Each bar is one move. Taller = more expected points lost."></div>
-    <div class="controls">
-      <button id="first">«</button><button id="prev">‹</button>
-      <button id="next">›</button><button id="last">»</button>
-      <button id="prevKey">‹ Key moment</button><button id="nextKey">Key moment ›</button>
-      <button id="flip">Flip</button>
-    </div>
-  </section>
-
-  <section id="detail">
-    <div id="moveHead"></div>
-    <div id="legend"></div>
-    <div id="explainBox"></div>
-    <h2>Moves</h2>
-    <div id="moves"></div>
   </section>
 </main>
-<script src="/static/app.js"></script>
+
+<div id="gamesOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="Games" hidden>
+  <div class="overlay-card">
+    <div class="overlay-head"><h2>Games</h2><button type="button" id="gamesClose" aria-label="Close games">Close</button></div>
+    <ul id="gameList"></ul>
+  </div>
+</div>
+
+<div id="helpOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" hidden>
+  <div class="overlay-card">
+    <div class="overlay-head"><h2>Keyboard shortcuts</h2><button type="button" id="helpClose" aria-label="Close shortcuts">Close</button></div>
+    <dl class="keys">
+      <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt><dd>Previous / next move</dd>
+      <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>Next / previous key moment</dd>
+      <dt><kbd>G</kbd></dt><dd>Guess the better move</dd>
+      <dt><kbd>/</kbd></dt><dd>Ask the coach</dd>
+      <dt><kbd>M</kbd></dt><dd>Mute or unmute sound</dd>
+      <dt><kbd>?</kbd></dt><dd>This list</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close a panel</dd>
+    </dl>
+    <p class="note"><span id="meCurrent"></span> <button type="button" id="changeMe" hidden>Not you? Change player</button></p>
+  </div>
+</div>
+
+<div id="meOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="meTitle" hidden>
+  <div class="overlay-card">
+    <div class="overlay-head"><h2 id="meTitle">Which player are you?</h2><button type="button" id="meClose" aria-label="Close without choosing">Not now</button></div>
+    <p class="note">Guess-first uses this to offer the key moments you played. It is remembered in this browser only.</p>
+    <ul id="meList" class="pick-list"></ul>
+  </div>
+</div>
+
+<aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
+  <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>
+  <div id="chatLog" class="chat-log" role="log" aria-live="off" aria-label="Conversation"></div>
+  <div id="chatAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div id="chatStatus" class="chat-status" role="status"></div>
+  <div class="note">Answers are checked for legal moves and piece squares only, so they can still contain mistakes.</div>
+  <form id="chatForm"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Ask about this position (Enter sends, Shift+Enter for a new line)" aria-label="Your question"></textarea><button type="submit" id="chatSend">Send</button></form>
+</aside>
+<script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

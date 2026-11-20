@@ -1,0 +1,50 @@
+/* Theme tokens. One declaration per line, hex colours (parsed by tests/web/contrast.test.mjs). */
+:root[data-theme="walnut"] {
+  color-scheme: dark;
+  --bg: #1c1612;
+  --bg-glow: #3a2a1c;
+  --panel: #2c231b;
+  --line: #4a3d31;
+  --ink: #eadfce;
+  --muted: #b3a38f;
+  --accent: #e0a458;
+  --on-accent: #241a10;
+  --bad: #e0705a;
+  --warn: #d98b3a;
+  --board-light: #e4c897;
+  --board-dark: #a8744a;
+  --highlight: #f0be5a;
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.22' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 -1.1 1.15'/></filter><rect width='300' height='300' filter='url(%23g)'/></svg>");
+}
+:root[data-theme="slate"] {
+  color-scheme: dark;
+  --bg: #12161b;
+  --bg-glow: #1b2128;
+  --panel: #222a33;
+  --line: #303a45;
+  --ink: #d9e0e7;
+  --muted: #9aa7b4;
+  --accent: #6fbfae;
+  --on-accent: #0d1a17;
+  --bad: #e5776d;
+  --warn: #d9a24a;
+  --board-light: #b7c4b0;
+  --board-dark: #6d8570;
+  --highlight: #6fbfae;
+}
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #efe8da;
+  --bg-glow: #efe8da;
+  --panel: #e4dccb;
+  --line: #cfc5b0;
+  --ink: #2b2620;
+  --muted: #5e5648;
+  --accent: #a4492f;
+  --on-accent: #fff7ee;
+  --bad: #a83a28;
+  --warn: #8f5a14;
+  --board-light: #ecdcbc;
+  --board-dark: #b99b76;
+  --highlight: #c4783c;
+}

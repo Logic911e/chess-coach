@@ -15,7 +15,10 @@ Work in progress.
 - [x] Evaluation harness (`evaluation.py`, results in `results/`)
 - [x] Postgres layer: schema, migrations, indexes chosen with `EXPLAIN ANALYZE` (`docs/query_plans.md`)
 - [x] Game review UI: board, key moments, on-demand explanations (`api.py`, `src/chess_coach/web/`)
-- [ ] Chat panel scoped to the selected position (next)
+- [x] Immersive review UI: themes, sound, study mode, guess-first, keyboard shortcuts, accessibility pass
+- [x] Chat panel scoped to the selected position
+- [ ] Retry queue for explanations that fail the checker (later)
+- [ ] Pattern detection across games (later)
 - [ ] pgvector / full-text retrieval of similar past mistakes (later)
 
 ## Run the UI
@@ -28,10 +31,44 @@ ollama serve                                          # local model, for "Explai
 uvicorn chess_coach.api:app --port 8000               # then open http://localhost:8000
 ```
 
-Pick a game, step through it with the arrow keys, and jump between key moments. The board shows
-the position before the move, with the move played and the engine's best move as arrows. The
-move strip shows how much each move cost. "Explain this move" asks the local model and caches the
-answer in Postgres. There is no chat yet.
+## Using the review page
+
+Open http://localhost:8000. Pick a game with **Games**; the board shows the position before the
+selected move, with the move played and the engine's best move as arrows. The strip under the board
+shows how much each move cost (taller means more expected points lost).
+
+- **Themes:** the three swatches in the top bar switch between Walnut, Slate and Paper. The choice is
+  remembered in this browser.
+- **Sound:** Felt (default), Wood or Off, plus a volume slider. Nothing plays before your first click or key press.
+- **Study mode:** removes all sound and motion. The page does the same when your system asks for reduced motion.
+- **Keyboard:** Left/Right step through moves, `j`/`k` jump to the next/previous key moment, `g` starts a
+  guess, `/` opens the chat, `m` mutes or unmutes, `?` lists the shortcuts, Esc closes a panel.
+- **Guess first:** when you arrive on a key moment you played (by opening a game, stepping, `j`/`k` or the
+  strip), the page stays neutral: "Move N, your move", no label, no arrows, no engine text, no explanation,
+  and only the plain move sound. Choose "Guess first" (or `g`) or "Show the answer"; the answer stays shown
+  for the rest of the visit. To guess, click the piece and the square, or type the move in the field that
+  appears (UCI such as `e2e4`, or `e7e8q`; Enter submits, Esc cancels). The engine scores it, then the page
+  reveals the answer.
+- **Chat:** "Ask the coach" asks the local model about the position on screen. History is dropped when you
+  change move, and chat is off during a guess so an answer cannot give the move away.
+- **Which player are you:** guess-first needs to know which player is you. The server may suggest one;
+  if it does not and you have not chosen, the page asks once (a dismissed prompt is not shown again on load).
+  The answer is remembered in this browser only and can be changed from the `?` dialog. No name is hard-coded
+  in the repository.
+- **Screen readers:** the move strip is one tab stop, each bar has an accessible name, and there is a
+  visually hidden list of all moves ("11. Qb3, mistake") whose buttons jump to a move. The move name and label
+  sit in a polite live region, and only the coach's chat answers are announced, not your own messages. During
+  a guess the current move is named "your move" only. What has and has not been checked is under Known limits.
+
+"Explain this move" asks the local model and caches the answer in Postgres.
+
+Tests:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m pytest -q
+.venv/bin/ruff check src tests
+node --test tests/web/*.test.mjs        # front-end logic (use the glob; the bare directory form fails on some Node versions)
+```
 
 ## Result so far (small sample, read the caveats)
 
@@ -92,6 +129,19 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   of six samples for the same blunder (`...Nf6` into `Qxf7#`), all six passed and all six contained
   errors of that kind, for example "the f7 pawn was already pinned", "Knight to g6" (g6 is a pawn
   move) and the white queen described as "undefended on h5".
+- Chat and explanations come from a small local model and are checked only for illegal moves and wrong
+  piece squares, so they can still be wrong or vague.
+- Sounds and animation were only checked structurally (the code and tests); nobody listened to them or judged
+  the motion by eye on every theme.
+- Accessibility has had only a structural pass, not a test with a real screen reader. In Chrome I inspected
+  the accessibility tree for the move list, strip and live regions in the Walnut theme, checked in the page
+  that the move names are neutral during a guess, ran the chat announcement against a faked server reply, and
+  saw the focus outline on the strip bar in Slate and Paper. Beyond that: the neutral names are otherwise covered
+  by unit tests, the outline colours by a computed-contrast test, and the small-screen layout was measured at
+  320px wide and 300px tall but not looked at on a real phone.
+- Guess-first needs the engine and takes a few seconds to score a guess.
+- The typed-move field takes UCI only (`e2e4`), not SAN, and has not been tried with a screen reader.
+- Chat is not switched off in the neutral view before you guess, only during an active guess, so an answer there can name the engine's move.
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.
 - No full static exchange evaluation; pins on attackers are ignored.
 - Forks only look at immediate targets; only absolute pins are detected.
