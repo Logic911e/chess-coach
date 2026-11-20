@@ -6,6 +6,7 @@ process can only run one search at a time.
 
 from __future__ import annotations
 
+import contextlib
 import threading
 from collections.abc import Callable
 from contextlib import AbstractContextManager, ExitStack
@@ -42,7 +43,20 @@ class EngineService:
                     stack.close()
                     raise
                 self._stack = stack
-            return self._engine.analyse(board, depth=depth, multipv=multipv)
+            try:
+                return self._engine.analyse(board, depth=depth, multipv=multipv)
+            except ValueError:
+                raise  # bad input (e.g. game-over position); the engine is still healthy
+            except BaseException:
+                # Crashed, hung or killed engine: drop it so the next call restarts it.
+                self._discard()
+                raise
+
+    def _discard(self) -> None:
+        stack, self._stack, self._engine = self._stack, None, None
+        if stack is not None:
+            with contextlib.suppress(Exception):  # closing a dead engine may fail
+                stack.close()
 
     def close(self) -> None:
         with self._lock:

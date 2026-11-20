@@ -108,3 +108,34 @@ def test_app_closes_engine_service_on_shutdown():
     with TestClient(app):
         svc.analyse(chess.Board(), depth=1)
     assert log["exit"] == 1
+
+
+def test_engine_failure_discards_engine_and_restarts_on_next_call():
+    svc, engine, log = make()
+    svc.analyse(chess.Board(), depth=1)
+    assert log["factory"] == 1
+    engine.fail_next = True
+    with pytest.raises(RuntimeError, match="boom"):
+        svc.analyse(chess.Board(), depth=1)
+    assert log["exit"] == 1  # dead engine was torn down
+    assert svc.analyse(chess.Board(), depth=1) == []
+    assert log["factory"] == 2
+    assert log["enter"] == 2
+
+
+def test_teardown_error_does_not_mask_original_failure():
+    svc, engine, log = make()
+    svc.analyse(chess.Board(), depth=1)
+    engine.fail_next = True
+
+    def bad_exit(*exc):
+        raise OSError("pipe closed")
+
+    engine.__class__.__exit__, orig = bad_exit, engine.__class__.__exit__
+    try:
+        with pytest.raises(RuntimeError, match="boom"):
+            svc.analyse(chess.Board(), depth=1)
+    finally:
+        engine.__class__.__exit__ = orig
+    assert svc.analyse(chess.Board(), depth=1) == []
+    assert log["factory"] == 2
