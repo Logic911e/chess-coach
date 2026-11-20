@@ -85,14 +85,24 @@ try {
       <dt><kbd>?</kbd></dt><dd>This list</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close a panel</dd>
     </dl>
+    <p class="note"><span id="meCurrent"></span> <button type="button" id="changeMe" hidden>Not you? Change player</button></p>
+  </div>
+</div>
+
+<div id="meOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="meTitle" hidden>
+  <div class="overlay-card">
+    <div class="overlay-head"><h2 id="meTitle">Which player are you?</h2><button type="button" id="meClose" aria-label="Close without choosing">Not now</button></div>
+    <p class="note">Guess-first uses this to offer the key moments you played. It is remembered in this browser only.</p>
+    <ul id="meList" class="pick-list"></ul>
   </div>
 </div>
 
 <aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
   <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>
-  <div id="chatLog" class="chat-log"></div>
+  <div id="chatLog" class="chat-log" role="log" aria-live="polite"></div>
+  <div id="chatStatus" class="chat-status" role="status"></div>
   <div class="note">Answers are checked for legal moves and piece squares only, so they can still contain mistakes.</div>
-  <form id="chatForm"><input id="chatInput" type="text" placeholder="Ask about this position" disabled><button type="submit" disabled>Send</button></form>
+  <form id="chatForm"><textarea id="chatInput" rows="2" maxlength="1000" placeholder="Ask about this position (Enter sends, Shift+Enter for a new line)" aria-label="Your question"></textarea><button type="submit" id="chatSend">Send</button></form>
 </aside>
 <script type="module" src="/static/js/main.js"></script>
 </body>

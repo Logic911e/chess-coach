@@ -117,7 +117,21 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
 .drawer.open { transform: none; visibility: visible; transition: transform .25s ease; }
 .chat-log { min-height: 80px; overflow: auto; flex: 1; }
 #chatForm { display: flex; gap: 6px; }
-#chatForm input { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+#chatForm textarea { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; resize: none; }
+#chatForm { align-items: flex-end; }
+.chat-log { display: flex; flex-direction: column; gap: 8px; }
+.chat-msg { padding: 6px 10px; border-radius: 10px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-msg.user { align-self: flex-end; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.chat-msg.coach { align-self: stretch; background: var(--bg); border: 1px solid var(--line); }
+.chat-msg .note, .chat-msg .warn { margin-top: 4px; white-space: normal; }
+.chat-status { min-height: 1.2em; font-size: 13px; color: var(--muted); }
+.chat-status.error { color: var(--bad); }
+.chat-status.busy::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: chat-spin .8s linear infinite; }
+:root[data-motion="off"] .chat-status.busy::before { animation: none; }
+@keyframes chat-spin { to { transform: rotate(360deg); } }
+.pick-list { list-style: none; margin: 0; padding: 0; }
+.pick-list button { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 9px 6px; }
+.pick-list button:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
 .keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 6px 0 4px; }
 .keys dt, .keys dd { margin: 0; }

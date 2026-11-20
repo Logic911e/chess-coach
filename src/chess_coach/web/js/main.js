@@ -1,13 +1,15 @@
 // Theatre page. All text from the server is inserted with textContent, never innerHTML.
-import { getGames, getGame, explainMove, guessMove } from "./api.js";
+import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain } from "./guess.js";
+import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
+import { resolveMe } from "./me.js";
 
-const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
+const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
@@ -85,6 +87,7 @@ function render(animate = false) {
   $("happened").textContent = guessing ? "" :
     `${mv.color === "white" ? g.white : g.black} lost ${mv.expected_points_lost.toFixed(3)} expected points; ${bestTxt}.`;
   renderGuessUi(mv, guessing);
+  renderAsk(guessing);
   if (!guessing) renderExplain(mv);
   renderStrip();
   $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));
@@ -97,7 +100,7 @@ function render(animate = false) {
 
 function renderGuessUi(mv, guessing) {
   const g = state.game, btn = $("guessBtn"), msg = $("guessMsg");
-  const can = canGuess(mv, settings.get("me", null), g), done = guessFlow.resultFor(mv);
+  const can = canGuess(mv, state.me, g), done = guessFlow.resultFor(mv);
   btn.hidden = !can;
   btn.disabled = !can || (!!done && !guessing);
   btn.textContent = guessing ? "Cancel guess" : "Guess first";
@@ -109,6 +112,12 @@ function renderGuessUi(mv, guessing) {
     $("explainBox").replaceChildren(el("div", { className: "note", textContent: "The explanation is hidden until you guess." }));
     $("explainAct").replaceChildren();
   } else msg.textContent = done || "";
+}
+
+// While a guess is active the chat is off, so an answer (which may name the engine's best move) cannot leak it.
+function renderAsk(guessing) {
+  $("askBtn").disabled = guessing;
+  $("askBtn").title = guessing ? "Finish your guess first." : "Ask the coach about this position (/)";
 }
 
 // ---------- guess first ----------
@@ -135,7 +144,9 @@ const guessFlow = createGuessFlow({
 function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
-  if (canGuess(mv, settings.get("me", null), state.game)) guessFlow.begin(mv);
+  if (!canGuess(mv, state.me, state.game)) return;
+  setChat(false);
+  guessFlow.begin(mv);
 }
 function cancelGuess() { guessFlow.cancel(); }
 
@@ -208,6 +219,7 @@ function go(i) {
   // Slide only single steps (either direction); jumps just redraw.
   state.slides = Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
+  chat.sync();
   render(moved && motionAllowed());
   if (moved && motionAllowed()) player.play(soundsFor(cur()));
 }
@@ -231,6 +243,7 @@ async function selectGame(id) {
   catch (e) { $("gameTitle").textContent = "Could not open the game: " + e.message; return; }
   state.idx = startIndex(state.game.moves);
   state.slides = [];
+  chat.sync();
   document.querySelectorAll("#gameList button").forEach((b) => b.classList.toggle("sel", Number(b.dataset.id) === id));
   if (!state.game.moves.length) { showEmpty(); return; }
   render();
@@ -239,7 +252,7 @@ async function selectGame(id) {
 // ---------- overlays ----------
 // Modal dialogs (Games, shortcuts) make the page behind them inert, so focus cannot leave them,
 // and give focus back to what opened them.
-const modalOpen = () => !$("gamesOverlay").hidden || !$("helpOverlay").hidden;
+const modalOpen = () => !$("gamesOverlay").hidden || !$("helpOverlay").hidden || !$("meOverlay").hidden;
 const returnTo = new Map();  // dialog id -> element that had focus when it opened
 function setModal(id, open, first, opener) {
   const ov = $(id), was = !ov.hidden;
@@ -248,9 +261,11 @@ function setModal(id, open, first, opener) {
   if (open) {
     returnTo.set(id, document.activeElement);  // read before inert can blur it
     $("topbar").inert = $("stage").inert = true;
+    syncDrawerInert();
     first().focus();
   } else {
     $("topbar").inert = $("stage").inert = modalOpen();
+    syncDrawerInert();
     const prev = returnTo.get(id);
     returnTo.delete(id);
     const ok = prev && prev !== document.body && prev.isConnected && !prev.disabled;
@@ -260,18 +275,84 @@ function setModal(id, open, first, opener) {
 const setGames = (open) => setModal("gamesOverlay", open,
   () => $("gameList").querySelector("button.sel, button") || $("gamesClose"), $("gamesBtn"));
 const setHelp = (open) => setModal("helpOverlay", open, () => $("helpClose"), $("helpBtn"));
+const setMe = (open) => setModal("meOverlay", open, () => $("meList").querySelector("button") || $("meClose"), $("helpBtn"));
+// The drawer is reachable only when it is open and no modal is on top of it.
+function syncDrawerInert() { $("chatDrawer").inert = !$("chatDrawer").classList.contains("open") || modalOpen(); }
 function setChat(open, focusInput = false) {
   const d = $("chatDrawer");
+  if (open && (guessFlow.active() || !state.game)) return;
   const hadFocus = d.contains(document.activeElement);
+  if (open) chat.sync();
   d.classList.toggle("open", open);
   d.setAttribute("aria-hidden", String(!open));
-  d.inert = !open;
+  syncDrawerInert();
   $("askBtn").setAttribute("aria-expanded", String(open));
-  if (open && focusInput) {  // the input is disabled until the chat arrives; fall back to Close
-    const input = $("chatInput");
-    (input.disabled ? $("chatClose") : input).focus();
-  }
+  if (open && focusInput) $("chatInput").focus();
   if (!open && hadFocus) $("askBtn").focus();
+}
+
+// ---------- chat ----------
+const chatStatus = (text, kind = "") => { $("chatStatus").textContent = text; $("chatStatus").className = "chat-status" + (kind ? " " + kind : ""); };
+const chat = createChat({
+  api: { chatMove },
+  getMoveId: () => (state.game && state.game.moves.length ? cur().id : null),
+  isBlocked: () => guessFlow.active(),
+  ui: {
+    open() { setChat(true, true); },
+    close() { setChat(false); },
+    reset() { $("chatLog").replaceChildren(); chatStatus(""); },
+    user(text) {
+      $("chatLog").append(el("div", { className: "chat-msg user", textContent: text }));
+      $("chatInput").value = "";
+      scrollChat();
+    },
+    pending(b) {
+      $("chatSend").disabled = b;
+      if (b) chatStatus("Asking the local model. This can take up to 30 seconds…", "busy"); else chatStatus("");
+    },
+    answer(body, flagged) {
+      const m = el("div", { className: "chat-msg coach" }, el("div", { textContent: body }));
+      if (flagged) m.append(el("div", { className: "warn", textContent: FLAG_WARNING }));
+      m.append(el("div", { className: "note", textContent: HONESTY_NOTE }));
+      $("chatLog").append(m);
+      scrollChat();
+    },
+    error(msg) { chatStatus(msg, "error"); },
+    notice(msg) { chatStatus(msg); },
+  },
+});
+function scrollChat() { const l = $("chatLog"); l.scrollTop = l.scrollHeight; }
+
+// ---------- who "me" is ----------
+function showMe() {
+  const cur = state.me;
+  $("meCurrent").textContent = cur ? `Playing as ${cur}.` : "";
+  $("changeMe").hidden = !state.players.length;
+}
+function chooseMe(name) {
+  state.me = name;
+  settings.set("me", name);
+  showMe();
+  if (state.game) render();
+}
+function openMePrompt() {
+  $("meList").replaceChildren(...state.players.map((p) => {
+    const b = el("button", { type: "button", textContent: p.name });
+    b.append(el("span", { className: "note", textContent: `  ${p.games} ${p.games === 1 ? "game" : "games"}` }));
+    b.onclick = () => { chooseMe(p.name); setMe(false); };
+    return el("li", {}, b);
+  }));
+  setMe(true);
+}
+async function loadMe() {
+  let r;
+  try { r = await getPlayers(); } catch (e) { return; }  // guess-first just stays hidden
+  state.players = r.players || [];
+  const res = resolveMe({ stored: settings.get("me", null), players: state.players, suggested: r.suggested });
+  state.me = res.me;
+  showMe();
+  if (state.game) render();
+  if (res.needsPrompt) openMePrompt();
 }
 
 // ---------- keyboard ----------
@@ -286,20 +367,22 @@ const handleKey = createKeyHandler({
   nextKey: () => { if (modalOpen() || !state.game) return false; goKey(1); },
   prevKey: () => { if (modalOpen() || !state.game) return false; goKey(-1); },
   guess: () => { if (modalOpen()) return false; startGuess(); },
-  chat: () => { if (modalOpen()) return false; setChat(true, true); },
+  chat: () => { if (modalOpen() || guessFlow.active() || !state.game) return false; setChat(true, true); },
   close: () => {
-    if (!$("helpOverlay").hidden) setHelp(false);
+    if (!$("meOverlay").hidden) setMe(false);
+    else if (!$("helpOverlay").hidden) setHelp(false);
     else if (!$("gamesOverlay").hidden) setGames(false);
     else if ($("chatDrawer").classList.contains("open")) setChat(false);
     else if (guessFlow.active()) cancelGuess();
     else return false;
   },
   mute: () => { if (modalOpen()) return false; toggleSoundMute(); },
-  help: () => { if ($("helpOverlay").hidden && !$("gamesOverlay").hidden) return false; setHelp($("helpOverlay").hidden); },
+  help: () => { if ($("helpOverlay").hidden && ($("gamesOverlay").hidden === false || $("meOverlay").hidden === false)) return false; setHelp($("helpOverlay").hidden); },
 });
 
 async function init() {
   applySettings();
+  loadMe();
   try { state.games = await getGames(); }
   catch (e) { $("gameTitle").textContent = "Cannot reach the database: " + e.message; return; }
   const list = $("gameList");
@@ -340,9 +423,15 @@ $("engineBtn").onclick = () => { state.showEngine = !state.showEngine; if (state
 $("gamesBtn").onclick = () => setGames(true);
 $("gamesClose").onclick = () => setGames(false);
 $("gamesOverlay").addEventListener("click", (e) => { if (e.target === $("gamesOverlay")) setGames(false); });
-$("askBtn").onclick = () => setChat(!$("chatDrawer").classList.contains("open"));
+$("askBtn").onclick = () => { const open = !$("chatDrawer").classList.contains("open"); setChat(open, open); };
 $("chatClose").onclick = () => setChat(false);
-$("chatForm").addEventListener("submit", (e) => e.preventDefault());
+$("chatForm").addEventListener("submit", (e) => { e.preventDefault(); chat.send($("chatInput").value); });
+$("chatInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); chat.send($("chatInput").value); }
+});
+$("meClose").onclick = () => setMe(false);
+$("meOverlay").addEventListener("click", (e) => { if (e.target === $("meOverlay")) setMe(false); });
+$("changeMe").onclick = () => { setHelp(false); openMePrompt(); };
 document.addEventListener("keydown", (e) => { if (handleKey(e)) e.preventDefault(); });
 $("helpBtn").onclick = () => setHelp(true);
 $("helpClose").onclick = () => setHelp(false);
