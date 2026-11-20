@@ -1,6 +1,5 @@
 "use strict";
 // Game review page. All text from the server is inserted with textContent, never innerHTML.
-const GLYPH = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
 const state = { games: [], game: null, idx: 0, flipped: false };
 const $ = (id) => document.getElementById(id);
 
@@ -49,7 +48,8 @@ function drawBoard(fen, highlight) {
       if (highlight.includes(name)) sq.classList.add("hl");
       if (piece) {
         const white = piece === piece.toUpperCase();
-        sq.append(el("span", { className: white ? "w" : "b", textContent: GLYPH[piece.toLowerCase()] }));
+        sq.append(el("img", { src: `/static/pieces/${white ? "w" : "b"}${piece.toUpperCase()}.svg`,
+                              alt: (white ? "white " : "black ") + piece.toLowerCase(), draggable: false }));
       }
       if (f === 0) sq.append(el("i", { className: "r", textContent: String(8 - rr) }));
       if (r === 7) sq.append(el("i", { className: "f", textContent: "abcdefgh"[ff] }));

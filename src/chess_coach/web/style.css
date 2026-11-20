@@ -1,14 +1,17 @@
 :root {
+  /* wood grain: stretched fractal noise, tinted by the square colour via multiply */
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.22' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 -1.1 1.15'/></filter><rect width='300' height='300' filter='url(%23g)'/></svg>");
   --bg:#f6f5f2; --panel:#fff; --ink:#1d1d1b; --muted:#6b6a66; --line:#e2e0da;
-  --light:#eeeed2; --dark:#769656; --accent:#2f6fdb;
+  --light:#e9cfa0; --dark:#b07f4f; --accent:#2f6fdb;
   --best:#2e9d5b; --excellent:#2e9d5b; --good:#8aa63a; --inaccuracy:#d9a20f;
   --mistake:#e07a1f; --blunder:#d23b3b;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg:#1b1b19; --panel:#262624; --ink:#ecebe6; --muted:#9c9a93; --line:#3a3a36;
-          --light:#d9d9bc; --dark:#6b8a4d; --accent:#6c9cf0; }
+          --light:#d8bb8a; --dark:#9a6b3f; --accent:#6c9cf0; }
 }
 * { box-sizing:border-box; }
+:root { --boardw: min(calc(100vh - 270px), 56vw); }
 body { margin:0; background:var(--bg); color:var(--ink);
        font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; }
 header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; gap:16px;
@@ -16,9 +19,9 @@ header { padding:14px 20px; border-bottom:1px solid var(--line); display:flex; g
 h1 { margin:0; font-size:20px; } h2 { font-size:13px; text-transform:uppercase;
      letter-spacing:.06em; color:var(--muted); margin:14px 0 8px; }
 .sub { color:var(--muted); font-size:13px; }
-main { display:grid; grid-template-columns:240px minmax(340px,620px) minmax(300px,1fr); gap:20px;
+main { display:grid; grid-template-columns:200px var(--boardw) minmax(300px,1fr); gap:20px;
        padding:16px 20px; align-items:start; }
-@media (max-width:1000px){ main{ grid-template-columns:1fr; } #games ul{ max-height:200px; } }
+@media (max-width:1000px){ :root{ --boardw:100%; } main{ grid-template-columns:1fr; } #games ul{ max-height:200px; } }
 aside, #detail { background:var(--panel); border:1px solid var(--line); border-radius:10px;
                  padding:4px 14px 14px; }
 #games ul { list-style:none; margin:0; padding:0; max-height:75vh; overflow:auto; }
@@ -27,17 +30,16 @@ aside, #detail { background:var(--panel); border:1px solid var(--line); border-r
 #games li button:hover, #games li button.sel { background:color-mix(in srgb,var(--accent) 12%,transparent); }
 #games .meta { color:var(--muted); font-size:12px; }
 .title { font-weight:600; margin-bottom:8px; }
-#boardWrap { position:relative; width:100%; aspect-ratio:1; border-radius:6px; overflow:hidden;
+#boardWrap { position:relative; width:100%; box-shadow:0 6px 24px rgba(0,0,0,.35); aspect-ratio:1; border-radius:6px; overflow:hidden;
              border:1px solid var(--line); }
 #board { display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(8,1fr);
          width:100%; height:100%; }
-.sq { display:flex; align-items:center; justify-content:center; position:relative;
-      font-size:min(7vw,52px); line-height:1; user-select:none; }
-.sq.l { background:var(--light); } .sq.d { background:var(--dark); }
-.sq.hl::after { content:""; position:absolute; inset:0; background:rgba(255,215,0,.35); }
-.sq .w { color:#fff; text-shadow:0 0 2px #000,0 0 2px #000,0 0 1px #000; }
-.sq .b { color:#111; text-shadow:0 0 1px #fff; }
-.sq i { position:absolute; font-style:normal; font-size:10px; opacity:.7; }
+.sq { display:flex; align-items:center; justify-content:center; position:relative; user-select:none; }
+.sq img { width:96%; height:96%; position:relative; z-index:1; pointer-events:none; }
+.sq.l, .sq.d { background-image:var(--grain); background-blend-mode:multiply; }
+.sq.l { background-color:var(--light); } .sq.d { background-color:var(--dark); }
+.sq.hl::after { content:""; position:absolute; inset:0; background:rgba(255,230,80,.42); z-index:0; }
+.sq i { position:absolute; font-style:normal; font-size:12px; font-weight:700; opacity:.75; z-index:2; }
 .sq i.f { right:2px; bottom:1px; } .sq i.r { left:2px; top:1px; }
 #arrows { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 #strip { display:flex; align-items:flex-end; gap:1px; height:54px; margin-top:10px;

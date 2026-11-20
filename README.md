@@ -101,3 +101,5 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
 Stockfish is GPL. It is only ever called as an external process and is never bundled.
 If datasets such as ChessReD (CC BY-NC-SA 4.0) are used later, this project must stay
 **non-commercial**.
+- Chess piece images (`src/chess_coach/web/pieces/`) are Colin M.L. Burnett's "Cburnett" set,
+  bundled with python-chess and exported by `scripts/export_pieces.py` (GPL v2+ / BSD / GFDL).
