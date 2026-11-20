@@ -123,3 +123,59 @@ def test_players_endpoint_counts_each_game_once(app_and_client, pg):
     data = http.get("/api/players").json()
     assert data["players"] == [{"name": "Ann", "games": 2}, {"name": "Bo", "games": 1}]
     assert data["suggested"] == "Ann"
+
+
+class Raising:
+    def __init__(self):
+        self.fail = True
+
+    def analyse(self, board, depth=None, time=None, multipv=1):
+        if self.fail:
+            self.fail = False
+            raise RuntimeError("engine died")
+        return [Analysis(cp=0, mate=None, best_move="a2a3", pv=["a2a3"], depth=depth)]
+
+
+def _first_move(http):
+    gid = http.get("/api/games").json()[0]["id"]
+    return http.get(f"/api/games/{gid}").json()["moves"][0]
+
+
+def test_guess_endpoint_scores_and_404s(pg):
+    from chess_coach.engine_service import EngineService
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    app = create_app(connect=lambda: NoClose(pg), engine_service=EngineService(lambda: _Ctx(Swingy())))
+    http = TestClient(app)
+    m = _first_move(http)
+    r = http.post(f"/api/moves/{m['id']}/guess", json={"uci": m["best_uci"]}).json()
+    assert r["legal"] and r["matched"] and r["classification"] == "best"
+    assert r["best_san"] == m["best_san"] and r["san"] == m["best_san"]
+    bad = http.post(f"/api/moves/{m['id']}/guess", json={"uci": "e2e5"}).json()
+    assert bad["legal"] is False and bad["classification"] is None
+    assert http.post("/api/moves/999999/guess", json={"uci": "e2e4"}).status_code == 404
+
+
+def test_guess_endpoint_503_on_engine_error(pg):
+    from chess_coach.engine_service import EngineService
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    engine = Raising()
+    app = create_app(connect=lambda: NoClose(pg), engine_service=EngineService(lambda: _Ctx(engine)))
+    http = TestClient(app)
+    m = _first_move(http)
+    other = "a2a3" if m["best_uci"] != "a2a3" else "b2b3"
+    r = http.post(f"/api/moves/{m['id']}/guess", json={"uci": other})
+    assert r.status_code == 503 and r.json()["detail"]
+    assert http.post(f"/api/moves/{m['id']}/guess", json={"uci": other}).status_code == 200
+
+
+class _Ctx:
+    def __init__(self, engine):
+        self.engine = engine
+
+    def __enter__(self):
+        return self.engine
+
+    def __exit__(self, *a):
+        return False

@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 
 import chess
@@ -16,14 +17,20 @@ import psycopg
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from chess_coach import db
 from chess_coach.engine_service import EngineService
 from chess_coach.explainer import explain
+from chess_coach.guess import score_guess
 from chess_coach.llm import LLMError, OllamaClient
 from chess_coach.store import save_explanation
 
 WEB_DIR = Path(__file__).parent / "web"
+
+
+class GuessBody(BaseModel):
+    uci: str
 
 
 def _best_san(fen: str, uci: str) -> str | None:
@@ -201,6 +208,23 @@ def create_app(
             conn.commit()
             return {"body": result.text, "flagged": result.flagged, "model": model,
                     "cached": False}
+
+    @app.post("/api/moves/{move_id}/guess")
+    def guess_move(move_id: int, body: GuessBody) -> dict:
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT m.fen_before, e.best_uci, e.cp_best, e.engine_depth"
+                " FROM moves m JOIN evaluations e ON e.move_id = m.id WHERE m.id = %s",
+                (move_id,),
+            ).fetchone()
+        if row is None:
+            raise HTTPException(404, "no such move")
+        fen, best_uci, cp_best, depth = row
+        try:
+            result = score_guess(fen, body.uci, best_uci, cp_best, depth, engine)
+        except Exception as exc:
+            raise HTTPException(503, f"engine unavailable: {exc}") from exc
+        return {**asdict(result), "best_san": _best_san(fen, best_uci)}
 
     if WEB_DIR.exists():
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
