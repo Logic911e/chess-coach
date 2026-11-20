@@ -136,3 +136,18 @@ def test_chat_503_on_engine_failure_and_500_on_bugs(http, pg):
     h2 = TestClient(http(Buggy()).app, raise_server_exceptions=False)
     r2 = h2.post(f"/api/moves/{m['id']}/chat", json={"question": "why?", "history": []})
     assert r2.status_code == 500 and "engine unavailable" not in r2.text
+
+
+def test_history_bounds_rejected_with_422_and_limits_accepted(http):
+    h = http()
+    m = _first_move(h)
+    url = f"/api/moves/{m['id']}/chat"
+
+    def turns(n, size=10):
+        return [{"role": "user" if i % 2 == 0 else "assistant", "content": "x" * size}
+                for i in range(n)]
+
+    assert h.post(url, json={"question": "hi", "history": turns(21)}).status_code == 422
+    assert h.post(url, json={"question": "hi", "history": turns(1, 2001)}).status_code == 422
+    ok = h.post(url, json={"question": "hi", "history": turns(20, 2000)})
+    assert ok.status_code == 200

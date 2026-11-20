@@ -49,12 +49,12 @@ class GuessBody(BaseModel):
 
 class ChatTurn(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(max_length=2000)
 
 
 class ChatBody(BaseModel):
     question: str = Field(max_length=1000)
-    history: list[ChatTurn] = []
+    history: list[ChatTurn] = Field(default=[], max_length=20)
 
     @field_validator("question")
     @classmethod
