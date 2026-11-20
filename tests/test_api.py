@@ -199,8 +199,28 @@ def test_guess_endpoint_does_not_relabel_programming_errors(pg):
     assert "engine unavailable" not in r.text
 
 
+def _elements(html):
+    from html.parser import HTMLParser
+
+    found = []
+
+    class P(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            found.append((tag, dict(attrs)))
+
+    P().feed(html)
+    return found
+
+
 def test_index_has_live_region_and_move_list_container(app_and_client):
     http, _ = app_and_client
-    html = http.get("/").text
-    assert "aria-live" in html
-    assert 'id="moveList"' in html
+    els = _elements(http.get("/").text)
+    by_id = {a["id"]: (tag, a) for tag, a in els if "id" in a}
+    assert by_id["moveList"][0] == "ul"
+    assert "chatAnnounce" in by_id and by_id["chatAnnounce"][1]["aria-live"] == "polite"
+    # the chat log itself is not live (only assistant answers are announced), and the caption
+    # section is not live (the live region is scoped to the move name and label)
+    assert by_id["chatLog"][1]["aria-live"] == "off"
+    assert "aria-live" not in by_id["caption"][1]
+    live = [a for _, a in els if a.get("class") == "cap-live"]
+    assert len(live) == 1 and live[0]["aria-live"] == "polite"

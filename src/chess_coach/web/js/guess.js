@@ -49,8 +49,6 @@ export function moveA11yName(move, guessing) {
   if (guessing) return `Move ${move.move_number}, your move`;
   return `${move.move_number}${move.color === "white" ? "." : "..."} ${move.san}, ${move.classification}`;
 }
-/** Text for the caption's live region: the move name and label only. */
-export const liveText = moveA11yName;
 
 /** An in-flight explain() may touch the explanation box only outside a guess. */
 export const mayWriteExplain = (guessing) => !guessing;

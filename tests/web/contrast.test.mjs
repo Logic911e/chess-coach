@@ -63,3 +63,22 @@ test("the focus outline colour (accent) has >= 3:1 against the page and the pane
     }
   }
 });
+
+const appCss = readFileSync(
+  fileURLToPath(new URL("../../src/chess_coach/web/css/app.css", import.meta.url)), "utf8");
+
+test("app.css has a visible :focus-visible outline using the accent, at least 2px wide", () => {
+  const rules = [...appCss.matchAll(/([^{}]*:focus-visible[^{}]*)\{([^}]*)\}/g)];
+  const ring = rules.find(([, sel, body]) => /(^|[\s,])button:focus-visible/.test(sel) &&
+    /outline:\s*(\d+)px\s+solid\s+var\(--accent\)/.test(body));
+  assert.ok(ring, "no button :focus-visible rule with a solid var(--accent) outline");
+  const w = Number(ring[2].match(/outline:\s*(\d+)px/)[1]);
+  assert.ok(w >= 2, `outline width ${w}px`);
+  assert.ok(/#strip button:focus-visible/.test(ring[1]), "strip bars are not covered");
+});
+
+test("the focus outline (accent) is >= 3:1 against the strip bar colour (--line) in every theme", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    assert.ok(ratio(t["--accent"], t["--line"]) >= 3, `${name}: ${ratio(t["--accent"], t["--line"]).toFixed(2)}`);
+  }
+});

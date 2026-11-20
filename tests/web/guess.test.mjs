@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain, moveA11yName, liveText } from "../../src/chess_coach/web/js/guess.js";
+import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain, moveA11yName } from "../../src/chess_coach/web/js/guess.js";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const game = { white: "Alice", black: "Bob" };
@@ -146,10 +146,4 @@ test("moveA11yName names a move, and never reveals the current move during a gue
   const g = moveA11yName(m, true);
   assert.equal(g, "Move 11, your move");
   assert.ok(!g.includes("Qb3") && !g.includes("mistake"));
-});
-
-test("liveText is the move name and label, neutral while guessing", () => {
-  const m = { move_number: 4, color: "black", san: "Nf6", classification: "blunder" };
-  assert.equal(liveText(m, false), "4... Nf6, blunder");
-  assert.equal(liveText(m, true), "Move 4, your move");
 });

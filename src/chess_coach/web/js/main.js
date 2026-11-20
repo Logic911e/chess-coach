@@ -341,7 +341,7 @@ const chat = createChat({
       m.append(el("div", { className: "note", textContent: HONESTY_NOTE }));
       $("chatLog").append(m);
       scrollToStart(m);  // a long answer is read from its beginning; focus is not moved
-      announce(body);
+      announce(flagged ? `${body} ${FLAG_WARNING}` : body);
     },
     error(msg) { chatStatus(msg, "error"); },
   },
@@ -352,12 +352,12 @@ function scrollToStart(m) {
   l.scrollTop += m.getBoundingClientRect().top - l.getBoundingClientRect().top;
 }
 // Only the assistant's answers are announced (the log itself is not a live region); errors go through #chatStatus.
-let announceTimer;
+let announceTimer, announceDelay;
 function announce(text) {
   const a = $("chatAnnounce");
+  clearTimeout(announceDelay); clearTimeout(announceTimer);
   a.textContent = "";
-  setTimeout(() => { a.textContent = text; }, 50);
-  clearTimeout(announceTimer);
+  announceDelay = setTimeout(() => { a.textContent = text; }, 50);
   announceTimer = setTimeout(() => { a.textContent = ""; }, 4000);
 }
 

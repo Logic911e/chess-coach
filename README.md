@@ -47,11 +47,14 @@ shows how much each move cost (taller means more expected points lost).
   piece you would move, then the square. The engine scores your move and then reveals the answer.
 - **Chat:** "Ask the coach" asks the local model about the position on screen. History is dropped when you
   change move, and chat is off during a guess so an answer cannot give the move away.
-- **Which player are you:** guess-first needs to know which player is you. The page asks once, remembers
-  the answer in this browser only (change it from the `?` dialog), and nothing is hard-coded in the repository.
-- **Screen readers:** the move strip is one tab stop, there is a visually hidden list of all moves
-  ("11. Qb3, mistake"), and the move name and label are announced when you step. During a guess the
-  current move is announced as "your move" only.
+- **Which player are you:** guess-first needs to know which player is you. The server may suggest one;
+  if it does not and you have not chosen, the page asks once (a dismissed prompt is not shown again on load).
+  The answer is remembered in this browser only and can be changed from the `?` dialog. No name is hard-coded
+  in the repository.
+- **Screen readers:** the move strip is one tab stop, each bar has an accessible name, and there is a
+  visually hidden list of all moves ("11. Qb3, mistake") whose buttons jump to a move. The move name and label
+  sit in a polite live region, and only the coach's chat answers are announced, not your own messages. During
+  a guess the current move is named "your move" only. What has and has not been checked is under Known limits.
 
 "Explain this move" asks the local model and caches the answer in Postgres.
 
@@ -126,8 +129,12 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   piece squares, so they can still be wrong or vague.
 - Sounds and animation were only checked structurally (the code and tests); nobody listened to them or judged
   the motion by eye on every theme.
-- Screen-reader support has had a structural pass (roles, labels, live regions inspected in the browser's
-  accessibility tree), not a test with a real screen reader.
+- Accessibility has had only a structural pass, not a test with a real screen reader. In Chrome I inspected
+  the accessibility tree for the move list, strip and live regions in the Walnut theme, checked in the page
+  that the move names are neutral during a guess, ran the chat announcement against a faked server reply, and
+  saw the focus outline on the strip bar in Slate and Paper. Beyond that: the neutral names are otherwise covered
+  by unit tests, the outline colours by a computed-contrast test, and the small-screen layout was measured at
+  320px wide and 300px tall but not looked at on a real phone.
 - Guess-first needs the engine and takes a few seconds to score a guess.
 - There is no keyboard-only way to pick squares during a guess yet; it needs the mouse or touch.
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.
