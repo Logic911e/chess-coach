@@ -4,7 +4,8 @@
   --best: #3fae6a; --excellent: #3fae6a; --good: #9bb84a; --inaccuracy: #dcae2a;
   --mistake: #e8812c; --blunder: #e0584a;
   --topbar-h: 46px;
-  --boardw: min(calc(100vh - var(--topbar-h) - 190px), 92vw);
+  /* board + card (max 168px) + nav (42px) + gaps must fit: nothing may overlap the board */
+  --boardw: min(calc(100vh - var(--topbar-h) - 250px), 92vw);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -61,7 +62,7 @@ button:disabled { opacity: .45; cursor: default; }
 
 /* caption card over the lower edge of the board */
 .caption {
-  position: relative; z-index: 3; margin: -22px 12px 0; padding: 10px 16px 12px;
+  position: relative; z-index: 3; margin: 6px 0 0; padding: 10px 16px 12px;
   background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line);
   border-radius: 14px; backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   max-height: 168px; overflow: auto;
