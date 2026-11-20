@@ -3,7 +3,7 @@ import { getGames, getGame, explainMove } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
-import { createSettings } from "./settings.js";
+import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 
 const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [] };
@@ -33,7 +33,7 @@ if (window.matchMedia) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   if (mq.addEventListener) mq.addEventListener("change", syncMotion);
 }
-function applySettings() {
+function applySettings(changed) {
   const theme = settings.get("theme", "walnut");
   root.dataset.theme = theme;
   document.querySelectorAll("[data-theme-choice]")
@@ -46,7 +46,7 @@ function applySettings() {
     .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.soundChoice === pal)));
   $("volume").value = String(settings.get("volume", DEFAULT_VOLUME));
   syncMotion();
-  if (state.game) render();  // arrow colours are read from the theme
+  if (state.game && settingNeedsRender(changed)) render();  // arrow colours are read from the theme
 }
 
 // ---------- rendering ----------
@@ -56,7 +56,8 @@ function labelColors() {
   return c;
 }
 
-function render() {
+// animate: slide pieces and draw arrows in; true only when navigating, never for flip, toggles or settings.
+function render(animate = false) {
   const g = state.game; if (!g || !g.moves.length) return;
   const mv = cur();
   renderBoard($("boardWrap"), mv.fen_before, {
@@ -64,7 +65,7 @@ function render() {
     highlight: [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
     arrows: moveArrows(mv, labelColors(), { hideBest: !state.showEngine }),
     slides: state.slides,
-    motion: motionAllowed(),
+    motion: animate,
   });
   state.slides = [];
 
@@ -149,7 +150,7 @@ function go(i) {
   // Slide only single steps (either direction); jumps just redraw.
   state.slides = Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
-  render();
+  render(moved && motionAllowed());
   if (moved && motionAllowed()) player.play(soundsFor(cur()));
 }
 function goKey(dir) {
@@ -180,17 +181,21 @@ async function selectGame(id) {
 // Modal dialogs (Games, shortcuts) make the page behind them inert, so focus cannot leave them,
 // and give focus back to what opened them.
 const modalOpen = () => !$("gamesOverlay").hidden || !$("helpOverlay").hidden;
+const returnTo = new Map();  // dialog id -> element that had focus when it opened
 function setModal(id, open, first, opener) {
   const ov = $(id), was = !ov.hidden;
   if (open === was) return;
   ov.hidden = !open;
-  $("topbar").inert = $("stage").inert = modalOpen();
   if (open) {
-    ov.returnTo = document.activeElement;
+    returnTo.set(id, document.activeElement);  // read before inert can blur it
+    $("topbar").inert = $("stage").inert = true;
     first().focus();
   } else {
-    const back = ov.returnTo && ov.returnTo.isConnected && !ov.returnTo.disabled ? ov.returnTo : opener;
-    back.focus();
+    $("topbar").inert = $("stage").inert = modalOpen();
+    const prev = returnTo.get(id);
+    returnTo.delete(id);
+    const ok = prev && prev !== document.body && prev.isConnected && !prev.disabled;
+    (ok ? prev : opener).focus();
   }
 }
 const setGames = (open) => setModal("gamesOverlay", open,
@@ -215,7 +220,7 @@ function toggleSoundMute() {
   const r = toggleMute(settings.get("soundPalette", "felt"), settings.get("mutedFrom", undefined));
   if (r.prev) settings.set("mutedFrom", r.prev);
   settings.set("soundPalette", r.palette);
-  applySettings();
+  applySettings("soundPalette");
 }
 const handleKey = createKeyHandler({
   step: (d) => { if (modalOpen() || !state.game) return false; go(state.idx + d); },
@@ -251,10 +256,10 @@ async function init() {
 }
 
 document.querySelectorAll("[data-theme-choice]").forEach((b) =>
-  b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); applySettings(); }));
-$("studyToggle").addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); applySettings(); });
+  b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); applySettings("theme"); }));
+$("studyToggle").addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); applySettings("studyMode"); });
 document.querySelectorAll("[data-sound-choice]").forEach((b) =>
-  b.addEventListener("click", () => { settings.set("soundPalette", b.dataset.soundChoice); applySettings(); }));
+  b.addEventListener("click", () => { settings.set("mutedFrom", null); settings.set("soundPalette", b.dataset.soundChoice); applySettings("soundPalette"); }));
 $("volume").addEventListener("input", () => { settings.set("volume", Number($("volume").value)); });
 // Browsers block audio until a gesture: create the context on the first pointer or key event.
 for (const type of ["pointerdown", "pointerup", "click", "touchend", "keydown"]) document.addEventListener(type, () => player.unlock(), { capture: true });

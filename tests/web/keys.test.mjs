@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createKeyHandler, toggleMute } from "../../src/chess_coach/web/js/keys.js";
+import { settingNeedsRender } from "../../src/chess_coach/web/js/settings.js";
 import { motionAllowed } from "../../src/chess_coach/web/js/motion.js";
 
 function setup() {
@@ -71,4 +72,37 @@ test("test_motion_allowed_is_false_in_study_mode_or_reduced_motion", () => {
   assert.equal(motionAllowed({ study: true, reduced: false }), false);
   assert.equal(motionAllowed({ study: false, reduced: true }), false);
   assert.equal(motionAllowed({ study: true, reduced: true }), false);
+});
+
+test("test_alt_modified_keys_are_not_handled", () => {
+  const { calls, handle } = setup();
+  assert.equal(handle(ev("ArrowLeft", { altKey: true })), false);
+  assert.equal(handle(ev("j", { altKey: true })), false);
+  assert.deepEqual(calls, []);
+});
+
+test("test_repeat_is_ignored_for_toggles_only", () => {
+  const { calls, handle } = setup();
+  assert.equal(handle(ev("m", { repeat: true })), false);
+  assert.equal(handle(ev("?", { repeat: true })), false);
+  assert.deepEqual(calls, []);
+  assert.equal(handle(ev("ArrowRight", { repeat: true })), true);  // holding an arrow keeps stepping
+  assert.deepEqual(calls, [["step", 1]]);
+});
+
+test("test_select_and_contenteditable_targets_are_ignored", () => {
+  const { calls, handle } = setup();
+  assert.equal(handle({ key: "j", target: { tagName: "SELECT" } }), false);
+  assert.equal(handle({ key: "j", target: { tagName: "DIV", isContentEditable: true } }), false);
+  assert.deepEqual(calls, []);
+  assert.equal(handle({ key: "Escape", target: { tagName: "DIV", isContentEditable: true } }), true);
+});
+
+test("test_toggle_mute_junk_previous_falls_back_to_felt", () => {
+  for (const junk of ["bogus", null, 5, "", {}]) assert.equal(toggleMute("off", junk).palette, "felt");
+});
+
+test("test_only_theme_changes_need_a_render", () => {
+  assert.equal(settingNeedsRender("theme"), true);
+  for (const k of ["soundPalette", "volume", "studyMode", "mutedFrom", undefined]) assert.equal(settingNeedsRender(k), false, String(k));
 });

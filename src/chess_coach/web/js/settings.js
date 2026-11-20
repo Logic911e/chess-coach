@@ -13,6 +13,9 @@ function sanitize(key, value) {
   return value;
 }
 
+/** Only a theme change needs the board redrawn (arrow colours); sound, mute and study do not. */
+export function settingNeedsRender(key) { return key === "theme"; }
+
 export function createSettings(storage) {
   const mem = new Map();
   return {
