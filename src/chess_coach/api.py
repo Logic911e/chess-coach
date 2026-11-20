@@ -12,6 +12,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
+from typing import Literal
 
 import chess
 import chess.engine
@@ -19,9 +20,10 @@ import psycopg
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from chess_coach import db
+from chess_coach.chat import answer_question, facts_for_move
 from chess_coach.engine import EngineNotFoundError
 from chess_coach.engine_service import EngineService
 from chess_coach.explainer import explain
@@ -43,6 +45,23 @@ ENGINE_FAILURES = (
 
 class GuessBody(BaseModel):
     uci: str
+
+
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatBody(BaseModel):
+    question: str = Field(max_length=1000)
+    history: list[ChatTurn] = []
+
+    @field_validator("question")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("question must not be blank")
+        return v
 
 
 def _best_san(fen: str, uci: str) -> str | None:
@@ -241,6 +260,41 @@ def create_app(
             log.exception("unexpected error scoring a guess on move %s", move_id)
             raise
         return {**asdict(result), "best_san": _best_san(fen, best_uci)}
+
+    @app.post("/api/moves/{move_id}/chat")
+    def chat_move(move_id: int, body: ChatBody) -> dict:
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT m.fen_before, m.uci, e.best_uci, e.cp_best, e.cp_played,"
+                " e.engine_depth, f.facts"
+                " FROM moves m JOIN evaluations e ON e.move_id = m.id"
+                " LEFT JOIN facts f ON f.move_id = m.id WHERE m.id = %s",
+                (move_id,),
+            ).fetchone()
+        if row is None:
+            raise HTTPException(404, "no such move")
+        fen, played, best_uci, cp_best, cp_played, depth, stored = row
+        try:
+            if stored is not None:  # key moment: facts are already stored
+                facts = stored
+                line = line_to_uci(fen, facts.get("best_line", {}).get("line_san", ""))
+            else:
+                facts, line = facts_for_move(
+                    fen, played, best_uci, cp_best, cp_played, depth, engine
+                )
+            result = answer_question(
+                facts, line, fen, body.question,
+                [t.model_dump() for t in body.history], client_factory(),  # type: ignore[arg-type]
+            )
+        except LLMError as exc:
+            raise HTTPException(503, f"local model unavailable: {exc}") from exc
+        except ENGINE_FAILURES as exc:
+            log.exception("engine failed preparing a chat answer on move %s", move_id)
+            raise HTTPException(503, f"engine unavailable: {exc}") from exc
+        except Exception:
+            log.exception("unexpected error answering a chat question on move %s", move_id)
+            raise
+        return {"body": result.text, "flagged": result.flagged}
 
     if WEB_DIR.exists():
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")

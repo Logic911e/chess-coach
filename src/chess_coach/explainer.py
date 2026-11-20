@@ -89,7 +89,16 @@ def explain(
     style: str = "json",
 ) -> Explanation:
     boards = boards_for_check(facts, best_line_uci)
-    messages = build_messages(facts, style)
+    return run_checked(build_messages(facts, style), client, boards, max_retries)
+
+
+def run_checked(
+    messages: list[Message],
+    client: ChatClient,
+    boards: list[chess.Board],
+    max_retries: int = 2,
+) -> Explanation:
+    """Ask the model, check the reply against `boards`, and re-ask with the problems named."""
     report = check_claims("", boards)
     text = ""
     for attempt in range(1, max_retries + 2):

@@ -71,3 +71,14 @@ def test_false_piece_placement_triggers_retry_and_flag():
 
     stuck = explain(_facts(), ScriptedClient([bad] * 3), best_line_uci=LINE)
     assert stuck.flagged and stuck.false_placements == ["pawn on h5"] and stuck.illegal_moves == []
+
+
+def test_run_checked_retries_then_flags():
+    from chess_coach.explainer import run_checked
+
+    boards = boards_for_check(_facts(), LINE)
+    client = ScriptedClient(["Rxh7 wins.", "Rxh7 still wins.", "Rxh7 really wins."])
+    result = run_checked([{"role": "user", "content": "q"}], client, boards, max_retries=2)
+    assert result.flagged and result.attempts == 3 and result.illegal_moves == ["Rxh7"]
+    assert len(client.seen) == 3
+    assert "not legal" in client.seen[1][-1]["content"]
