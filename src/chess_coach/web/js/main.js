@@ -2,6 +2,7 @@
 import { getGames, getGame, explainMove } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex } from "./board.js";
 import { createSettings } from "./settings.js";
+import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 
 const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, animateFrom: undefined };
 const $ = (id) => document.getElementById(id);
@@ -22,6 +23,9 @@ const label = (mv) => `${mv.move_number}${mv.color === "white" ? "." : "..."} ${
 let store; try { store = window.localStorage; } catch (e) { store = undefined; }
 const settings = createSettings(store);
 window.chessCoachSettings = settings;
+const player = createPlayer({ settings, audioContextFactory: () => new (window.AudioContext || window.webkitAudioContext)() });
+window.chessCoachPlayer = player;
+const reducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 function applySettings() {
   const theme = settings.get("theme", "walnut");
   root.dataset.theme = theme;
@@ -30,6 +34,10 @@ function applySettings() {
   const on = settings.get("studyMode", false);
   if (on) root.dataset.study = "on"; else delete root.dataset.study;
   $("studyToggle").setAttribute("aria-pressed", String(on));
+  const pal = settings.get("soundPalette", "felt");
+  document.querySelectorAll("[data-sound-choice]")
+    .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.soundChoice === pal)));
+  $("volume").value = String(settings.get("volume", DEFAULT_VOLUME));
   if (state.game) render();  // arrow colours are read from the theme
 }
 
@@ -129,8 +137,10 @@ function go(i) {
   if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
   state.animateFrom = j === state.idx + 1 ? state.game.moves[state.idx].uci : undefined;
+  const moved = j !== state.idx;
   state.idx = j;
   render();
+  if (moved && !reducedMotion()) player.play(soundsFor(cur()));
 }
 function goKey(dir) {
   if (!state.game || !state.game.moves.length) return;
@@ -191,6 +201,11 @@ async function init() {
 document.querySelectorAll("[data-theme-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); applySettings(); }));
 $("studyToggle").addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); applySettings(); });
+document.querySelectorAll("[data-sound-choice]").forEach((b) =>
+  b.addEventListener("click", () => { settings.set("soundPalette", b.dataset.soundChoice); applySettings(); }));
+$("volume").addEventListener("input", () => { settings.set("volume", Number($("volume").value)); });
+// Browsers block audio until a gesture: create the context on the first pointer or key event.
+for (const type of ["pointerdown", "keydown"]) document.addEventListener(type, () => player.unlock(), { capture: true });
 $("first").onclick = () => go(0);
 $("last").onclick = () => go(Infinity);
 $("prev").onclick = () => go(state.idx - 1);

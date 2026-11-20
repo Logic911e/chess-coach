@@ -27,6 +27,12 @@ try {
       <button type="button" data-theme-choice="slate" aria-label="Slate theme" title="Slate"></button>
       <button type="button" data-theme-choice="paper" aria-label="Paper theme" title="Paper"></button>
     </div>
+    <div class="sound-ctl" role="group" aria-label="Sound">
+      <button type="button" data-sound-choice="felt" aria-pressed="true" title="Felt sounds">Felt</button>
+      <button type="button" data-sound-choice="wood" aria-pressed="false" title="Wood sounds">Wood</button>
+      <button type="button" data-sound-choice="off" aria-pressed="false" title="Sound off">Off</button>
+      <input type="range" id="volume" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
+    </div>
     <button type="button" id="studyToggle" aria-pressed="false" title="Study mode: no sound, no motion">Study mode</button>
   </div>
 </header>

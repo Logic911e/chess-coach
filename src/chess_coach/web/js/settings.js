@@ -7,8 +7,7 @@ function sanitize(key, value) {
   if (key === "theme") return THEMES.includes(value) ? value : undefined;
   if (key === "soundPalette") return PALETTES.includes(value) ? value : undefined;
   if (key === "volume") {
-    const n = Number(value);
-    return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : undefined;
+    return typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : undefined;
   }
   if (key === "studyMode") return typeof value === "boolean" ? value : undefined;
   return value;

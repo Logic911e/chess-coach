@@ -40,6 +40,11 @@ button:disabled { opacity: .45; cursor: default; }
 .theme-switch button[data-theme-choice="walnut"] { background: linear-gradient(135deg, #e4c897 50%, #a8744a 50%); }
 .theme-switch button[data-theme-choice="slate"] { background: linear-gradient(135deg, #b7c4b0 50%, #6d8570 50%); }
 .theme-switch button[data-theme-choice="paper"] { background: linear-gradient(135deg, #ecdcbc 50%, #b99b76 50%); }
+.sound-ctl { display: flex; align-items: center; gap: 2px; }
+.sound-ctl button { padding: 2px 7px; font-size: 12px; }
+.sound-ctl button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.sound-ctl input[type="range"] { width: 64px; margin-left: 6px; accent-color: var(--accent); }
+:root[data-study="on"] .sound-ctl { opacity: .45; }
 #studyToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* stage */
