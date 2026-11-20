@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chess Coach</title>
-<link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/css/themes.css">
 <link rel="stylesheet" href="/static/css/app.css">
 <script>
@@ -17,9 +16,11 @@ try {
 </script>
 </head>
 <body>
-<header>
+<header class="topbar">
   <h1>Chess Coach</h1>
-  <span class="sub">Stockfish decides. A local model explains. Checked for legal moves and piece squares only.</span>
+  <span id="gameTitle" class="game-title">Pick a game</span>
+  <span id="counter" class="counter"></span>
+  <button type="button" id="gamesBtn" aria-haspopup="dialog" aria-controls="gamesOverlay">Games</button>
   <div class="topbar-tools">
     <div class="theme-switch" role="group" aria-label="Theme">
       <button type="button" data-theme-choice="walnut" aria-label="Walnut theme" title="Walnut"></button>
@@ -29,52 +30,46 @@ try {
     <button type="button" id="studyToggle" aria-pressed="false" title="Study mode: no sound, no motion">Study mode</button>
   </div>
 </header>
-<main>
-  <aside id="games" aria-label="Games"><h2>Games</h2><ul id="gameList"></ul></aside>
 
-  <section id="boardCol">
-    <div id="gameTitle" class="title">Pick a game</div>
-    <div id="boardWrap">
-      <div id="board" role="img" aria-label="Chess board"></div>
-      <svg id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
-    </div>
-    <div id="strip" title="Each bar is one move. Taller = more expected points lost."></div>
-    <div class="controls">
-      <button id="first">«</button><button id="prev">‹</button>
-      <button id="next">›</button><button id="last">»</button>
-      <button id="prevKey">‹ Key moment</button><button id="nextKey">Key moment ›</button>
-      <button id="flip">Flip</button>
-    </div>
-  </section>
-
-  <section id="detail">
-    <div id="moveHead"></div>
-    <div id="legend"></div>
-    <div id="explainBox"></div>
-    <h2>Moves</h2>
-    <div id="moves"></div>
-  </section>
+<main id="stage">
+  <div id="boardCol">
+    <div id="boardWrap"></div>
+    <section id="caption" class="caption" aria-live="polite">
+      <div class="cap-head"><span id="moveName" class="move-name"></span><span id="labelPill"></span><span id="reasons"></span></div>
+      <div id="happened" class="happened"></div>
+      <div id="explainBox"></div>
+      <div class="cap-actions">
+        <button type="button" id="guessBtn" disabled title="Guessing arrives in a later step">Guess first</button>
+        <button type="button" id="engineBtn" aria-pressed="true">Show engine move</button>
+        <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
+      </div>
+    </section>
+    <nav class="nav" aria-label="Move navigation">
+      <button type="button" id="prevKey" title="Previous key moment">&lsaquo; Key</button>
+      <button type="button" id="first" aria-label="First move">&laquo;</button>
+      <button type="button" id="prev" aria-label="Previous move">&lsaquo;</button>
+      <div id="strip" title="Each bar is one move. Taller = more expected points lost."></div>
+      <button type="button" id="next" aria-label="Next move">&rsaquo;</button>
+      <button type="button" id="last" aria-label="Last move">&raquo;</button>
+      <button type="button" id="nextKey" title="Next key moment">Key &rsaquo;</button>
+      <button type="button" id="flip" title="Flip the board">Flip</button>
+    </nav>
+  </div>
 </main>
-<script src="/static/app.js"></script>
-<script type="module">
-import { createSettings } from "/static/js/settings.js";
-let store; try { store = window.localStorage; } catch (e) { store = undefined; }
-const settings = createSettings(store);
-const root = document.documentElement;
-const dots = document.querySelectorAll("[data-theme-choice]");
-const study = document.getElementById("studyToggle");
-function render() {
-  const theme = settings.get("theme", "walnut");
-  root.dataset.theme = theme;
-  dots.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeChoice === theme)));
-  const on = settings.get("studyMode", false);
-  if (on) root.dataset.study = "on"; else delete root.dataset.study;
-  study.setAttribute("aria-pressed", String(on));
-}
-dots.forEach((b) => b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); render(); }));
-study.addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); render(); });
-window.chessCoachSettings = settings;
-render();
-</script>
+
+<div id="gamesOverlay" class="overlay" role="dialog" aria-modal="true" aria-label="Games" hidden>
+  <div class="overlay-card">
+    <div class="overlay-head"><h2>Games</h2><button type="button" id="gamesClose" aria-label="Close games">Close</button></div>
+    <ul id="gameList"></ul>
+  </div>
+</div>
+
+<aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
+  <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>
+  <div id="chatLog" class="chat-log"></div>
+  <div class="note">Answers are checked for legal moves and piece squares only, so they can still contain mistakes.</div>
+  <form id="chatForm"><input id="chatInput" type="text" placeholder="Ask about this position" disabled><button type="submit" disabled>Send</button></form>
+</aside>
+<script type="module" src="/static/js/main.js"></script>
 </body>
 </html>
