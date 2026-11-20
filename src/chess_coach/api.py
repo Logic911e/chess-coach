@@ -32,6 +32,12 @@ def _best_san(fen: str, uci: str) -> str | None:
         return None
 
 
+def _fen_after(fen: str, uci: str) -> str:
+    board = chess.Board(fen)
+    board.push_uci(uci)
+    return board.fen()
+
+
 def line_to_uci(fen: str, line_san: str) -> list[str]:
     """Replay '3...g6 4. Qf3' from `fen`. The facts store the engine line as SAN only,
     but the guardrail wants UCI, so we convert; stop at the first token that fails."""
@@ -104,7 +110,7 @@ def create_app(
         for r in rows:
             moves.append({
                 "id": r[0], "ply": r[1], "move_number": r[2], "color": r[3], "san": r[4],
-                "uci": r[5], "fen_before": r[6], "phase": r[7],
+                "uci": r[5], "fen_before": r[6], "fen_after": _fen_after(r[6], r[5]), "phase": r[7],
                 "best_uci": r[8], "best_san": _best_san(r[6], r[8]),
                 "cp_best": r[9], "cp_played": r[10], "expected_points_lost": r[11],
                 "classification": r[12],

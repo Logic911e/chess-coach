@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Coach</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Chess Coach</h1>
+  <span class="sub">Stockfish decides. A local model explains. Checked for legal moves and piece squares only.</span>
+</header>
+<main>
+  <aside id="games" aria-label="Games"><h2>Games</h2><ul id="gameList"></ul></aside>
+
+  <section id="boardCol">
+    <div id="gameTitle" class="title">Pick a game</div>
+    <div id="boardWrap">
+      <div id="board" role="img" aria-label="Chess board"></div>
+      <svg id="arrows" viewBox="0 0 8 8" aria-hidden="true"></svg>
+    </div>
+    <div id="strip" title="Each bar is one move. Taller = more expected points lost."></div>
+    <div class="controls">
+      <button id="first">«</button><button id="prev">‹</button>
+      <button id="next">›</button><button id="last">»</button>
+      <button id="prevKey">‹ Key moment</button><button id="nextKey">Key moment ›</button>
+      <button id="flip">Flip</button>
+    </div>
+  </section>
+
+  <section id="detail">
+    <div id="moveHead"></div>
+    <div id="legend"></div>
+    <div id="explainBox"></div>
+    <h2>Moves</h2>
+    <div id="moves"></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -14,7 +14,24 @@ Work in progress.
 - [x] Explanation prompt + local LLM call (`explainer.py`, `llm.py`, Ollama)
 - [x] Evaluation harness (`evaluation.py`, results in `results/`)
 - [x] Postgres layer: schema, migrations, indexes chosen with `EXPLAIN ANALYZE` (`docs/query_plans.md`)
+- [x] Game review UI: board, key moments, on-demand explanations (`api.py`, `src/chess_coach/web/`)
+- [ ] Chat panel scoped to the selected position (next)
 - [ ] pgvector / full-text retrieval of similar past mistakes (later)
+
+## Run the UI
+
+```bash
+pip install -e ".[web]"
+docker-compose up -d && python -m chess_coach.db      # Postgres + migrations
+python -m chess_coach.import_games my_games.pgn       # analyse games with Stockfish
+ollama serve                                          # local model, for "Explain this move"
+uvicorn chess_coach.api:app --port 8000               # then open http://localhost:8000
+```
+
+Pick a game, step through it with the arrow keys, and jump between key moments. The board shows
+the position before the move, with the move played and the engine's best move as arrows. The
+move strip shows how much each move cost. "Explain this move" asks the local model and caches the
+answer in Postgres. There is no chat yet.
 
 ## Result so far (small sample, read the caveats)
 
