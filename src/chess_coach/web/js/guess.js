@@ -23,9 +23,29 @@ export function revealLine(r) {
   return `Your guess: ${r.san}, ${what}, lost ${lost}. Engine: ${r.best_san}`;
 }
 
+/** Piece letter on a square of a FEN, or null. */
+export function pieceAt(fen, sq) {
+  const row = parseFen(fen)[8 - Number(sq[1])];
+  return row ? row[FILES.indexOf(sq[0])] : null;
+}
+
+/**
+ * What the page may show about the current move. While guessing nothing may reveal its quality or the
+ * move played: neutral heading, no pill, no reasons, neutral strip bar and tooltip.
+ */
+export function guessView(move, guessing) {
+  const san = `${move.move_number}${move.color === "white" ? "." : "..."} ${move.san}`;
+  if (guessing) return { heading: `Move ${move.move_number} · your move`, showPill: false, showReasons: false,
+    stripNeutral: true, stripTitle: "your move" };
+  return { heading: san, showPill: true, showReasons: true, stripNeutral: false,
+    stripTitle: `${san} (${move.classification})` };
+}
+
+/** An in-flight explain() may touch the explanation box only outside a guess. */
+export const mayWriteExplain = (guessing) => !guessing;
+
 function toUci(fen, from, to) {
-  const f = FILES.indexOf(from[0]), r = 8 - Number(from[1]);
-  const piece = parseFen(fen)[r] && parseFen(fen)[r][f];
+  const piece = pieceAt(fen, from);
   const last = (piece === "P" && to[1] === "8") || (piece === "p" && to[1] === "1");
   return from + to + (last ? "q" : "");
 }
@@ -38,11 +58,6 @@ export function createGuessFlow({ api, ui }) {
   const results = new Map();  // move id -> reveal line (one attempt per move per visit)
   let cur = null;             // { move, from, busy, token }
   let counter = 0;
-
-  function pieceAt(fen, sq) {
-    const row = parseFen(fen)[8 - Number(sq[1])];
-    return row ? row[FILES.indexOf(sq[0])] : null;
-  }
 
   return {
     active: () => cur !== null,

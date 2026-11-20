@@ -5,7 +5,7 @@ import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
-import { canGuess, createGuessFlow } from "./guess.js";
+import { canGuess, createGuessFlow, guessView, mayWriteExplain } from "./guess.js";
 
 const state = { games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -76,10 +76,11 @@ function render(animate = false) {
 
   $("gameTitle").textContent = `${g.white} vs ${g.black} · ${g.result}`;
   $("counter").textContent = `move ${state.idx + 1} of ${g.moves.length}`;
-  $("moveName").textContent = label(mv);
-  $("labelPill").replaceChildren(...(guessing ? [] : [el("span", { className: "pill " + mv.classification, textContent: mv.classification })]));
-  $("reasons").replaceChildren(...mv.reasons.map((r) =>
-    el("span", { className: "reason", textContent: "key moment: " + r.replace("_", " ") })));
+  const view = guessView(mv, guessing);
+  $("moveName").textContent = view.heading;
+  $("labelPill").replaceChildren(...(view.showPill ? [el("span", { className: "pill " + mv.classification, textContent: mv.classification })] : []));
+  $("reasons").replaceChildren(...(view.showReasons ? mv.reasons.map((r) =>
+    el("span", { className: "reason", textContent: "key moment: " + r.replace("_", " ") })) : []));
   const bestTxt = mv.best_uci === mv.uci ? "the engine's best move" : `the engine preferred ${mv.best_san}`;
   $("happened").textContent = guessing ? "" :
     `${mv.color === "white" ? g.white : g.black} lost ${mv.expected_points_lost.toFixed(3)} expected points; ${bestTxt}.`;
@@ -163,13 +164,18 @@ function renderExplain(mv) {
 
 async function explain(mv, regenerate) {
   const box = $("explainBox");
-  $("explainAct").replaceChildren();
-  box.replaceChildren(el("div", { className: "note", textContent: "Asking the local model…" }));
+  // A guess hides the explanation: writes from a request in flight are skipped, and the result is
+  // cached on the move so render() shows it after the reveal or a cancel.
+  if (mayWriteExplain(guessFlow.active())) {
+    $("explainAct").replaceChildren();
+    box.replaceChildren(el("div", { className: "note", textContent: "Asking the local model…" }));
+  }
   try {
     const r = await explainMove(mv.id, regenerate);
     mv.explanation = r.body; mv.explanation_flagged = r.flagged;
   } catch (e) {
     if (cur() === mv) {
+      if (!mayWriteExplain(guessFlow.active())) return;
       box.replaceChildren(el("div", { className: "warn", textContent: e.message }));
       const retry = el("button", { type: "button", textContent: mv.explanation ? "Regenerate" : "Explain this move" });
       retry.onclick = () => explain(mv, regenerate);
@@ -177,15 +183,16 @@ async function explain(mv, regenerate) {
       return;
     }
   }
-  if (cur() === mv) renderExplain(mv);
+  if (cur() === mv && mayWriteExplain(guessFlow.active())) renderExplain(mv);
 }
 
 function renderStrip() {
   const strip = $("strip"); strip.replaceChildren();
   state.game.moves.forEach((mv, i) => {
-    const b = el("button", { type: "button", title: `${label(mv)} (${mv.classification})` });
+    const view = guessView(mv, guessFlow.active() && i === state.idx);
+    const b = el("button", { type: "button", title: view.stripTitle });
     b.style.height = Math.max(4, mv.expected_points_lost * 30) + "px";
-    if (!QUIET.includes(mv.classification)) b.style.background = css("--" + mv.classification);
+    if (!view.stripNeutral && !QUIET.includes(mv.classification)) b.style.background = css("--" + mv.classification);
     if (i === state.idx) b.classList.add("cur");
     b.onclick = () => go(i);
     strip.append(b);
@@ -324,7 +331,7 @@ $("prevKey").onclick = () => goKey(-1);
 $("nextKey").onclick = () => goKey(1);
 $("guessBtn").onclick = () => { if (guessFlow.active()) cancelGuess(); else startGuess(); };
 $("boardWrap").addEventListener("click", (e) => {
-  if (modalOpen() || !guessFlow.active()) return;
+  if (modalOpen() || $("chatDrawer").classList.contains("open") || !guessFlow.active()) return;
   const sq = e.target.closest && e.target.closest(".sq");
   if (sq) guessFlow.pick(sq.dataset.sq);  // data-sq is the true square, whatever the orientation
 });

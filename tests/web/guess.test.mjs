@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canGuess, createGuessFlow, revealLine } from "../../src/chess_coach/web/js/guess.js";
+import { canGuess, createGuessFlow, revealLine, guessView, mayWriteExplain } from "../../src/chess_coach/web/js/guess.js";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const game = { white: "Alice", black: "Bob" };
@@ -112,4 +112,29 @@ test("picking_the_same_square_again_unselects_it", async () => {
   assert.equal(sent.length, 0);
   await flow.pick("g1"); await flow.pick("f3");
   assert.equal(sent.length, 1);
+});
+
+test("reveal_line_articles_and_fallback", () => {
+  const r = (classification) => revealLine({ matched: false, classification, san: "Qh5", best_san: "b3", expected_points_lost: 0.1 });
+  assert.match(r("mistake"), /, a mistake, /);
+  assert.match(r("inaccuracy"), /, an inaccuracy, /);
+  assert.match(r("brilliant"), /, a brilliant move, /);
+  assert.match(r("dubious"), /, a dubious move, /);
+});
+
+test("guess_view_hides_quality_while_guessing", () => {
+  const m = { move_number: 12, color: "black", san: "Qh5", classification: "blunder" };
+  const g = guessView(m, true);
+  assert.equal(g.heading, "Move 12 · your move");
+  assert.equal(g.showPill, false); assert.equal(g.showReasons, false);
+  assert.equal(g.stripNeutral, true); assert.equal(g.stripTitle, "your move");
+  for (const v of Object.values(g)) assert.doesNotMatch(String(v), /Qh5|blunder/);
+  const n = guessView(m, false);
+  assert.equal(n.heading, "12... Qh5"); assert.equal(n.showPill, true); assert.equal(n.showReasons, true);
+  assert.equal(n.stripNeutral, false); assert.equal(n.stripTitle, "12... Qh5 (blunder)");
+});
+
+test("explain_may_write_only_outside_a_guess", () => {
+  assert.equal(mayWriteExplain(true), false);
+  assert.equal(mayWriteExplain(false), true);
 });
