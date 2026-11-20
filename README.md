@@ -18,10 +18,23 @@ Work in progress.
 
 ## Result so far (small sample, read the caveats)
 
-Local `qwen2.5:7b-instruct`, 12 positions x 3 samples. Responses with at least one objectively
-false claim (an illegal move or a piece on the wrong square), after reading each flagged one:
-**2/36 with engine facts vs 8/36 with only the FEN and move.** The checker misses wrong verdicts,
-so the real gap is probably larger. Full detail and limits: `results/REVIEW.md`.
+Local `qwen2.5:7b-instruct`, 12 positions x 3 samples at temperature 0.5. "False claim" means an
+automatic check found an illegal move, a piece on a square that never holds it, or a forbidden
+phrase. Automatic counts from the second run (`results/eval_..._20261120_114204.json`):
+
+| Prompt given to the model | Responses with a checked false claim |
+|---|---|
+| FEN + move only | 8/36 |
+| Facts as raw JSON | 4/36 |
+| Facts as plain-English statements (`narrative.py`) | 0/36 |
+
+**Read this carefully.** The checker only sees moves and piece placement. Reading 12 of the 36
+"statements" responses by hand found errors it cannot see: a pin described backwards, saying the
+engine "prefers" a move when that was the move played, and a passed-pawn statement misused. So the
+statements prompt removes the *checkable* errors, but this run does **not** show it is more
+faithful overall. The flagged responses in the second run have not been manually reviewed, and
+the samples are small and not independent. Details and the first run's manual review:
+`results/REVIEW.md`.
 
 ## Setup
 

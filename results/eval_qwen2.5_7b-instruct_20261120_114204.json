@@ -1,0 +1,1145 @@
+{
+ "model": "qwen2.5:7b-instruct",
+ "engine_depth": 14,
+ "cases": 12,
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "temperature": 0.5,
+ "summary": {
+  "facts": {
+   "responses": 36,
+   "with_false_claim": 4,
+   "illegal_moves": 0,
+   "false_piece_placements": 3,
+   "forbidden_claims": 1,
+   "key_idea_mentioned": 36
+  },
+  "fen_only": {
+   "responses": 36,
+   "with_false_claim": 8,
+   "illegal_moves": 3,
+   "false_piece_placements": 7,
+   "forbidden_claims": 0,
+   "key_idea_mentioned": 20
+  },
+  "statements": {
+   "responses": 36,
+   "with_false_claim": 0,
+   "illegal_moves": 0,
+   "false_piece_placements": 0,
+   "forbidden_claims": 0,
+   "key_idea_mentioned": 35
+  }
+ },
+ "results": [
+  {
+   "case_id": "qh5_nf6",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Nf6 was a blunder according to the engine. The best move would have been g6, which would have developed the knight to a better square and prevented the white queen from attacking the black pawn on f7. Instead, moving the knight to f6 left the pawn on f7 hanging, as it was attacked more times than defended. This move also allowed the white queen to attack the knight on f6 without any counterplay.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Nf6 was a blunder, costing Black 0.533 expected points. While the knight now attacks both the white pawn on e4 and the queen on h5, it does not address the already threatened black pawn on f7. The engine suggests g6 as a better move, as it attacks the white queen on h5, which is more valuable, and maintains the integrity of the pawn structure.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Nf6 is a solid choice for Black. It develops a piece and targets the pawn on e4, putting pressure on White's center. This move also prepares Black to potentially trade off the Qe4, which could weaken White's position. Overall, it's a good, functional move that improves Black's position without risking anything.",
+   "illegal_moves": [
+    "Qe4"
+   ],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Nf6 was a blunder, costing black about 0.533 expected points. The best move was g6, which would have better protected the pawn on f7 and kept the queen on h5 occupied. Instead, moving the knight to f6 leaves two enemy pieces hanging, specifically the queen on h5 and the pawn on e4, while ignoring the threat to the pawn on f7. This move significantly weakens black's position and opens up the game for white to take advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move Nf6 was a blunder, losing 0.533 expected points. It attacks the white pawn on e4 and the queen on h5, but fails to address the already threatened black pawn on f7, which remains under attack. The engine's best move, g6, would have put more pressure on the white queen, leaving it undefended and creating a more favorable position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "The move Nf6 is a good one for Black. It develops the knight to a useful square, supporting the pawn structure, and prepares to challenge White's center. This move also helps to secure the f-file for potential rook activity later in the game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move played, Nf6, was a blunder according to the engine. The best move was g6, which would have left the black queen undefended on h5, while also defending the pawn on f7. Instead, moving the knight to f6 leaves two pieces hanging: the queen on h5 and the pawn on e4. This move also ignored the threat to the pawn on f7, which could have been defended by simply moving it to g6.",
+   "illegal_moves": [],
+   "false_placements": [
+    "black queen on h5"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Nf6 was a blunder, costing Black 0.533 expected points. While the knight attacks the white pawn on e4 and the queen on h5, it does not address the threat to the black pawn on f7, which is already under attack and remains so. The engine's best move, g6, immediately addresses the threat to the white queen on h5, creating a more balanced position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_nf6",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "Black's move Nf6 is a solid choice, improving the position of the knight and preparing for potential pawn advances. It also helps to close the position around the black king, reducing the threat of a white queen or pawn attack. This move supports the overall strategy of developing pieces and controlling the center.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move \\( g6 \\) is the best choice here. It addresses a hanging pawn on \\( f7 \\) by the white queen, which could be a threat if left unchecked. By moving the black pawn to \\( g6 \\), you neutralize the threat and strengthen your position, preparing for further development of your pieces.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move g6 is excellent as it attacks the undefended white queen on h5, which was previously pinned by the black pawn on f7. While the engine prefers a more controlled development with Qf3, capturing on g6 directly gains material and simplifies the position to Black's advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "Black's move g6 is a solid choice, aimed at developing the knight to a more active square and securing the g5 pawn. This move helps to centralize the knight, which can become a powerful piece in the center of the board later in the game. It also supports the pawn structure, making it harder for white to launch an attack on the kingside.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move `g6` is the best choice here. It addresses a hanging pawn on f7 by the white queen and improves the structure of the black position. By playing `g6`, black ensures that the f7 pawn is no longer undefended, which was a potential weakness. This move also helps to solidify the pawn structure and prepares for further development of the pieces.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "statements",
+   "seed": 1,
+   "text": "Black's move of g6 is excellent as it attacks the undefended white queen on h5. This move also unpins the black pawn on f7, freeing up the black knight to move more freely. While the engine prefers a slightly different continuation starting with Qf3, g6 still effectively controls the center and puts pressure on the white position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "The move g6 by Black is a solid choice, aimed at developing the minor piece and controlling the center. It prepares Black to develop the bishop to g7, which would be a natural move, and it also helps to secure the g-file for potential future moves. This move is good because it improves Black's piece coordination and maintains the balance in the position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move \\( g6 \\) is the best choice here. It protects the black pawn on f7 from the queen on h5, which would otherwise capture it. This move helps to stabilize the position and maintain the balance of the game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move g6 is excellent as it attacks the undefended white queen on h5. While the engine prefers a more complex response starting with Qf3, g6 simplifies the position and gains an immediate advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "qh5_g6",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "Black's move g6 is a solid choice, aimed at developing the piece and preparing for potential future pawn advances. It also helps to control the center and supports the black knight on f6. This move is strategic and helps to maintain the balance in the game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Nf7+ is the best choice here. It checks the black king and puts pressure on the black queen on d8, which is now hanging and can be captured on the next move, leading to a significant material advantage for white.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Nf7+ is excellent as it delivers a check and puts the black king in immediate danger. The knight also attacks the black queen on d8, which is a valuable piece, making the sacrifice worthwhile. While the engine prefers a more complex sequence involving capturing the queen, Nf7+ simplifies the position effectively.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Nf7+ is a good one because it puts the black king under attack while also developing a piece. This move helps to centralize the knight, which is a valuable position for a knight in the middle game. Additionally, it forces black to make a defensive move, which could potentially open up the position for white's pieces.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move \\( \\text{Nf7+} \\) is the best choice here. It puts the black king on the defensive and forces it to move to \\( \\text{Kh7} \\). This move also leaves the black queen hanging on \\( \\text{d8} \\), as it is attacked and undefended. Overall, this move significantly improves the material balance and sets up a strong position for white.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "statements",
+   "seed": 1,
+   "text": "This move, Nf7+, is excellent as it delivers a check and gains significant control. The knight on f7 now attacks both the black queen on d8 and the black king on h8, putting the black queen in a vulnerable position. While the engine prefers a slightly different continuation, Nf7+ still effectively secures a strong positional advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White's move Nf7+ is a good one because it puts pressure on the black king while also developing a piece. By checking the king, white forces black to use a valuable move to defend, which could otherwise be used for more active play. This move also prepares to potentially put more pressure on the black king in the future, controlling key squares around the board.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Nf7+ is the best option here. It checks the black king and puts a valuable piece (the knight) in a strong position. After this move, the black queen becomes hanging, as it is attacked and undefended on d8, giving white a significant material advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Nf7+ is excellent as it delivers a check and puts the black king in immediate danger. The knight on f7 not only attacks the black queen on d8 but also checks the black king, putting it on h7. While the engine prefers a slightly different sequence, Nf7+ still effectively wins the queen and puts the black king under pressure.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_win",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Nf7+ is a good one because it puts the black king under check, forcing it to move. This move also controls the d6 square, which is important due to the presence of the queen on d8. By doing this, white creates more threats and puts pressure on the black king, improving their position overall.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Ke2 was a blunder, losing 0.39 points. The best move was Nf7+, which checks the black king and also puts the black queen in danger. Your king moving to e2 left the knight on g5 undefended, allowing Black to capture the knight with Nxd8, significantly weakening your position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Ke2 was a blunder, losing 0.389 expected points. It fails to address the threat to the knight on g5, which remains undefended. The engine's Nf7+ not only gives check but also attacks the black queen on d8 and the black king on h8, creating a strong positional advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Ke2 is a bit passive but necessary to avoid a checkmate. Black can deliver a checkmate with the knight on d5 by playing Nd5+ on the next turn, forcing the king to move to e2. By moving to e2, White prevents this checkmate and keeps the game alive, though the position is now very unfavorable for White.",
+   "illegal_moves": [
+    "Nd5+"
+   ],
+   "false_placements": [
+    "knight on d5"
+   ],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Ke2 was a blunder according to the engine. The best move was Nf7+, which checks the black king and puts significant pressure on the black queen. By moving the king to e2, you left your knight undefended on g5, making it an easy target for black. This move also left your own queen undefended, allowing black to gain material advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move Ke2 was a blunder, costing White 0.389 expected points. It fails to address the threat to the knight on g5, which remains undefended. The engine's Nf7+ not only checks the black king but also attacks the black queen on d8, creating a strong threat.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "This move, Ke2, is a strategic decision to bring the king to a more secure square. By moving the king to e2, White is preparing for potential checks and ensuring the king is in a better position to defend against any threats, especially if the position becomes more dynamic. This move also helps White maintain a solid defensive posture without committing the king to an unnecessary risk.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Ke2 was a blunder, as it left the knight on g5 undefended, allowing the opponent to capture it with a check. The best move was Nf7+, which checks the black king and also captures the undefended knight, giving significant material advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Ke2 was a significant blunder, losing 0.389 expected points. It fails to address the threat to the knight on g5, which remains undefended. The engine's Nf7+ not only gives check but also creates a strong attack on the black queen and king, making it a much better move.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "fork_missed",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Ke2 by White is a bit passive but not necessarily bad. It simply moves the king to a slightly safer square without much initiative. Given the position, White's king is somewhat exposed, so moving it to e2 helps protect it, but there are likely better moves that could improve White's position or threaten Black.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move `Nxh4` is the best option here. It targets the black queen, which is currently undefended. This move improves your position by removing a potential threat and putting pressure on black's structure. The best line shows that this knight move sets up a series of exchanges and positional advantages, although it doesn't result in an immediate checkmate.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": true,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Nxh4 is excellent as it captures the black queen, improving White's material advantage. However, the engine prefers a slightly more aggressive approach with 1. Nxh4 d5, as it leads to a more active position with potential for more piece development.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Nxh4 is a good one because it targets the black pawn on h4, which is a key piece in the center of the board. This pawn is often a valuable target early in the game as it can control important squares. Additionally, capturing it with the knight puts pressure on black's position and can open up the board for your pieces.",
+   "illegal_moves": [],
+   "false_placements": [
+    "black pawn on h4"
+   ],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move \\( Nxh4 \\) is the best option here. It captures the black queen, improving your material position by a significant amount. The position of the knight on \\( h4 \\) also helps to control key squares and improve your overall piece activity.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "statements",
+   "seed": 1,
+   "text": "This move, Nxh4, is very strong as it sacrifices the knight to capture the opponent's queen, maintaining a good piece advantage. While the engine prefers a more complex sequence starting with Nf5, capturing the pawn on f2, this direct attack is still highly effective. It also addresses the pin on the white pawn at f2, making the position more balanced after the queen is gone.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White's move Nxh4 is a good strategic choice. It develops the knight to a strong central square, h4, controlling key diagonals and putting pressure on black's queen. Additionally, it prepares to potentially trade off the black pawn on h4, improving white's pawn structure.",
+   "illegal_moves": [],
+   "false_placements": [
+    "black pawn on h4"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move `Nxh4` is the best option here. It targets the black queen, which is hanging and can be captured without any downside. This move improves your position by increasing the mobility of your knight and putting pressure on black's pawn structure.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Nxh4 is excellent as it sacrifices the knight for a significant advantage, losing no ground in the process. The engine's response of d5 and subsequent Nf5 highlights the importance of the knight on h4, as it controls key squares and sets up a strong attack. However, the engine prefers a more direct approach with Bb5+, which puts further pressure on the black king and potentially opens up more lines of attack.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "free_queen_take",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Nxh4 is a good choice as it develops the knight to a strong central square and puts pressure on Black's queen. It also prepares to potentially trade off the black bishop, which could weaken Black's position. This move helps White gain a small but useful advantage in the center and overall position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move d3 was a blunder, costing white about 0.37 points. White should have played the best move Nxh4, capturing the black queen and gaining a significant material advantage. By moving the pawn to d3, white left two enemy pieces hanging and ignored threats to the white pawn on e4 and the black queen on h4.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move d3 was a significant blunder, losing 0.367 expected points. It leaves the black pawn on e5 and the queen on h4 both undefended, creating a critical weakness for White. The engine's best move, Nxh4, directly captures the queen, putting White in a much stronger position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "White's move d3 is a solid choice, aimed at controlling the center and preparing to develop the knight to a more active square. It doesn't immediately threaten anything but sets up a good plan for the future, making it a typical move for the opening phase of the game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move d3 was a blunder according to the engine. It leaves two of your own pieces hanging, specifically the pawn on e4 and the pawn on h4. The best move would have been to capture the black queen with the knight on f3, which would have put a significant material advantage in your favor.",
+   "illegal_moves": [],
+   "false_placements": [
+    "pawn on h4"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move d3 was a significant misstep, as it left both the e5 pawn and the h4 queen undefended. While the engine's best move, Nxh4, directly captures a valuable piece, d3 merely prepares for future moves and doesn't capitalize on the immediate opportunity to gain material or simplify the position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White played d3, which is a solid move to control the center and prevent black from castling their king to the d-file. This move also prepares for potential pawn advances and supports the central pawns, helping to maintain a strong center presence.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move d3 was a blunder, costing white about 0.37 points. Instead, the best move was Nxh4, capturing the black queen and putting white in a much better position. Unfortunately, this move left a pawn on e4 undefended, making it vulnerable. Additionally, it ignored the hanging black pieces on e5 and h4, which could have been exploited.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move d3 was a blunder, costing White 0.367 expected points. It leaves the black pawn on e5 and the queen on h4 undefended. The engine, however, sees the more effective capture with Nxh4, which leads to a promising attack for Black.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "free_queen_ignored",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move d3 is a solid choice as it supports the d4 pawn and prepares for potential development of the knight to d2. This move helps to solidify the center and prevent black from easily challenging the center with moves like c5 or e5. Overall, it's a prudent development move that maintains the strategic balance in the opening.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Qg4 was a blunder, costing White about 0.53 points. By moving the queen to g4, White left the queen hanging on g4, which is attacked and undefended. The best move was exd5, which captures a pawn and leaves a similar hanging pawn on d5. This better move develops a piece and exerts pressure on Black's position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Qg4 was a significant blunder, losing 0.533 expected points. By moving the queen to g4, the white queen becomes attacked and undefended, as stated in point 3. The engine's best move, exd5, addresses this weakness by capturing a pawn on d5, making the white pawn on d5 both attacked and undefended, as per point 5. This results in a more stable position for the engine's side.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Qg4 is a good choice as it develops the queen and puts pressure on the black pawn on f5. It also prepares to support a potential e5 advance, which could open up the position and give white more space. Overall, it's a solid move that improves white's position without rushing into anything risky.",
+   "illegal_moves": [],
+   "false_placements": [
+    "black pawn on f5"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Qg4 was a blunder according to the engine. It leaves the queen hanging at g4, attacked and undefended. The best move was exd5, capturing the black pawn on d5, which also leaves a pawn hanging but with better development and control of the center.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move Qg4 was a significant misstep, as it left the white queen on g4 undefended and attacked. The engine's best response, exd5, not only captures a pawn but also puts the white queen in an even more vulnerable position. While the engine's subsequent moves are complex, they effectively control the center and develop pieces, setting up a strong position for Black.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White played Qg4 to put pressure on the black pawn on f5 and to control the center of the board. This move aims to create threats against black's position while also preparing for potential future moves like Qxf5 or Qxh7 if black doesn't respond effectively. Overall, it's a solid move that improves white's piece activity and central control.",
+   "illegal_moves": [
+    "Qxh7"
+   ],
+   "false_placements": [
+    "black pawn on f5"
+   ],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Qg4 was a blunder, costing you about half a point. By moving your queen to g4, you left your queen on g4 undefended, making it a target for your opponent's pieces. The best move was exd5, capturing the black pawn on d5, which would have left your queen hanging in a similar way but also opened up the game for you.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Qg4 was a significant blunder, losing 0.533 expected points. It leaves the white queen on g4 undefended and attacked, which the engine quickly exploits with exd5. While the engine's best move, exd5, also leaves a pawn undefended, it does so in a way that sets up a more favorable position for the engine, as seen in its best line.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "queen_hung",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Qg4 is a good choice as it develops the queen and prepares to put pressure on the black pawn on f5. It also supports the pawn on e4, giving white more control over the center. This move helps to activate a piece and strengthen white's position overall.",
+   "illegal_moves": [],
+   "false_placements": [
+    "black pawn on f5"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Ra8# is the best move in this position. It checkmates the black king, ending the game. The position is so favorable for white that no other move could improve on this checkmate.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Ra8# is excellent as it delivers a decisive checkmate, ending the game. While Black has several passed pawns, the checkmate is more immediate and powerful. The engine's best move, Ra8#, achieves checkmate directly, outshining the alternative plans that focus on the passed pawns.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "White's move Ra8# is a checkmate. By moving the rook to a8, White attacks the king on a8, leaving the black king with no escape and no legal moves, thus winning the game. This is a strong and decisive move, showing a good understanding of endgame tactics.",
+   "illegal_moves": [],
+   "false_placements": [
+    "king on a8"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Ra8# is the best move in this position. It checkmates the black king, ending the game. The position is favorable for White, with a material advantage of two pieces, and the checkmate takes full advantage of this.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "statements",
+   "seed": 1,
+   "text": "White's move Ra8# is excellent, delivering checkmate directly. While Black has several passed pawns, the immediate checkmate trumps the material advantage. The engine confirms this by also choosing Ra8#, which ends the game decisively.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "The move Ra8# is a checkmate. By moving the rook to a8, White puts the black king in a position where it cannot escape or be captured, effectively ending the game. This move is very strong and demonstrates a good understanding of checkmate patterns.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Ra8# is the best move in this position. It delivers checkmate, directly ending the game. The rook on a1 attacks the king on a8, with no way for black to prevent the checkmate. This move is flawless and secures a win for white.",
+   "illegal_moves": [],
+   "false_placements": [
+    "king on a8"
+   ],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Ra8# is exceptionally good, delivering checkmate directly. While Black has several passed pawns, the immediate checkmate is more decisive. The engine confirms this by also playing Ra8#, which ends in a forced checkmate, outshining any positional considerations.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "backrank_mate",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "White's move Ra8# is a checkmate. By moving the rook to a8, White puts the black king in check and there are no black pieces to block or capture the rook, forcing the black king to be checkmated. This is a strong and decisive move.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Kd2 was a mistake, as the best move would have been Ra8#, delivering checkmate. Ra8# directly attacks the black king and leaves no defense possible, while Kd2 just moves the king without putting any real pressure on the black position. Given the material advantage and the fact that the black king is somewhat exposed, a more active move like Ra8# would have been more effective.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Kd2 was a mistake, costing White 0.142 expected points. While it might have seemed safe, the engine's best move, Ra8#, directly checkmates Black. Instead of securing the passed pawns on f7, g7, and h7, Kd2 allowed the more precise Ra8# to force an immediate win.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Kd2 by White is a good strategic choice. It helps to centralize the king, which is generally safer and more active. Additionally, it prepares to develop the knight to a better square if needed. This move doesn't immediately gain material or check, but it improves White's position overall.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move you made, Kd2, was a mistake. It didn't improve your position and actually cost you about 0.14 points. The best move would have been Ra8#, which would have checkmated the black king. Your king move doesn't put any real pressure on the board and leaves your king in an open file, which isn't ideal.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move Kd2 was a mistake, costing White 0.142 expected points. While it might have seemed to support the passed pawns on f7, g7, and h7, the engine's best move, Ra8#, is a checkmate. This direct attack on the king is far more effective, highlighting the superiority of a precise checkmate over positional play in this scenario.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White played Kd2 to secure the king and prepare for potential pawn advances. This move helps centralize the king and sets up the d-pawn for possible advancement, which can create more active pieces and open up the board. It's a solid, positional move that improves White's position overall.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move \\( Kd2 \\) was a mistake. The best move would have been \\( Ra8# \\), which checkmates the black king. Your king move doesn't achieve anything significant and leaves you open to a more direct and effective checkmate.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Kd2 was a mistake, costing White 0.142 expected points. While it might have seemed safe, the engine's best move, Ra8#, delivered checkmate directly. This checkmate was possible because Black had passed pawns on f7, g7, and h7, which the rook could use to deliver a decisive attack.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "missed_mate",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Kd2 by White is a good strategic choice. It helps to centralize the king, providing better control over the board and preparing for potential pawn advances. Additionally, this move avoids any immediate threats and keeps the king safe, which is crucial in the early to middle game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Bxf7+ was a blunder according to the engine. It leaves the bishop on f7 undefended, making it a target for Black's pieces. The best move would have been d4, which develops a pawn and prepares to challenge Black's center. Although it doesn't immediately gain material, it's a more solid and future-oriented move.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Bxf7+ was a significant blunder, losing 0.432 expected points. While it does give check and capture the pawn, it leaves the white bishop on f7 undefended and under attack. The engine's best move, d4, is much stronger as it attacks the black pawn on e5, which becomes more vulnerable after this move.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Bxf7+ is a strong and aggressive play. It sacrifices the bishop to win a pawn and put the black king under immediate check. This move aims to open up the board for white pieces and potentially launch a strong attack.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Bxf7+ was a significant blunder, as it leaves the white bishop hanging at f7, attacked and undefended. The best move was d4, which develops a pawn and prepares to challenge the black king's position. This move would have put more pressure on black and improved white's piece development.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "statements",
+   "seed": 1,
+   "text": "The move Bxf7+ was a poor choice, losing 0.432 expected points. While it does give check and capture a pawn, it leaves the white bishop on f7 undefended and attacked. The engine prefers d4, as it puts pressure on the black pawn on e5 and opens up the game, leading to a more favorable position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "Bxf7+ is a strong move by White because it not only captures a black piece but also puts Black's king under check. This move opens up the board for White's pieces and can lead to a significant advantage, as it weakens Black's position and creates new threats.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": false
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Bxf7+ was a blunder according to the engine. It leaves your bishop undefended on f7, making it a target for your opponent's pieces. The best move would have been d4, developing a pawn and controlling the center, which would have put your position in a better strategic position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Bxf7+ was a significant blunder, losing 0.432 expected points. While it gives check and captures a pawn, it leaves the white bishop on f7 undefended and under attack. The engine's best move, d4, would have put more pressure on the black pawn on e5, leading to a more favorable position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "bxf7_sac",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Bxf7+ is a strong and aggressive one. It sacrifices the bishop to win a pawn and put the black king under immediate check. This move weakens black's pawn structure and opens up the game, giving white more space and potential for active piece play.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move \"O-O\" is an excellent choice, as it safely castles the king to g1, protecting it from the single attacking piece on the board. While the best move was to play \"c3\" with the pawn, this move still maintains solid king safety and prepares your position for further development.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move O-O is excellent, as it only loses 0.014 expected points. Castling helps to secure the king and maintain a strong position. While the engine prefers c3, castling still sets up a solid defense and keeps the center flexible.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "White's move O-O (castling kingside) is a solid choice. It protects the king by getting it to a safer position, and it also develops the king's knight to a strong square. This move improves white's piece coordination and maintains a solid pawn structure.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "facts",
+   "seed": 1,
+   "text": "Your move of O-O was excellent, with a classification of \"excellent.\" While the best move was to play c3 with your pawn, your castling move helps to secure your king and develop your minor pieces. This move also reduces the number of undeveloped minor pieces on your side, improving your overall position.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "statements",
+   "seed": 1,
+   "text": "White's move of castling (O-O) is rated \"excellent,\" showing it effectively secures the king and maintains a strong position. While the engine prefers moving the pawn to c3 (c3), castling still holds up well, losing only a minimal amount in terms of expected points.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "The move O-O (castling kingside) is a good choice here. It protects the king by getting it to the safety of the kingside, while also developing the king's knight to a strong position. This move helps to centralize the knight and prepares white for a more active game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move 0-0 is an excellent choice. While the best move was to play c3, developing the pawn, castling kingside still improves your position by securing your king and getting your king's knight into the game. The expected points lost are minimal, indicating that this move is quite solid and effective in maintaining the game's balance.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move O-O is excellent, as it only loses 0.014 expected points. It strengthens the king and keeps the center flexible. While the engine prefers c3 to develop the knight, castling still improves White's position effectively.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "castle",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "White's move of castling (O-O) is a good choice here. It protects the king, bringing the king's knight into the game, and opens up some space for future development. This move also maintains a strong position by keeping the center unchallenged.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "facts",
+   "seed": 0,
+   "text": "The move Nf3 is the best choice here. It develops a knight to a strong central square, supporting the pawn structure and preparing for potential future developments. The engine also notes that this move leaves one of the enemy pawns hanging, specifically the pawn on e5, as it is attacked and undefended.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "statements",
+   "seed": 0,
+   "text": "The move Nf3 is excellent as it attacks the black pawn on e5, which is undefended. While the engine prefers the continuation Nf3 Nf6, Nc3 Nc6, a3 h6, d4 exd4, Nxd4, Bc5, Nxc6, dxc6, Qxd8+, your move still achieves a strong position by putting pressure on the black pawn.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "fen_only",
+   "seed": 0,
+   "text": "The move Nf3 is a solid choice as it develops a piece and supports the center. It prepares for possible pawn advances and helps to control key squares, improving White's position without leaving the king vulnerable. This move is typical of good opening play, aiming to establish a strong foundation for further development.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "facts",
+   "seed": 1,
+   "text": "The move Nf3 is the best option here. It develops a knight to f3, improving your piece placement without leaving any of your own pieces hanging or ignoring any threats. Your opponent's pawn on e5 is now undefended and can be captured if needed, giving you an advantage.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "statements",
+   "seed": 1,
+   "text": "White played Nf3, which is a strong move as it attacks the black pawn on e5 and leaves the board well-structured. While the engine preferred Nf3 Nf6, White's move still holds up well, as it prepares to potentially take advantage of the open f-file or other weaknesses. The engine's continuation focuses on developing the knight to c6 and preparing d4, but White's Nf3 sets up good play without immediate concessions.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "fen_only",
+   "seed": 1,
+   "text": "White played Nf3, which is a solid development move. It brings the knight to a central square where it can be active and support other pieces. This move also helps to secure the f-file for the rooks and prepares for potential pawn advances. Overall, it's a good choice to develop a piece and maintain good piece placement.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "facts",
+   "seed": 2,
+   "text": "The move Nf3 is the best choice here. It develops a knight to a useful position on f3, supporting the center and preparing for potential future moves. After this move, Black's pawn on e5 becomes vulnerable and is hanging, as it is attacked and undefended.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "statements",
+   "seed": 2,
+   "text": "The move Nf3 is excellent as it attacks the black pawn on e5, which is currently undefended. While the engine prefers to develop the knight to c3 next, this immediate attack on e5 by Nf3 is still the best choice, as it puts black on the back foot early in the game.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  },
+  {
+   "case_id": "develop",
+   "condition": "fen_only",
+   "seed": 2,
+   "text": "The move Nf3 is a solid choice as it develops a piece and supports the center. It prepares for possible pawn advances and helps to control key squares. While it might not be the most aggressive option, it's a safe and reliable move that improves White's position without risking anything.",
+   "illegal_moves": [],
+   "false_placements": [],
+   "forbidden_hit": false,
+   "key_hit": true
+  }
+ ]
+}

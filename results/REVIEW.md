@@ -37,3 +37,25 @@ saved responses with the new rule changed one verdict: a `facts` response saying
 h5" (it is White's queen) is now flagged. No other verdict changed. That makes the facts condition
 **3/36** with an objective false claim, up from 2/36 (the fen_only condition stays 8/36). The saved
 JSON was not rewritten; this note is the correction.
+
+
+## Addendum 2: statements prompt (run 20261120_114204)
+
+Same 12 cases, 3 seeds, temperature 0.5, now with a third condition. Automatic counts: fen_only
+8/36, facts (JSON) 4/36, statements 0/36. The 4 JSON flags and the 8 fen_only flags were not
+re-reviewed by hand in this run.
+
+Manual read of the 12 seed-0 `statements` responses plus the one that missed its key idea
+(free_queen_take seed 2). Errors the automatic check cannot see:
+- qh5_g6: says the queen "was previously pinned by the black pawn on f7" (backwards: the pawn is
+  the pinned piece) and that capturing on g6 "gains material" (not in the facts).
+- free_queen_take, develop, backrank_mate: says the engine "prefers"/"suggests" a different move
+  when the played move was the engine's best.
+- missed_mate: "securing the passed pawns on f7, g7 and h7" misuses the passed-pawn statement.
+- queen_hung: refers to "point 3" (leaks the numbered list).
+- fork_win: "making the sacrifice worthwhile" is not in the facts.
+
+So at least 6 of 12 seed-0 responses contain a claim not supported by the statements, despite 0/36
+on the automatic check. Conclusion: the statements prompt is better at not inventing moves and
+squares, but the improvement in overall faithfulness is unproven. Only seed 0 was read; the other
+24 were not.
