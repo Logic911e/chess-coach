@@ -70,3 +70,25 @@ def test_stalemating_guess_scores_zero():
     assert r.legal and not r.matched and eng.calls == 0
     assert r.expected_points_lost == expected_points_lost(900, 0)
     assert r.classification == "blunder"
+
+
+CASTLE = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+
+
+def test_castling_matches_in_either_encoding():
+    for guess in ("e1g1", "e1h1"):
+        for best in ("e1g1", "e1h1"):
+            eng = Fake()
+            r = score_guess(CASTLE, guess, best, 30, 12, eng)
+            assert r.legal and r.matched and r.san == "O-O" and r.classification == "best"
+            assert eng.calls == 0
+    r = score_guess(CASTLE, "e1c1", "e1g1", 30, 12, Fake())
+    assert r.legal and not r.matched and r.san == "O-O-O"
+
+
+def test_guessing_the_played_move_uses_stored_score_without_engine():
+    eng = Fake(cp=999)
+    r = score_guess(START, "a2a3", "e2e4", 30, 12, eng, played_uci="a2a3", cp_played=-100)
+    loss = expected_points_lost(30, -100)
+    assert eng.calls == 0 and not r.matched
+    assert r.expected_points_lost == loss and r.classification == classify(loss)

@@ -224,3 +224,27 @@ def test_index_has_live_region_and_move_list_container(app_and_client):
     assert "aria-live" not in by_id["caption"][1]
     live = [a for _, a in els if a.get("class") == "cap-live"]
     assert len(live) == 1 and live[0]["aria-live"] == "polite"
+
+
+def test_guess_endpoint_played_move_uses_stored_score_and_long_uci_is_422(pg):
+    from chess_coach.engine_service import EngineService
+
+    class Counting:
+        calls = 0
+
+        def analyse(self, board, depth=None, time=None, multipv=1):
+            Counting.calls += 1
+            return [Analysis(cp=0, mate=None, best_move="a2a3", pv=["a2a3"], depth=depth)]
+
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    app = create_app(connect=lambda: NoClose(pg),
+                     engine_service=EngineService(lambda: _Ctx(Counting())))
+    http = TestClient(app)
+    gid = http.get("/api/games").json()[0]["id"]
+    moves = http.get(f"/api/games/{gid}").json()["moves"]
+    m = next((x for x in moves if x["uci"] != x["best_uci"]), moves[0])
+    r = http.post(f"/api/moves/{m['id']}/guess", json={"uci": m["uci"]}).json()
+    assert r["legal"] and r["classification"] == m["classification"]
+    assert Counting.calls == 0
+    assert http.post(f"/api/moves/{m['id']}/guess", json={"uci": "e2e4qq"}).status_code == 422

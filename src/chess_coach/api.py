@@ -44,7 +44,7 @@ ENGINE_FAILURES = (
 
 
 class GuessBody(BaseModel):
-    uci: str
+    uci: str = Field(max_length=5)
 
 
 class ChatTurn(BaseModel):
@@ -244,15 +244,16 @@ def create_app(
     def guess_move(move_id: int, body: GuessBody) -> dict:
         with connect() as conn:
             row = conn.execute(
-                "SELECT m.fen_before, e.best_uci, e.cp_best, e.engine_depth"
+                "SELECT m.fen_before, e.best_uci, e.cp_best, e.engine_depth, m.uci, e.cp_played"
                 " FROM moves m JOIN evaluations e ON e.move_id = m.id WHERE m.id = %s",
                 (move_id,),
             ).fetchone()
         if row is None:
             raise HTTPException(404, "no such move")
-        fen, best_uci, cp_best, depth = row
+        fen, best_uci, cp_best, depth, played_uci, cp_played = row
         try:
-            result = score_guess(fen, body.uci, best_uci, cp_best, depth, engine)
+            result = score_guess(fen, body.uci, best_uci, cp_best, depth, engine,
+                                 played_uci=played_uci, cp_played=cp_played)
         except ENGINE_FAILURES as exc:
             log.exception("engine failed scoring a guess on move %s", move_id)
             raise HTTPException(503, f"engine unavailable: {exc}") from exc

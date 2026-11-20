@@ -29,21 +29,36 @@ class GuessResult:
     san: str | None
 
 
+def _norm(board: chess.Board, uci: str | None) -> str | None:
+    """Standard-form UCI of a legal move (king-takes-rook castling becomes e1g1), else None."""
+    if not uci:
+        return None
+    try:
+        return board.parse_uci(uci).uci()
+    except ValueError:
+        return None
+
+
 def score_guess(
-    fen: str, uci: str, best_uci: str, cp_best: int, depth: int, engine: EngineLike
+    fen: str, uci: str, best_uci: str, cp_best: int, depth: int, engine: EngineLike,
+    played_uci: str | None = None, cp_played: int | None = None,
 ) -> GuessResult:
+    """`played_uci` and `cp_played` (the stored score of the move actually played) let a guess that
+    equals the played move be labelled without asking the engine again."""
     board = chess.Board(fen)
     try:
-        move = chess.Move.from_uci(uci)
+        move = board.parse_uci(uci)  # also rejects a promotion without its letter
     except ValueError:
         return GuessResult(False, False, None, None, None)
-    if move not in board.legal_moves:  # also rejects a promotion without its letter
-        return GuessResult(False, False, None, None, None)
     san = board.san(move)
-    if uci == best_uci:
-        cp_played = cp_best
+    norm = move.uci()
+    matched = norm == _norm(board, best_uci)
+    if matched:
+        score = cp_best
+    elif cp_played is not None and norm == _norm(board, played_uci):
+        score = cp_played
     else:
         board.push(move)
-        cp_played = score_after(board, cp_best, depth, engine)
-    loss = cf.expected_points_lost(cp_best, cp_played)
-    return GuessResult(True, uci == best_uci, cf.classify(loss), loss, san)
+        score = score_after(board, cp_best, depth, engine)
+    loss = cf.expected_points_lost(cp_best, score)
+    return GuessResult(True, matched, cf.classify(loss), loss, san)
