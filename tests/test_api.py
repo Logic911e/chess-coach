@@ -226,6 +226,20 @@ def test_index_has_live_region_and_move_list_container(app_and_client):
     assert len(live) == 1 and live[0]["aria-live"] == "polite"
 
 
+def test_index_has_analysis_bar_tabs_and_toggle_ids(app_and_client):
+    http, _ = app_and_client
+    els = _elements(http.get("/").text)
+    by_id = {a["id"]: (tag, a) for tag, a in els if "id" in a}
+    for i in ("evalBar", "tabCoach", "tabAnalysis", "coachPanel", "analysisPanel", "analysisToggle"):
+        assert i in by_id, i
+    assert by_id["evalBar"][1]["role"] == "img"
+    for i in ("tabCoach", "tabAnalysis", "analysisToggle"):
+        assert by_id[i][0] == "button" and "aria-pressed" in by_id[i][1], i
+    assert "role" not in by_id["tabCoach"][1] and "role" not in by_id["tabAnalysis"][1]
+    # the existing caption content stays inside the coach panel
+    assert "moveName" in by_id and "guessForm" in by_id
+
+
 def test_guess_endpoint_played_move_uses_stored_score_and_long_uci_is_422(pg):
     from chess_coach.engine_service import EngineService
 

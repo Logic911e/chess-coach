@@ -7,8 +7,11 @@
   --cardw: clamp(300px, 28vw, 400px);
   /* beside the board: only the top bar, nav row and padding take height */
   --vh: 100vh;
-  --boardw: max(160px, min(calc(var(--vh) - var(--topbar-h) - 82px), calc(100vw - var(--cardw) - 64px)));
+  /* the evaluation bar and its gap come out of the width budget, never out of the height-driven size */
+  --barspace: 30px;
+  --boardw: max(160px, min(calc(var(--vh) - var(--topbar-h) - 82px), calc(100vw - var(--cardw) - 64px - var(--barspace))));
 }
+:root[data-analysis="off"] { --barspace: 0px; }
 * { box-sizing: border-box; }
 @supports (height: 100dvh) { :root { --vh: 100dvh; } }
 html, body { height: 100%; }
@@ -61,7 +64,24 @@ button:disabled { opacity: .45; cursor: default; }
 
 /* stage */
 #stage { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: flex-start; gap: 24px; padding: 14px 20px 0; }
-#boardCol { width: var(--boardw); display: flex; flex-direction: column; }
+#boardCol { width: calc(var(--boardw) + var(--barspace)); display: flex; flex-direction: column; }
+.board-row { display: flex; gap: 8px; align-items: stretch; }
+:root[data-analysis="off"] .board-row { gap: 0; }
+#boardWrap { flex: 1; min-width: 0; }
+.nav { margin-left: var(--barspace); }
+#evalBar {
+  position: relative; flex: none; width: 22px; border-radius: 5px; overflow: hidden; background: var(--bar-black);
+  border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .3);
+}
+#evalBar[hidden] { display: none; }
+.eval-fill { position: absolute; left: 0; right: 0; bottom: 0; height: var(--fill, 50%); background: var(--bar-white); transition: height .3s ease; }
+#evalBar[data-white-top="true"] .eval-fill { bottom: auto; top: 0; }
+#evalBar[data-dim="true"] { opacity: .6; }
+.eval-label {
+  position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font: 700 10px/1 ui-monospace, Menlo, monospace;
+  letter-spacing: -.02em; color: var(--bar-on-white);
+}
+#evalBar[data-label-top="true"] .eval-label { bottom: auto; top: 3px; color: var(--bar-on-black); }
 #boardWrap {
   position: relative; width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
   border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
@@ -84,6 +104,12 @@ button:disabled { opacity: .45; cursor: default; }
   padding: 14px 16px; background: color-mix(in srgb, var(--panel) 70%, transparent);
   border: 1px solid var(--line); border-radius: 14px;
 }
+.cap-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex: none; }
+.cap-tabs[hidden] { display: none; }
+.cap-tabs button { font-size: 13px; padding: 3px 12px; }
+.cap-tabs button[aria-pressed="true"], #analysisToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.panel[hidden] { display: none; }
 .explain-scroll { flex: 1; min-height: 0; overflow: auto; margin: 6px 0; }
 .cap-live { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .cap-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -166,7 +192,7 @@ kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px s
 
 /* narrow windows: card stacks under the board at a fixed height (so the board never jumps) */
 @media (max-width: 820px) {
-  :root { --capH: 190px; --boardw: max(160px, min(calc(var(--vh) - var(--topbar-h) - 82px - var(--capH) - 10px), 92vw)); }
+  :root { --capH: 224px; --boardw: max(160px, min(calc(var(--vh) - var(--topbar-h) - 82px - var(--capH) - 10px), calc(92vw - var(--barspace)))); }
   #stage { flex-direction: column; align-items: center; gap: 10px; }
   .caption { width: min(92vw, 520px); height: var(--capH); }
 }

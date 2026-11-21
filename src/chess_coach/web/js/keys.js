@@ -1,9 +1,9 @@
 // Keyboard map. Pure: imports cleanly in node, no window/document access.
-const TOGGLES = ["m", "?"];
+const TOGGLES = ["m", "?", "a"];
 const PALETTES = ["felt", "wood"];
 const MAP = {  // key -> [action name, argument]
   ArrowLeft: ["step", -1], ArrowRight: ["step", 1], j: ["nextKey"], k: ["prevKey"], g: ["guess"],
-  "/": ["chat"], Escape: ["close"], m: ["mute"], "?": ["help"],
+  "/": ["chat"], Escape: ["close"], m: ["mute"], "?": ["help"], a: ["analysis"],
 };
 
 /**

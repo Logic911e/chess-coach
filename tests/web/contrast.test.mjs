@@ -82,3 +82,19 @@ test("the focus outline (accent) is >= 3:1 against the strip bar colour (--line)
     assert.ok(ratio(t["--accent"], t["--line"]) >= 3, `${name}: ${ratio(t["--accent"], t["--line"]).toFixed(2)}`);
   }
 });
+
+test("evaluation bar: label text >= 4.5:1 on both shares, shares distinguishable, in every theme", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    for (const k of ["--bar-white", "--bar-black", "--bar-on-white", "--bar-on-black"]) {
+      assert.ok(t[k], `${name} missing ${k}`);
+    }
+    assert.ok(ratio(t["--bar-on-white"], t["--bar-white"]) >= 4.5, `${name} text on white share`);
+    assert.ok(ratio(t["--bar-on-black"], t["--bar-black"]) >= 4.5, `${name} text on dark share`);
+    assert.ok(ratio(t["--bar-white"], t["--bar-black"]) >= 3, `${name} shares differ`);
+  }
+});
+
+test("the bar fill transition is switched off by the motion mechanisms", () => {
+  assert.ok(/#evalBar[^{]*\{[^}]*transition/.test(appCss) || /\.eval-fill[^{]*\{[^}]*transition/.test(appCss));
+  assert.ok(/data-motion="off"\] \*/.test(appCss) && /data-study="on"\] \*/.test(appCss));
+});

@@ -10,7 +10,7 @@ function setup() {
     step: (d) => calls.push(["step", d]), nextKey: () => calls.push(["nextKey"]),
     prevKey: () => calls.push(["prevKey"]), guess: () => calls.push(["guess"]),
     chat: () => calls.push(["chat"]), close: () => calls.push(["close"]),
-    mute: () => calls.push(["mute"]), help: () => calls.push(["help"]),
+    mute: () => calls.push(["mute"]), help: () => calls.push(["help"]), analysis: () => calls.push(["analysis"]),
   };
   return { calls, handle: createKeyHandler(actions) };
 }
@@ -105,4 +105,16 @@ test("test_toggle_mute_junk_previous_falls_back_to_felt", () => {
 test("test_only_theme_changes_need_a_render", () => {
   assert.equal(settingNeedsRender("theme"), true);
   for (const k of ["soundPalette", "volume", "studyMode", "mutedFrom", undefined]) assert.equal(settingNeedsRender(k), false, String(k));
+});
+
+test("test_a_toggles_analysis_and_is_ignored_while_typing", () => {
+  const { calls, handle } = setup();
+  assert.equal(handle(ev("a")), true);
+  assert.equal(handle(ev("A")), true);
+  assert.deepEqual(calls, [["analysis"], ["analysis"]]);
+  assert.equal(handle({ key: "a", target: { tagName: "INPUT" } }), false);
+  assert.equal(handle({ key: "a", target: { tagName: "TEXTAREA" } }), false);
+  assert.equal(handle(ev("a", { repeat: true })), false);
+  assert.equal(handle(ev("a", { ctrlKey: true })), false);
+  assert.equal(calls.length, 2);
 });

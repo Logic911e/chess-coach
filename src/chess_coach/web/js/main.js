@@ -8,6 +8,8 @@ import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
+import { scoreFromStored } from "./analysis.js";
+import { barView, renderBar, renderTabs, analysisNote } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -53,8 +55,28 @@ function applySettings(changed) {
     .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.soundChoice === pal)));
   $("volume").value = String(settings.get("volume", DEFAULT_VOLUME));
   syncMotion();
+  renderAnalysisChrome();
   if (state.game && settingNeedsRender(changed)) render();  // arrow colours are read from the theme
 }
+
+// ---------- analysis bar and tabs (logic in analysis-ui.js) ----------
+const analysisOn = () => settings.get("analysis", true);
+function renderAnalysisChrome() {
+  const on = analysisOn();
+  if (on) delete root.dataset.analysis; else root.dataset.analysis = "off";
+  $("analysisToggle").setAttribute("aria-pressed", String(on));
+  $("capTabs").hidden = !on;
+  renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
+    on ? settings.get("analysisTab", "coach") : "coach");
+  const g = state.game, mv = g && g.moves.length ? cur() : null;
+  const hidden = !mv || hiddenNow(mv);  // no game yet: neutral
+  // Stored value: the position BEFORE the selected move, converted to White's perspective.
+  const score = mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: false }));
+  $("analysisNote").textContent = analysisNote({ hidden });
+}
+function setAnalysis(on) { settings.set("analysis", on); renderAnalysisChrome(); }
+function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
 
 // ---------- rendering ----------
 function labelColors() {
@@ -95,6 +117,7 @@ function render(animate = false) {
   if (!hidden) renderExplain(mv);
   renderStrip();
   renderMoveList();
+  renderAnalysisChrome();
   $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));  // one signal: static label + pressed state
   $("engineBtn").disabled = hidden;  // it would give the answer away
   $("engineBtn").title = hidden ? "Available once you have guessed or shown the answer" : "";
@@ -292,6 +315,7 @@ function showEmpty() {
   $("boardWrap").replaceChildren();
   for (const id of ["moveName", "labelPill", "reasons", "happened", "guessMsg", "explainBox", "explainAct", "strip", "moveList"]) $(id).replaceChildren();
   for (const id of ["prevKey", "nextKey", "first", "prev", "next", "last"]) $(id).disabled = true;
+  renderAnalysisChrome();
 }
 
 async function selectGame(id) {
@@ -452,6 +476,7 @@ const handleKey = createKeyHandler({
     else return false;
   },
   mute: () => { if (modalOpen()) return false; toggleSoundMute(); },
+  analysis: () => { if (modalOpen()) return false; setAnalysis(!analysisOn()); },
   help: () => { if ($("helpOverlay").hidden && ($("gamesOverlay").hidden === false || $("meOverlay").hidden === false)) return false; setHelp($("helpOverlay").hidden); },
 });
 
@@ -475,6 +500,9 @@ async function init() {
 
 document.querySelectorAll("[data-theme-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); applySettings("theme"); }));
+$("analysisToggle").addEventListener("click", () => setAnalysis(!analysisOn()));
+$("tabCoach").addEventListener("click", () => setTab("coach"));
+$("tabAnalysis").addEventListener("click", () => setTab("analysis"));
 $("studyToggle").addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); applySettings("studyMode"); });
 document.querySelectorAll("[data-sound-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("mutedFrom", null); settings.set("soundPalette", b.dataset.soundChoice); applySettings("soundPalette"); }));
