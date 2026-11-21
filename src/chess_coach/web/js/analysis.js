@@ -6,32 +6,49 @@ const FILL_MAX = 0.98;
 
 /** Convert a stored cp_best (mover's perspective) to White's perspective. */
 export function scoreFromStored(cpBest, color) {
+  if (typeof cpBest !== "number" || !Number.isFinite(cpBest)) return { cp: 0, mate: null, capped: false };
   const cp = color === "black" ? -cpBest : cpBest;
   return { cp: cp === 0 ? 0 : cp, mate: null, capped: Math.abs(cpBest) >= MATE_CAP };
 }
 
-function isMate(score) { return score.mate !== null && score.mate !== undefined; }
+/** One guard for every helper: junk or missing input reads as level (cp 0), never NaN. */
+function norm(score) {
+  const s = score && typeof score === "object" ? score : {};
+  const cp = typeof s.cp === "number" && Number.isFinite(s.cp) ? s.cp : 0;
+  const mate = typeof s.mate === "number" && Number.isFinite(s.mate) ? Math.trunc(s.mate) : null;
+  return { cp, mate, capped: s.capped === true };
+}
 
-function whiteSign(score) {
-  if (isMate(score)) return score.mate > 0 ? 1 : -1;
-  return score.cp > 0 ? 1 : score.cp < 0 ? -1 : 0;
+/** +1 White is mating/winning, -1 Black, 0 unknown (only for a mate with no distance and cp 0). */
+function mateSign(s) {
+  if (s.mate !== 0) return s.mate > 0 ? 1 : -1;
+  return Math.sign(s.cp);
 }
 
 export function formatScore(score, decimals = 2) {
-  if (isMate(score)) return score.mate < 0 ? `-M${-score.mate}` : `M${score.mate}`;
-  if (score.capped) return "Mate";
+  const s = norm(score);
+  if (s.mate === 0) return "Mate";
+  if (s.mate !== null) return s.mate < 0 ? `-M${-s.mate}` : `M${s.mate}`;
+  if (s.capped) return "Mate";
   const scale = 10 ** decimals;
-  const n = Math.round((Math.abs(score.cp) * scale) / 100);
+  const n = Math.round((Math.abs(s.cp) * scale) / 100);
   const text = (n / scale).toFixed(decimals);
   if (n === 0) return text;
-  return (score.cp < 0 ? "-" : "+") + text;
+  return (s.cp < 0 ? "-" : "+") + text;
 }
 
-/** White's share of the bar in [0.02, 0.98]. */
+/** White's share of the bar in [0.02, 0.98]; always finite. */
 export function barFill(score) {
-  if (isMate(score) || score.capped) return whiteSign(score) < 0 ? FILL_MIN : FILL_MAX;
-  const a = 0.48 * Math.tanh(Math.abs(score.cp) / 800);
-  const f = score.cp < 0 ? 0.5 - a : 0.5 + a;
+  const s = norm(score);
+  if (s.mate !== null || s.capped) {
+    const sign = s.mate !== null ? mateSign(s) : Math.sign(s.cp);
+    return sign < 0 ? FILL_MIN : sign > 0 ? FILL_MAX : 0.5;
+  }
+  // tanh is smooth and odd, so fill(+x) + fill(-x) = 1. 0.48 keeps the curve inside the
+  // [0.02, 0.98] clamp with a margin; the 800 cp scale makes one pawn (100 cp) move the bar
+  // about 6 points while leads beyond roughly 3 pawns flatten out towards the clamp.
+  const a = 0.48 * Math.tanh(Math.abs(s.cp) / 800);
+  const f = s.cp < 0 ? 0.5 - a : 0.5 + a;
   return Math.min(FILL_MAX, Math.max(FILL_MIN, f));
 }
 
@@ -58,11 +75,15 @@ export function lineText(fen, moves, maxPlies = 8) {
 }
 
 export function lineA11yName(index, score, text) {
+  const sc = norm(score);
   let s;
-  if (isMate(score)) s = `mate in ${Math.abs(score.mate)} for ${score.mate > 0 ? "White" : "Black"}`;
-  else if (score.capped) s = `mate for ${score.cp > 0 ? "White" : "Black"}`;
-  else {
-    const f = formatScore(score);
+  if (sc.mate !== null && sc.mate !== 0) {
+    s = `mate in ${Math.abs(sc.mate)} for ${sc.mate > 0 ? "White" : "Black"}`;
+  } else if (sc.mate === 0 || sc.capped) {
+    const sign = Math.sign(sc.cp);
+    s = sign === 0 ? "mate" : `mate for ${sign > 0 ? "White" : "Black"}`;
+  } else {
+    const f = formatScore(sc);
     s = f.startsWith("+") ? `plus ${f.slice(1)}` : f.startsWith("-") ? `minus ${f.slice(1)}` : f;
   }
   return `Line ${index}, ${s}, ${text}`;

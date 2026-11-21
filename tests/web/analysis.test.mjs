@@ -82,3 +82,47 @@ test("test_line_a11y_name", () => {
   assert.equal(lineA11yName(1, mate(3), "x"), "Line 1, mate in 3 for White, x");
   assert.equal(lineA11yName(3, mate(-3), "x"), "Line 3, mate in 3 for Black, x");
 });
+
+const JUNK = [NaN, undefined, null, Infinity, -Infinity, "40", {}];
+
+test("test_junk_cp_and_missing_score_read_as_level", () => {
+  const scores = [...JUNK.map((v) => ({ cp: v, mate: null })), { mate: null }, {}, null, undefined];
+  for (const sc of scores) {
+    assert.equal(formatScore(sc), "0.00");
+    assert.equal(formatScore(sc, 1), "0.0");
+    assert.equal(barLabel(sc), "0.0");
+    assert.equal(barFill(sc), 0.5);
+  }
+  for (const v of JUNK) {
+    assert.deepEqual(scoreFromStored(v, "white"), { cp: 0, mate: null, capped: false });
+    assert.deepEqual(scoreFromStored(v, "black"), { cp: 0, mate: null, capped: false });
+  }
+});
+
+test("test_bar_fill_always_finite_and_clamped", () => {
+  for (const sc of [cp(NaN), cp(1e12), cp(-1e12), mate(NaN), mate(0), mate(5), null, { cp: "x" }]) {
+    const f = barFill(sc);
+    assert.ok(Number.isFinite(f) && f >= 0.02 && f <= 0.98);
+  }
+});
+
+test("test_mate_zero_reads_mate_without_number", () => {
+  assert.equal(formatScore(mate(0)), "Mate");
+  assert.equal(barLabel(mate(0)), "Mate");
+  assert.equal(lineA11yName(1, mate(0), "x"), "Line 1, mate, x");
+  assert.equal(lineA11yName(1, { cp: -500, mate: 0 }, "x"), "Line 1, mate for Black, x");
+  assert.equal(barFill({ cp: -500, mate: 0 }), 0.02);
+});
+
+test("test_line_a11y_name_capped_mate_and_zero_score", () => {
+  assert.equal(lineA11yName(1, scoreFromStored(10000, "white"), "x"), "Line 1, mate for White, x");
+  assert.equal(lineA11yName(2, scoreFromStored(10000, "black"), "x"), "Line 2, mate for Black, x");
+  assert.equal(lineA11yName(1, cp(0), "x"), "Line 1, 0.00, x");
+  assert.equal(lineA11yName(1, null, "x"), "Line 1, 0.00, x");
+});
+
+test("test_line_text_truncates_with_black_to_move_first", () => {
+  const long = mv("a", "b", "c", "d", "e", "f");
+  assert.equal(lineText(FEN_B, long, 4), "11... a 12. b c 13. d ...");
+  assert.equal(lineText(FEN_B, long, 6), "11... a 12. b c 13. d e 14. f");
+});
