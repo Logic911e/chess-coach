@@ -98,3 +98,30 @@ def test_cache_evicts_least_recently_used():
     cache.set("c", 3)
     assert cache.get("b") is None
     assert cache.get("a") == 1 and cache.get("c") == 3
+
+
+def test_garbage_or_illegal_pv_move_stops_gracefully():
+    for bad in ("zzzz", "e2e5", "a1a1"):
+        r = analyse_fen(START, 10, 1, Run([an(pv=["e2e4", bad, "d7d5"])]))
+        assert [m["uci"] for m in r["lines"][0]["moves"]] == ["e2e4"]
+
+
+def test_pv_with_castling_and_promotion():
+    fen = "r3k2r/P7/8/8/8/8/8/R3K2R w KQkq - 0 1"
+    r = analyse_fen(fen, 10, 1, Run([an(pv=["e1g1", "e8c8", "a7a8q"])]))
+    moves = r["lines"][0]["moves"]
+    b = chess.Board(fen)
+    for m, u in zip(moves, ["e1g1", "e8c8", "a7a8q"], strict=True):
+        san = b.san(chess.Move.from_uci(u))
+        b.push_uci(u)
+        assert m["san"] == san and m["fen"] == b.fen() and m["check"] == b.is_check()
+    assert [m["san"] for m in moves][:2] == ["O-O", "O-O-O"]
+    assert moves[2]["san"] == "a8=Q+" and moves[2]["capture"] is False
+    assert moves[2]["check"] is True
+
+
+def test_black_to_move_mate_is_negative_for_white_through_analyse_fen():
+    # Black to move and mates in 1 (...Ra1#): mover's mate +1 becomes White -1.
+    fen = "6k1/8/8/8/8/5q2/6r1/7K b - - 0 1"
+    r = analyse_fen(fen, 10, 1, Run([an(cp=None, mate=1, pv=["f3f1"])]))
+    assert r["lines"][0]["score"] == {"cp": None, "mate": -1}

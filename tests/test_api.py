@@ -340,3 +340,42 @@ def test_analysis_second_identical_request_is_a_cache_hit():
     assert a == b and len(svc.calls) == 1
     http.post("/api/analysis", json={**body, "depth": 13})
     assert len(svc.calls) == 2
+
+
+class _LazyVersionSvc(_SvcAnalysis):
+    """version is None until the first search has started the engine."""
+
+    def __init__(self, empty=False):
+        super().__init__()
+        self._started, self.empty = False, empty
+
+    @property
+    def version(self):
+        return "Stockfish lazy" if self._started else None
+
+    def analyse_background(self, board, depth, multipv=1, time=None, max_wait=2.0):
+        if self.empty:
+            self.calls.append((board.fen(), depth, multipv, time))
+            out = []
+        else:
+            out = super().analyse_background(board, depth, multipv, time)
+        self._started = True
+        return out
+
+
+def test_analysis_version_is_read_after_the_search_and_cached():
+    svc = _LazyVersionSvc()
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN}
+    assert http.post("/api/analysis", json=body).json()["version"] == "Stockfish lazy"
+    assert http.post("/api/analysis", json=body).json()["version"] == "Stockfish lazy"
+    assert len(svc.calls) == 1
+
+
+def test_analysis_empty_lines_result_is_not_cached():
+    svc = _LazyVersionSvc(empty=True)
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN}
+    assert http.post("/api/analysis", json=body).json()["lines"] == []
+    http.post("/api/analysis", json=body)
+    assert len(svc.calls) == 2

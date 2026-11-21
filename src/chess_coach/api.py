@@ -329,7 +329,9 @@ def create_app(
             return engine.analyse_background(b, depth, multipv=lines, time=ANALYSIS_TIME_CAP)
 
         try:
-            result = analyse_fen(body.fen, body.depth, body.lines, run, version=engine.version)
+            result = analyse_fen(body.fen, body.depth, body.lines, run)
+            if not result["game_over"]:
+                result["version"] = engine.version  # only known once the search started it
         except EngineBusy as exc:
             raise HTTPException(503, "engine busy") from exc
         except ENGINE_FAILURES as exc:
@@ -338,7 +340,8 @@ def create_app(
         except Exception:
             log.exception("unexpected error analysing a position")
             raise
-        analysis_cache.set(key, result)
+        if result["game_over"] or result["lines"]:
+            analysis_cache.set(key, result)
         return result
 
     if WEB_DIR.exists():
