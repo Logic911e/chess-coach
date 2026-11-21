@@ -88,3 +88,65 @@ export function lineA11yName(index, score, text) {
   }
   return `Line ${index}, ${s}, ${text}`;
 }
+
+/**
+ * Debounced, cached, token-guarded live analysis. `api.analysePosition(fen)` does the request; `ui` gets
+ * thinking(fen) / loaded(fen, response) / gameOver(fen, result) / error(fen, message) / busyDim().
+ * request() is called on every render, so asking again for the FEN already pending, in flight, loaded or
+ * failed is a no-op (retry() is the explicit way out of an error).
+ */
+export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay = 600, timer } = {}) {
+  const clock = timer || { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) };
+  const cache = new Map();   // fen -> successful response (including game over)
+  let token = 0, handle = null, current = null, status = "idle";
+
+  const cancel = () => { token += 1; if (handle !== null) { clock.clear(handle); handle = null; } current = null; status = "idle"; };
+  const deliver = (fen, resp) => {
+    status = "loaded";
+    if (resp.game_over) ui.gameOver(fen, resp.result); else ui.loaded(fen, resp);
+  };
+
+  async function run(fen, my, attempt) {
+    handle = null;
+    let resp;
+    try { resp = await api.analysePosition(fen); }
+    catch (e) {
+      if (my !== token) return;
+      if (e && e.busy && attempt < retries) {
+        ui.busyDim();
+        handle = clock.set(() => run(fen, my, attempt + 1), retryDelay);
+        return;
+      }
+      status = "error";
+      ui.error(fen, (e && e.message) || "Analysis failed");
+      return;
+    }
+    if (my !== token) return;
+    cache.set(fen, resp);
+    deliver(fen, resp);
+  }
+
+  return {
+    request(fen, { enabled } = {}) {
+      if (!enabled || !fen) { if (status !== "idle" || handle !== null) cancel(); return; }
+      if (fen === current && status !== "idle") return;
+      cancel();
+      current = fen;
+      const hit = cache.get(fen);
+      if (hit) { deliver(fen, hit); return; }
+      status = "thinking";
+      ui.thinking(fen);
+      const my = token;
+      handle = clock.set(() => run(fen, my, 0), delay);
+    },
+    retry() {
+      if (status !== "error" || current === null) return;
+      const fen = current;
+      token += 1; status = "thinking";
+      ui.thinking(fen);
+      run(fen, token, 0);
+    },
+    invalidate() { cancel(); },
+    peek(fen) { return cache.get(fen) || null; },
+  };
+}

@@ -1,5 +1,5 @@
 // Theatre page. All text from the server is inserted with textContent, never innerHTML.
-import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers } from "./api.js";
+import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers, analysePosition } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute } from "./keys.js";
@@ -8,8 +8,8 @@ import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
-import { scoreFromStored } from "./analysis.js";
-import { barView, renderBar, renderTabs, analysisNote, effectiveTab } from "./analysis-ui.js";
+import { scoreFromStored, createAnalysis } from "./analysis.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -61,7 +61,35 @@ function applySettings(changed) {
 
 // ---------- analysis bar and tabs (logic in analysis-ui.js) ----------
 const analysisOn = () => settings.get("analysis", true);
+// Live analysis: the controller debounces, caches and discards stale answers; these callbacks only record the
+// status of the CURRENT request and redraw. A cached answer is read back with analysis.peek.
+let liveStatus = { fen: null, kind: "idle", message: "" };
+const analysis = createAnalysis({
+  api: { analysePosition },
+  ui: {
+    thinking(fen) { liveStatus = { fen, kind: "thinking", message: "" }; drawAnalysis(); },
+    loaded(fen) { liveStatus = { fen, kind: "loaded", message: "" }; drawAnalysis(); },
+    gameOver(fen) { liveStatus = { fen, kind: "gameOver", message: "" }; drawAnalysis(); },
+    error(fen, message) { liveStatus = { fen, kind: "error", message }; drawAnalysis(); },
+    busyDim() { drawAnalysis(); },  // the bar already stays dimmed while thinking; nothing is shown for a busy engine
+  },
+});
+let shownLines = null;
+function linesState(mv, hidden) {
+  if (!mv) return { kind: "noGame" };
+  if (hidden) return { kind: "hidden" };
+  const fen = mv.fen_before, got = analysis.peek(fen);
+  if (got) return got.game_over ? { kind: "gameOver", fen, result: got.result } : { kind: "loaded", fen, response: got };
+  if (liveStatus.fen === fen && liveStatus.kind === "error") return { kind: "error", fen, message: liveStatus.message };
+  return { kind: "thinking", fen };
+}
 function renderAnalysisChrome() {
+  const g = state.game, mv = g && g.moves.length ? cur() : null;
+  // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
+  analysis.request(mv ? mv.fen_before : null, { enabled: analysisOn() && !!mv && !hiddenNow(mv) });
+  drawAnalysis();
+}
+function drawAnalysis() {
   const on = analysisOn();
   if (on) delete root.dataset.analysis; else root.dataset.analysis = "off";
   $("analysisToggle").setAttribute("aria-pressed", String(on));
@@ -74,12 +102,22 @@ function renderAnalysisChrome() {
     effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
   $("tabAnalysis").disabled = hidden;
   $("tabAnalysis").title = hidden ? "Available after you guess" : "";
-  // Stored value: the position BEFORE the selected move, converted to White's perspective.
-  const score = mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
-  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: false, noGame: !mv }));
-  $("analysisNote").textContent = analysisNote({ hidden, noGame: !mv });
+  const ls = linesState(mv, hidden);
+  // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
+  // while loading only the fill is dimmed.
+  const liveResp = ls.kind === "loaded" ? ls.response : null;
+  const top = liveResp && liveResp.lines && liveResp.lines[0];
+  const score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: !!top,
+    dim: ls.kind === "thinking", noGame: !mv }));
+  // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
+  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response];
+  if (shownLines && k.every((v, i) => v === shownLines[i])) return;
+  shownLines = k;
+  // Task 6 wires onSelect to exploring mode; until then a line click does nothing.
+  renderLines($("analysisPanel"), ls, { onSelect() {}, onRetry: () => analysis.retry() });
 }
-function setAnalysis(on) { settings.set("analysis", on); renderAnalysisChrome(); }
+function setAnalysis(on) { settings.set("analysis", on); if (!on) analysis.invalidate(); renderAnalysisChrome(); }
 function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
 
 // ---------- rendering ----------
@@ -195,6 +233,7 @@ function startGuess() {
   if (!canGuess(mv, state.me, state.game) || answered.has(mv.id)) return;
   setChat(false);
   chat.invalidate();  // an answer still in flight could name the best move
+  analysis.invalidate();  // and so could the engine lines
   guessFlow.begin(mv);
 }
 function cancelGuess() { guessFlow.cancel(); }
@@ -326,6 +365,7 @@ function showEmpty() {
 
 async function selectGame(id) {
   guessFlow.cancel();
+  analysis.invalidate();
   try { state.game = await getGame(id); }
   catch (e) { $("gameTitle").textContent = "Could not open the game: " + e.message; return; }
   state.idx = startIndex(state.game.moves);

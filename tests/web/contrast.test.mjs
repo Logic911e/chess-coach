@@ -109,3 +109,19 @@ test("the label colour is driven by data-label-on, not by its position", () => {
   assert.ok(/data-label-on="black"\][^{]*\.eval-label\s*\{[^}]*var\(--bar-on-black\)/.test(appCss));
   assert.ok(!/data-label-top="true"\][^{]*\.eval-label\s*\{[^}]*color/.test(appCss));
 });
+
+test("score badges: text >= 4.5:1 on both badge colours in every theme, badges distinguishable", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    for (const k of ["--badge-white", "--badge-on-white", "--badge-black", "--badge-on-black"]) {
+      assert.ok(t[k], `${name} missing ${k}`);
+    }
+    assert.ok(ratio(t["--badge-on-white"], t["--badge-white"]) >= 4.5, `${name} text on light badge`);
+    assert.ok(ratio(t["--badge-on-black"], t["--badge-black"]) >= 4.5, `${name} text on dark badge`);
+    assert.ok(ratio(t["--badge-white"], t["--badge-black"]) >= 3, `${name} badges differ`);
+  }
+});
+
+test("the dim state fades the bar fill, not the whole bar (label contrast stays)", () => {
+  assert.ok(/data-dim="true"\]\s*\.eval-fill\s*\{[^}]*opacity/.test(appCss));
+  assert.ok(!/#evalBar\[data-dim="true"\]\s*\{[^}]*opacity/.test(appCss));
+});

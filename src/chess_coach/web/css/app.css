@@ -76,7 +76,8 @@ button:disabled { opacity: .45; cursor: default; }
 #evalBar[hidden] { display: none; }
 .eval-fill { position: absolute; left: 0; right: 0; bottom: 0; height: var(--fill, 50%); background: var(--bar-white); transition: height .3s ease; }
 #evalBar[data-white-top="true"] .eval-fill { bottom: auto; top: 0; }
-#evalBar[data-dim="true"] { opacity: .6; }
+/* loading: dim the fill share only; the label keeps full contrast */
+#evalBar[data-dim="true"] .eval-fill { opacity: .6; }
 .eval-label {
   position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; white-space: nowrap; font: 700 10px/1 ui-monospace, Menlo, monospace;
   letter-spacing: -.03em; color: var(--bar-on-white);
@@ -109,6 +110,20 @@ button:disabled { opacity: .45; cursor: default; }
 .cap-tabs[hidden] { display: none; }
 .cap-tabs button { font-size: 13px; padding: 3px 12px; }
 .cap-tabs button[aria-pressed="true"], #analysisToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.lines-head { font-size: 12px; color: var(--muted); margin-bottom: 6px; flex: none; }
+.line-row {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; margin-bottom: 6px; padding: 7px 10px;
+  border-radius: 8px; flex: none; cursor: pointer;
+}
+.line-row.skeleton { height: 34px; cursor: default; background: color-mix(in srgb, var(--line) 60%, transparent); border: 1px solid var(--line); }
+.score-badge {
+  flex: none; min-width: 52px; text-align: center; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line);
+  font: 700 12px/1.5 ui-monospace, Menlo, monospace;
+}
+.score-badge.white { background: var(--badge-white); color: var(--badge-on-white); }
+.score-badge.black { background: var(--badge-black); color: var(--badge-on-black); }
+.line-moves { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.lines-retry { margin-top: 8px; align-self: flex-start; }
 .panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .panel[hidden] { display: none; }
 .explain-scroll { flex: 1; min-height: 0; overflow: auto; margin: 6px 0; }

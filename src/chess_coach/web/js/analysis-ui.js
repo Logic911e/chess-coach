@@ -1,5 +1,5 @@
 // Evaluation bar and tabs. barView is pure; the render adapters touch the DOM only inside their bodies.
-import { barFill, formatScore } from "./analysis.js";
+import { barFill, formatScore, lineText, lineA11yName } from "./analysis.js";
 
 const NEUTRAL_ARIA = "Evaluation hidden until you guess";
 
@@ -82,4 +82,76 @@ export function renderTabs(tabsEl, panels, active) {
   tabsEl.querySelectorAll("button[data-tab]").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.tab === active)));
   for (const [name, panel] of Object.entries(panels)) panel.hidden = name !== active;
+}
+
+const GAME_OVER = { checkmate: "Checkmate", stalemate: "Stalemate", draw: "Draw" };
+
+/**
+ * Pure view-model of the lines panel. state.kind: thinking | loaded | error | gameOver | hidden | noGame.
+ * Rows are the engine lines (the badge side says who is ahead; level counts as white); skeleton is the number of
+ * placeholder rows; retry says whether to offer a Retry button.
+ */
+export function linesView(state = {}) {
+  const none = { header: "", rows: [], skeleton: 0, note: "", retry: false };
+  switch (state.kind) {
+    case "hidden": return { ...none, note: analysisNote({ hidden: true }) };
+    case "noGame": return { ...none, note: analysisNote({ noGame: true }) };
+    case "thinking": return { ...none, skeleton: 3, note: "Stockfish is thinking..." };
+    case "error": return { ...none, retry: true, note: state.message || "Analysis failed" };
+    case "gameOver": return { ...none, note: GAME_OVER[state.result] || "Game over" };
+    case "loaded": {
+      const r = state.response && typeof state.response === "object" ? state.response : {};
+      // The server's version is the engine's own name ("Stockfish 19"); never print the name twice.
+      const ver = typeof r.version === "string" ? r.version.trim() : "";
+      const parts = [!ver ? "Stockfish" : /^stockfish\b/i.test(ver) ? ver : "Stockfish " + ver];
+      if (typeof r.depth === "number" && Number.isFinite(r.depth)) parts.push("depth " + r.depth);
+      const lines = Array.isArray(r.lines) ? r.lines : [];
+      const rows = lines.map((l, i) => {
+        const text = lineText(state.fen, l && l.moves, 8);
+        return { index: i + 1, scoreText: formatScore(l && l.score), badge: side(l && l.score) < 0 ? "black" : "white",
+          text, name: lineA11yName(i + 1, l && l.score, text) };
+      });
+      return { ...none, header: parts.join(" · "), rows, note: rows.length ? "" : "No engine lines for this position." };
+    }
+    default: return { ...none, note: analysisNote({}) };
+  }
+}
+
+/**
+ * Rebuilds the panel from the view-model (textContent only). handlers.onSelect(i) gets the 0-based line index
+ * when a line is clicked; handlers.onRetry() is the Retry button.
+ */
+export function renderLines(panelEl, state, handlers = {}) {
+  const doc = panelEl.ownerDocument;
+  const mk = (tag, className, text) => {
+    const e = doc.createElement(tag);
+    if (className) e.className = className;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const v = linesView(state);
+  const kids = [];
+  if (v.header) kids.push(mk("div", "lines-head", v.header));
+  if (v.note) {
+    const note = mk("div", "note", v.note);
+    note.setAttribute("role", "status");
+    kids.push(note);
+  }
+  if (v.retry) {
+    const b = mk("button", "lines-retry", "Retry");
+    b.type = "button";
+    b.addEventListener("click", () => handlers.onRetry && handlers.onRetry());
+    kids.push(b);
+  }
+  for (let i = 0; i < v.skeleton; i++) kids.push(mk("div", "line-row skeleton"));
+  v.rows.forEach((r, i) => {
+    const b = mk("button", "line-row");
+    b.type = "button";
+    b.setAttribute("aria-label", r.name);
+    // Task 6 wires onSelect to exploring mode; until then the page passes a stub.
+    b.addEventListener("click", () => handlers.onSelect && handlers.onSelect(i));
+    b.append(mk("span", "score-badge " + r.badge, r.scoreText), mk("span", "line-moves", r.text));
+    kids.push(b);
+  });
+  panelEl.replaceChildren(...kids);
 }
