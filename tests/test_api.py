@@ -248,3 +248,95 @@ def test_guess_endpoint_played_move_uses_stored_score_and_long_uci_is_422(pg):
     assert r["legal"] and r["classification"] == m["classification"]
     assert Counting.calls == 0
     assert http.post(f"/api/moves/{m['id']}/guess", json={"uci": "e2e4qq"}).status_code == 422
+
+
+class _SvcAnalysis:
+    """Stands in for EngineService on /api/analysis."""
+
+    version = "Stockfish test"
+
+    def __init__(self, exc=None):
+        self.exc, self.calls = exc, []
+
+    def analyse_background(self, board, depth, multipv=1, time=None, max_wait=2.0):
+        self.calls.append((board.fen(), depth, multipv, time))
+        if self.exc:
+            raise self.exc
+        out = []
+        for i, mv in enumerate(list(board.legal_moves)[:multipv]):
+            out.append(Analysis(cp=25 - i, mate=None, best_move=mv.uci(), pv=[mv.uci()], depth=9))
+        return out
+
+    def close(self):
+        pass
+
+
+def _analysis_client(svc, **kw):
+    return TestClient(create_app(engine_service=svc), **kw)
+
+
+def test_analysis_endpoint_shape():
+    svc = _SvcAnalysis()
+    http = _analysis_client(svc)
+    black = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    r = http.post("/api/analysis", json={"fen": black, "lines": 2})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["game_over"] is False and j["depth"] == 9 and j["version"] == "Stockfish test"
+    assert len(j["lines"]) == 2
+    assert j["lines"][0]["score"] == {"cp": -25, "mate": None}  # White's perspective
+    mv = j["lines"][0]["moves"][0]
+    assert set(mv) == {"san", "uci", "fen", "capture", "check"}
+    assert svc.calls[0][1:] == (16, 2, 3.0)
+    over = http.post("/api/analysis", json={"fen": "R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1"}).json()
+    assert over == {"game_over": True, "result": "checkmate"}
+    assert len(svc.calls) == 1
+
+
+def test_analysis_rejects_bad_fen_depth_lines_and_long_fen_with_422():
+    http = _analysis_client(_SvcAnalysis())
+    start = chess.STARTING_FEN
+    bad = [
+        {"fen": "nonsense"},
+        {"fen": ""},
+        {"fen": "8/8/8/8/8/8/8/8 w - - 0 1"},  # no kings
+        {"fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 " + "x" * 100},
+        {"fen": start, "depth": 0},
+        {"fen": start, "depth": 21},
+        {"fen": start, "lines": 0},
+        {"fen": start, "lines": 6},
+    ]
+    for body in bad:
+        assert http.post("/api/analysis", json=body).status_code == 422, body
+    assert http.post("/api/analysis", json={"fen": start, "depth": 20, "lines": 5}).status_code == 200
+
+
+def test_analysis_busy_returns_503_engine_busy():
+    from chess_coach.engine_service import EngineBusy
+    http = _analysis_client(_SvcAnalysis(EngineBusy("busy")))
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 503 and r.json()["detail"] == "engine busy"
+
+
+def test_analysis_engine_failure_returns_503():
+    http = _analysis_client(_SvcAnalysis(TimeoutError("engine hung")))
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 503 and "engine unavailable" in r.json()["detail"]
+
+
+def test_analysis_programming_error_is_500_and_logged(caplog):
+    http = _analysis_client(_SvcAnalysis(KeyError("bug")), raise_server_exceptions=False)
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 500 and "engine unavailable" not in r.text
+    assert any(rec.exc_info for rec in caplog.records)
+
+
+def test_analysis_second_identical_request_is_a_cache_hit():
+    svc = _SvcAnalysis()
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN, "depth": 12, "lines": 2}
+    a = http.post("/api/analysis", json=body).json()
+    b = http.post("/api/analysis", json=body).json()
+    assert a == b and len(svc.calls) == 1
+    http.post("/api/analysis", json={**body, "depth": 13})
+    assert len(svc.calls) == 2

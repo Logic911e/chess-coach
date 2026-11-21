@@ -23,9 +23,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from chess_coach import db
+from chess_coach.analysis import ANALYSIS_TIME_CAP, AnalysisCache, analyse_fen
 from chess_coach.chat import answer_question, facts_for_move
 from chess_coach.engine import EngineNotFoundError
-from chess_coach.engine_service import EngineService
+from chess_coach.engine_service import EngineBusy, EngineService
 from chess_coach.explainer import explain
 from chess_coach.guess import score_guess
 from chess_coach.llm import LLMError, OllamaClient
@@ -61,6 +62,23 @@ class ChatBody(BaseModel):
     def _not_blank(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("question must not be blank")
+        return v
+
+
+class AnalysisBody(BaseModel):
+    fen: str = Field(max_length=100)
+    depth: int = Field(default=16, ge=1, le=20)
+    lines: int = Field(default=3, ge=1, le=5)
+
+    @field_validator("fen")
+    @classmethod
+    def _legal_fen(cls, v: str) -> str:
+        try:
+            board = chess.Board(v)
+        except ValueError as exc:
+            raise ValueError("not a valid FEN") from exc
+        if not board.is_valid():
+            raise ValueError("not a legal position")
         return v
 
 
@@ -296,6 +314,32 @@ def create_app(
             log.exception("unexpected error answering a chat question on move %s", move_id)
             raise
         return {"body": result.text, "flagged": result.flagged}
+
+    analysis_cache = AnalysisCache()
+
+    @app.post("/api/analysis")
+    def analyse_position(body: AnalysisBody) -> dict:
+        board = chess.Board(body.fen)
+        key = (board.fen(), body.depth, body.lines)
+        cached = analysis_cache.get(key)
+        if cached is not None:
+            return cached
+
+        def run(b: chess.Board, depth: int, lines: int):
+            return engine.analyse_background(b, depth, multipv=lines, time=ANALYSIS_TIME_CAP)
+
+        try:
+            result = analyse_fen(body.fen, body.depth, body.lines, run, version=engine.version)
+        except EngineBusy as exc:
+            raise HTTPException(503, "engine busy") from exc
+        except ENGINE_FAILURES as exc:
+            log.exception("engine failed analysing a position")
+            raise HTTPException(503, f"engine unavailable: {exc}") from exc
+        except Exception:
+            log.exception("unexpected error analysing a position")
+            raise
+        analysis_cache.set(key, result)
+        return result
 
     if WEB_DIR.exists():
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
