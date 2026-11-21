@@ -2,6 +2,9 @@
 // ({ san, uci, fen, capture, check }); step indexes the current one (the position AFTER that move).
 const validLine = (m) => Array.isArray(m) && m.length > 0 && m.every((x) => x && typeof x.fen === "string" && x.fen);
 
+/** Exploring may start only on a visible moment, with analysis on and a line to walk (the neutrality rule). */
+export const canExplore = ({ hidden, analysisOn, hasLines } = {}) => !!analysisOn && !hidden && !!hasLines;
+
 export function createExplore() {
   let path = [];
   let step = -1;

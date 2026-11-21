@@ -3,14 +3,15 @@ import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers, analys
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "./keys.js";
-import { createExplore } from "./explore.js";
+import { createExplore, canExplore } from "./explore.js";
+import { createLatest } from "./latest.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
 import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
-import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner } from "./analysis-ui.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -101,8 +102,9 @@ function drawAnalysis() {
   renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
     effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
   if (hidden && document.activeElement === $("tabAnalysis")) $("tabCoach").focus();  // a disabled button drops focus to body
-  $("tabAnalysis").disabled = hidden;
-  $("tabAnalysis").title = hidden ? "Available after you guess" : "";
+  const tv = tabView({ hidden });
+  $("tabAnalysis").disabled = tv.disabled;
+  $("tabAnalysis").title = tv.title;
   const pos = explore.position();
   const ls = linesState({ mv: analysisTarget(mv), hidden, analysisOn: on, peek: analysis.peek, status: liveStatus });
   // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
@@ -120,6 +122,10 @@ function drawAnalysis() {
   shownLines = k;
   const panel = $("analysisPanel"), hadFocus = panel.contains(document.activeElement);
   renderLines(panel, ls, { onSelect: selectLine, onRetry: () => analysis.retry() });
+  // Status notes go through one persistent live region (the panel itself is rebuilt); only while the panel is shown,
+  // and "thinking" stays silent because it would repeat on every step.
+  const shown = effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }) === "analysis";
+  if (shown && ls.kind !== "thinking") say("analysisAnnounce", linesView(ls).note);
   if (hadFocus && !panel.contains(document.activeElement)) {  // a rebuilt line lost focus: keep it near the lines
     const b = panel.querySelector("button.line-row") || (!$("tabAnalysis").disabled && $("tabAnalysis"));
     if (b) b.focus();
@@ -136,18 +142,25 @@ function playBase(m) { if (motionAllowed()) player.play(soundsFor({ capture: m.c
 // Click (or Enter) on engine line i: start exploring it, or continue from the current explored step.
 function selectLine(i) {
   const g = state.game;
-  if (!g || !g.moves.length || !analysisOn() || modalOpen() || hiddenNow(cur())) return;
+  if (!g || !g.moves.length || modalOpen()) return;
   const t = analysisTarget(cur());
   const resp = analysis.peek(t.fen_before);
   const line = resp && resp.lines && resp.lines[i];
-  if (!line || !Array.isArray(line.moves) || !line.moves.length) return;
+  const ok = !!line && Array.isArray(line.moves) && line.moves.length > 0;
+  if (!canExplore({ hidden: hiddenNow(cur()), analysisOn: analysisOn(), hasLines: ok })) return;
   const before = t.fen_before, wasExploring = explore.active();
   if (wasExploring) explore.extend(line.moves); else explore.begin(line.moves);
   if (!explore.active()) return;
   state.slides = pieceSlides(before, explore.position().fen);
   render(motionAllowed());
-  playBase(explore.position().move);
+  const at = explore.position();
+  say("exploreAnnounce", wasExploring
+    ? exploreAnnouncement({ kind: "step", step: at.step, total: explore.path().length, san: at.move.san })
+    : exploreAnnouncement({ kind: "enter" }));
+  playBase(at.move);
 }
+// Persistent polite live regions: their text is replaced in place, never rebuilt, so a screen reader reads each change once.
+function say(id, text) { const a = $(id); if (a.textContent !== text) a.textContent = text; }
 // The one way out of exploring: clears the state, announces it and redraws the REAL game position (old game when
 // a game switch is pending). render:false lets the caller (go) draw; refocus moves focus to a stable control.
 function exitExplore({ render: redraw = true, slides = [], animate = false, refocus = false } = {}) {
@@ -155,7 +168,7 @@ function exitExplore({ render: redraw = true, slides = [], animate = false, refo
   const inBanner = $("exploreBanner").contains(document.activeElement);
   explore.exit();
   state.slides = slides;
-  announce("Back to the game position");
+  say("exploreAnnounce", exploreAnnouncement({ kind: "exit" }));
   if (redraw && state.game && state.game.moves.length) render(animate);
   if (refocus || inBanner) (!$("tabAnalysis").disabled && !$("capTabs").hidden ? $("tabAnalysis") : $("tabCoach")).focus();
   return true;
@@ -171,6 +184,7 @@ function exploreStep(d) {
   if (!r) return;
   state.slides = pieceSlides(before, explore.position().fen);
   render(motionAllowed());
+  say("exploreAnnounce", exploreAnnouncement({ kind: "step", step: explore.position().step, total: explore.path().length, san: r.move.san }));
   playBase(r.move);
 }
 function leaveExplore(refocus = false) { exitExplore({ refocus }); }
@@ -428,12 +442,16 @@ function showEmpty() {
   renderAnalysisChrome();
 }
 
+const gameSeq = createLatest();  // two quick switches can resolve out of order: only the newest selection is applied
 async function selectGame(id) {
   exitExplore();  // redraw the real (old) game now, so no explored board or dead banner outlives the await or a failure
   guessFlow.cancel();
   analysis.invalidate();
-  try { state.game = await getGame(id); }
+  let got;
+  try { got = await gameSeq.track(getGame(id)); }
   catch (e) { $("gameTitle").textContent = "Could not open the game: " + e.message; return; }
+  if (got.stale) return;
+  state.game = got.value;
   state.idx = startIndex(state.game.moves);
   state.slides = [];
   chat.sync();

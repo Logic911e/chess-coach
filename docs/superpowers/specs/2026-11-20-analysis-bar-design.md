@@ -1,6 +1,6 @@
 # Analysis bar and clickable engine lines: design
 
-Status: draft for approval. Date: 2026-11-20.
+Status: implemented (2026-11-22); see docs/superpowers/plans/2026-11-20-analysis-bar.md. Date: 2026-11-20.
 
 ## Intent and why
 

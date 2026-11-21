@@ -252,3 +252,21 @@ test("test_same_fen_after_invalidate_with_old_response_pending_delivers_once", a
   assert.equal(loaded.length, 1);
   assert.equal(loaded[0][2].lines[0].score.cp, 20);
 });
+
+import { shouldRequest } from "../../src/chess_coach/web/js/analysis-ui.js";
+
+test("test_no_request_while_hidden_even_after_toggle_changes (controller)", async () => {
+  const s = setup(async () => OK());
+  const mv = { fen_before: FEN_A };
+  // what main.js does on every render: ask with enabled from shouldRequest
+  const ask = ({ hidden, on }) => s.a.request(mv.fen_before, { enabled: shouldRequest({ mv, hidden, analysisOn: on }) });
+  ask({ hidden: true, on: true }); s.timer.tick(); await flush();
+  ask({ hidden: true, on: false }); s.timer.tick(); await flush();   // toggle off
+  ask({ hidden: true, on: true }); s.timer.tick(); await flush();    // toggle on, still hidden
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.timer.pending(), 0);
+  assert.equal(s.events.length, 0);
+  ask({ hidden: false, on: true }); s.timer.tick(); await flush();   // the answer is shown
+  assert.equal(s.calls.length, 1);
+  assert.equal(s.a.peek(FEN_A) !== null, true);
+});

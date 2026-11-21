@@ -58,7 +58,7 @@ try {
     <ul id="moveList" class="sr-only" aria-label="Moves of this game"></ul>
   </div>
   <section id="caption" class="caption" aria-label="Move commentary">
-    <div id="exploreBanner" class="explore-banner" role="status" data-active="false"></div>
+    <div id="exploreBanner" class="explore-banner" role="region" aria-label="Explored line" data-active="false"></div>
     <div class="cap-tabs" id="capTabs">
       <button type="button" id="tabCoach" data-tab="coach" aria-pressed="true" aria-controls="coachPanel">Coach</button>
       <button type="button" id="tabAnalysis" data-tab="analysis" aria-pressed="false" aria-controls="analysisPanel">Analysis</button>
@@ -116,6 +116,9 @@ try {
     <ul id="meList" class="pick-list"></ul>
   </div>
 </div>
+
+<div id="exploreAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="analysisAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
   <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>

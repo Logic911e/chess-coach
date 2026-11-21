@@ -17,6 +17,7 @@ Work in progress.
 - [x] Game review UI: board, key moments, on-demand explanations (`api.py`, `src/chess_coach/web/`)
 - [x] Immersive review UI: themes, sound, study mode, guess-first, keyboard shortcuts, accessibility pass
 - [x] Chat panel scoped to the selected position
+- [x] Analysis bar and clickable engine lines on the review page (`POST /api/analysis`)
 - [ ] Retry queue for explanations that fail the checker (later)
 - [ ] Pattern detection across games (later)
 - [ ] pgvector / full-text retrieval of similar past mistakes (later)
@@ -42,7 +43,8 @@ shows how much each move cost (taller means more expected points lost).
 - **Sound:** Felt (default), Wood or Off, plus a volume slider. Nothing plays before your first click or key press.
 - **Study mode:** removes all sound and motion. The page does the same when your system asks for reduced motion.
 - **Keyboard:** Left/Right step through moves, `j`/`k` jump to the next/previous key moment, `g` starts a
-  guess, `/` opens the chat, `m` mutes or unmutes, `?` lists the shortcuts, Esc closes a panel.
+  guess, `/` opens the chat, `a` turns analysis on or off, `m` mutes or unmutes, `?` lists the shortcuts, Esc closes a
+  panel (or returns from an explored engine line).
 - **Guess first:** when you arrive on a key moment you played (by opening a game, stepping, `j`/`k` or the
   strip), the page stays neutral: "Move N, your move", no label, no arrows, no engine text, no explanation,
   and only the plain move sound. Choose "Guess first" (or `g`) or "Show the answer"; the answer stays shown
@@ -61,6 +63,28 @@ shows how much each move cost (taller means more expected points lost).
   a guess the current move is named "your move" only. What has and has not been checked is under Known limits.
 
 "Explain this move" asks the local model and caches the answer in Postgres.
+
+### Analysis bar and engine lines
+
+- **What it shows:** a vertical evaluation bar beside the board, always from White's side (more white means
+  White is better), with the score in pawns (`+0.6`, one decimal) and `M3` / `-M3` for a forced mate. The
+  Analysis tab next to Coach lists three engine lines for the position on screen, each with its score (two
+  decimals) and the first moves. Until the live value arrives the bar shows the score stored at import
+  (which is `M` for a mate).
+- **How to use it:** the Analysis button in the top bar or `a` turns the bar, the tabs and all requests on or
+  off (remembered in this browser). Click a line to walk the board through it; Left/Right step along it, and
+  Esc, the first Left, or "Back to the game" returns to the real position. Clicking another line while you
+  are walking continues from the position you are on. A screen reader hears "Exploring a line", then
+  "Position 3 of 7: Qxe5" for each step and "Back to the game" on leaving.
+- **Hidden until you guess:** at one of your own key moments that you have not guessed or shown, and during an
+  active guess, the bar is neutral, the Analysis tab is disabled (Coach stays shown), exploring cannot start
+  and no analysis request is sent. After you guess or choose "Show the answer" they appear. In Chrome I saw
+  no `/api/analysis` request at such a moment, including after switching analysis off and on, and exactly one
+  after "Show the answer".
+- **Endpoint:** `POST /api/analysis` with a FEN returns the score of up to three lines from White's side
+  and the moves with their resulting positions. Limits: depth 16, 3 lines, about a 3 s time cap, lines of at
+  most 12 plies, results cached; "engine busy" is retried quietly by the page before an error and Retry button
+  show.
 
 Tests:
 
@@ -140,6 +164,20 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   by unit tests, the outline colours by a computed-contrast test, and the small-screen layout was measured at
   320px wide and 300px tall but not looked at on a real phone.
 - Guess-first needs the engine and takes a few seconds to score a guess.
+- Analysis scores are Stockfish at limited depth (16) with a time cap, so they can differ from a desktop engine
+  running deeper. Lines appear after a short delay (about 1-2 s on the author's Mac) and a busy engine can delay them.
+- The stored scores that give the instant bar value are at the import depth, and a stored mate shows only `M`
+  until the live value arrives.
+- The new controls (bar, tabs, lines, explore banner, announcements) have had structural checks only, not a
+  test with a real screen reader. In Chrome I checked the bar, three lines, walking a line with the arrow keys,
+  Esc, the neutral state and the Show-the-answer path (see above), and the top bar at 900px in Walnut and Slate.
+  In the same pass the guess flow worked with analysis on: neutral bar and disabled tab while guessing, the bar
+  back after the guess, and no requests after switching analysis off.
+- The sounds while exploring a line (the ordinary move, capture and check sounds) were never listened to.
+- The explored-line banner has previous, next and back buttons but no per-move jump buttons.
+- The page keeps up to 200 analysed positions in memory per visit.
+- Opening names and a visible move list are not included.
+- While you explore a line, chat and "Explain" still refer to the real game move, not the explored position.
 - The typed-move field takes UCI only (`e2e4`), not SAN, and has not been tried with a screen reader.
 - Chat is not switched off in the neutral view before you guess, only during an active guess, so an answer there can name the engine's move.
 - The win-probability constant (`k=0.004`) is a placeholder until fitted to data and player rating.

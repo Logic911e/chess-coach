@@ -157,3 +157,64 @@ test("bannerView: the previous control says it leaves the line at the first posi
   assert.equal(bannerView({ fen: f, path, step: 1 }).prevLabel, "Previous position in the line");
   assert.equal(bannerView({ fen: f, path, step: 1 }).canNext, false);
 });
+
+// ---- Task 7: guess neutrality, announcements ----
+import { canExplore } from "../../src/chess_coach/web/js/explore.js";
+import { exploreAnnouncement, tabView, shouldRequest } from "../../src/chess_coach/web/js/analysis-ui.js";
+
+test("canExplore: needs analysis on, a visible moment and a line to walk", () => {
+  assert.equal(canExplore({ hidden: false, analysisOn: true, hasLines: true }), true);
+  assert.equal(canExplore({ hidden: true, analysisOn: true, hasLines: true }), false);
+  assert.equal(canExplore({ hidden: false, analysisOn: false, hasLines: true }), false);
+  assert.equal(canExplore({ hidden: false, analysisOn: true, hasLines: false }), false);
+  assert.equal(canExplore(), false);
+});
+
+test("test_exploring_cannot_begin_while_hidden", () => {
+  for (const analysisOn of [true, false]) for (const hasLines of [true, false]) {
+    assert.equal(canExplore({ hidden: true, analysisOn, hasLines }), false);
+  }
+});
+
+// a score, a SAN move, a classification word or a verdict would all match this
+const LEAK = /[+-]?\d|\bM\d|best|excellent|good|inaccuracy|mistake|blunder|brilliant|mate|ahead|pawns|White|Black|[KQRBN]?x?[a-h][1-8]/i;
+
+test("test_hidden_state_is_neutral_in_bar_lines_and_aria", () => {
+  const bar = barView({ score: { cp: 900, mate: null }, hidden: true });
+  assert.equal(bar.label, "");
+  assert.doesNotMatch(bar.aria, LEAK);
+  assert.equal(bar.fill, 0.5);
+  const tab = tabView({ hidden: true });
+  assert.equal(tab.disabled, true);
+  assert.doesNotMatch(tab.title, LEAK);
+  assert.doesNotMatch(tabView({ hidden: true }).title + analysisNote({ hidden: true }), LEAK);
+  const lv = linesView({ kind: "hidden", fen: "x", response: { lines: [{ score: { cp: 90 }, moves: [{ san: "Qxe5" }] }] } });
+  assert.deepEqual(lv.rows, []);
+  assert.equal(lv.header, "");
+  assert.equal(lv.skeleton, 0);
+  assert.equal(lv.retry, false);
+  assert.equal(lv.note, "Hidden until you guess");
+  // the banner has nothing to show without an explored path, and the announcement texts carry no chess content on entry/exit
+  assert.equal(bannerView({ fen: "x", path: [], step: -1 }), null);
+  assert.doesNotMatch(lv.note, LEAK);
+});
+
+test("test_no_request_while_hidden_even_after_toggle_changes", () => {
+  const mv = { fen_before: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" };
+  assert.equal(shouldRequest({ mv, hidden: true, analysisOn: true }), false);
+  assert.equal(shouldRequest({ mv, hidden: true, analysisOn: false }), false);
+  assert.equal(shouldRequest({ mv, hidden: false, analysisOn: false }), false);
+  assert.equal(shouldRequest({ mv, hidden: false, analysisOn: true }), true);
+});
+
+test("tabView: Analysis tab is disabled with a neutral title only while hidden", () => {
+  assert.deepEqual(tabView({ hidden: true }), { disabled: true, title: "Available after you guess" });
+  assert.deepEqual(tabView({ hidden: false }), { disabled: false, title: "" });
+});
+
+test("exploreAnnouncement: short messages for enter, step and leave", () => {
+  assert.equal(exploreAnnouncement({ kind: "enter" }), "Exploring a line");
+  assert.equal(exploreAnnouncement({ kind: "step", step: 2, total: 7, san: "Qxe5" }), "Position 3 of 7: Qxe5");
+  assert.equal(exploreAnnouncement({ kind: "exit" }), "Back to the game");
+  assert.equal(exploreAnnouncement({ kind: "junk" }), "");
+});

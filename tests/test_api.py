@@ -230,12 +230,17 @@ def test_index_has_analysis_bar_tabs_and_toggle_ids(app_and_client):
     http, _ = app_and_client
     els = _elements(http.get("/").text)
     by_id = {a["id"]: (tag, a) for tag, a in els if "id" in a}
-    for i in ("evalBar", "tabCoach", "tabAnalysis", "coachPanel", "analysisPanel", "analysisToggle"):
+    for i in ("evalBar", "tabCoach", "tabAnalysis", "coachPanel", "analysisPanel", "analysisToggle",
+              "exploreBanner", "exploreAnnounce"):
         assert i in by_id, i
     assert by_id["evalBar"][1]["role"] == "img"
     for i in ("tabCoach", "tabAnalysis", "analysisToggle"):
         assert by_id[i][0] == "button" and "aria-pressed" in by_id[i][1], i
     assert "role" not in by_id["tabCoach"][1] and "role" not in by_id["tabAnalysis"][1]
+    # one persistent polite live region announces exploring; the banner is a labelled region, not live
+    assert by_id["exploreAnnounce"][1]["aria-live"] == "polite"
+    assert "aria-live" not in by_id["exploreBanner"][1] and "role" in by_id["exploreBanner"][1]
+    assert by_id["exploreBanner"][1]["role"] != "status"
     # the existing caption content stays inside the coach panel
     assert "moveName" in by_id and "guessForm" in by_id
 

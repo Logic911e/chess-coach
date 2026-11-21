@@ -48,7 +48,9 @@ button:disabled { opacity: .45; cursor: default; }
 }
 .topbar h1 { margin: 0; font-size: 17px; font-weight: 600; }
 .game-title, .counter { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.topbar-tools { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.topbar-tools { margin-left: auto; display: flex; align-items: center; gap: 14px; flex: none; }
+.topbar h1, .topbar button { white-space: nowrap; flex: none; }
+.game-title { flex: 0 1 auto; }
 .theme-switch { display: flex; gap: 8px; }
 .theme-switch button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid var(--line); }
 .theme-switch button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--ink); }
@@ -213,6 +215,8 @@ kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px s
 @media (max-width: 1000px) {
   .counter { display: none; }
   .topbar { gap: 10px; padding: 0 12px; }
+  .topbar-tools { gap: 10px; }
+  .sound-ctl input[type="range"] { width: 44px; margin-left: 4px; }
   .nav > button { padding: 3px 6px; }
 }
 
@@ -234,14 +238,14 @@ kbd { font: 12px ui-monospace, Menlo, monospace; padding: 1px 7px; border: 1px s
   border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
 #boardWrap[data-guess="on"] .sq { cursor: pointer; }
 
-/* very small screens: the top bar wraps and the strip drops to its own row, so no control is clipped */
-@media (max-width: 480px) {
+/* small screens: the top bar wraps into a second row and the strip drops to its own row, so no control is clipped */
+@media (max-width: 640px) {
   .topbar { height: auto; min-height: 46px; flex-wrap: wrap; padding: 6px 10px; row-gap: 6px; }
-  .topbar-tools { margin-left: 0; flex-wrap: wrap; gap: 8px; }
+  .topbar-tools { margin-left: 0; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
   #strip { order: 10; flex: 1 1 100%; }
 }
 /* in the extreme cases (a tiny window) the page scrolls rather than clipping the controls */
-@media (max-height: 420px), (max-width: 480px) {
+@media (max-height: 420px), (max-width: 640px) {
   body { overflow: auto; height: auto; min-height: 100vh; min-height: 100dvh; }
   #stage { flex: none; }
 }

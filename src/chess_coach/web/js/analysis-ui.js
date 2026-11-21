@@ -64,6 +64,19 @@ export function analysisNote({ hidden, noGame } = {}) {
   return hidden ? "Hidden until you guess" : "Engine lines for this position will appear here.";
 }
 
+/** The Analysis tab: disabled with a neutral title while the moment is hidden. */
+export function tabView({ hidden } = {}) {
+  return hidden ? { disabled: true, title: "Available after you guess" } : { disabled: false, title: "" };
+}
+
+/** Short messages for the one persistent live region (#exploreAnnounce). */
+export function exploreAnnouncement({ kind, step, total, san } = {}) {
+  if (kind === "enter") return "Exploring a line";
+  if (kind === "exit") return "Back to the game";
+  if (kind === "step") return `Position ${(step | 0) + 1} of ${total | 0}: ${san}`;
+  return "";
+}
+
 export function renderBar(el, view) {
   el.hidden = !!view.off;
   el.setAttribute("aria-label", view.aria);
@@ -134,9 +147,7 @@ export function renderLines(panelEl, state, handlers = {}) {
   const kids = [];
   if (v.header) kids.push(mk("div", "lines-head", v.header));
   if (v.note) {
-    const note = mk("div", "note", v.note);
-    note.setAttribute("role", "status");
-    kids.push(note);
+    kids.push(mk("div", "note", v.note));  // announced through the persistent #analysisAnnounce, not rebuilt as a live region
   }
   if (v.retry) {
     const b = mk("button", "lines-retry", "Retry");
@@ -192,7 +203,7 @@ export function bannerView({ fen, path, step } = {}) {
     canNext: at < path.length - 1 };
 }
 
-/** Rebuilds the banner (textContent only). An empty banner stays in the DOM so a live region can announce it. */
+/** Rebuilds the banner (textContent only). It is a labelled region, not a live region (see exploreAnnouncement). */
 export function renderBanner(el, view, handlers = {}) {
   const doc = el.ownerDocument;
   if (!view) { el.replaceChildren(); el.dataset.active = "false"; return; }
