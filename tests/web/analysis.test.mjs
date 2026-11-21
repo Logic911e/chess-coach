@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  scoreFromStored, formatScore, barFill, barLabel, lineText, lineA11yName,
+  scoreFromStored, formatScore, barFill, barLabel, lineText, lineA11yName, gameOverScore,
 } from "../../src/chess_coach/web/js/analysis.js";
 
 const cp = (n) => ({ cp: n, mate: null });
@@ -125,4 +125,23 @@ test("test_line_text_truncates_with_black_to_move_first", () => {
   const long = mv("a", "b", "c", "d", "e", "f");
   assert.equal(lineText(FEN_B, long, 4), "11... a 12. b c 13. d ...");
   assert.equal(lineText(FEN_B, long, 6), "11... a 12. b c 13. d e 14. f");
+});
+
+test("gameOverScore: checkmate goes to the side that is not to move", () => {
+  const whiteToMove = "7k/5Q1p/8/8/8/8/8/K7 w - - 0 1";
+  const blackToMove = "7k/5Q1p/8/8/8/8/8/K7 b - - 0 1";
+  assert.deepEqual(gameOverScore("checkmate", whiteToMove), { cp: -10000, mate: 0 });
+  assert.deepEqual(gameOverScore("checkmate", blackToMove), { cp: 10000, mate: 0 });
+  assert.equal(formatScore(gameOverScore("checkmate", blackToMove)), "Mate");
+  assert.equal(barFill(gameOverScore("checkmate", blackToMove)), 0.98);
+  assert.equal(barFill(gameOverScore("checkmate", whiteToMove)), 0.02);
+});
+
+test("gameOverScore: stalemate, draw and junk are level", () => {
+  const fen = "7k/5Q1p/8/8/8/8/8/K7 b - - 0 1";
+  assert.deepEqual(gameOverScore("stalemate", fen), { cp: 0, mate: null });
+  assert.deepEqual(gameOverScore("draw", fen), { cp: 0, mate: null });
+  assert.deepEqual(gameOverScore("checkmate", "junk"), { cp: 0, mate: null });
+  assert.deepEqual(gameOverScore("checkmate", undefined), { cp: 0, mate: null });
+  assert.deepEqual(gameOverScore("???", fen), { cp: 0, mate: null });
 });

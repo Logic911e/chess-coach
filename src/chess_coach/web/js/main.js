@@ -2,14 +2,15 @@
 import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers, analysePosition } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
-import { createKeyHandler, toggleMute } from "./keys.js";
+import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "./keys.js";
+import { createExplore } from "./explore.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
-import { scoreFromStored, createAnalysis } from "./analysis.js";
-import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim } from "./analysis-ui.js";
+import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -75,10 +76,17 @@ const analysis = createAnalysis({
   },
 });
 let shownLines = null;
+// Exploring mode (state machine in explore.js). While it is active the board, bar and lines follow the explored FEN;
+// everything else (caption, chat, Explain) stays about the real game move.
+const explore = createExplore();
+let lastScore;  // what the bar last showed: kept (dimmed) while an explored position is still loading
+// The position the engine panel is about: the explored one, else the position before the selected move.
+const analysisTarget = (mv) => { const p = explore.position(); return p ? { fen_before: p.fen } : mv; };
 function renderAnalysisChrome() {
   const g = state.game, mv = g && g.moves.length ? cur() : null;
   // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
-  analysis.request(mv ? mv.fen_before : null, { enabled: shouldRequest({ mv, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn() }) });
+  const t = analysisTarget(mv);
+  analysis.request(t ? t.fen_before : null, { enabled: shouldRequest({ mv: t, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn() }) });
   drawAnalysis();
 }
 function drawAnalysis() {
@@ -95,22 +103,71 @@ function drawAnalysis() {
   if (hidden && document.activeElement === $("tabAnalysis")) $("tabCoach").focus();  // a disabled button drops focus to body
   $("tabAnalysis").disabled = hidden;
   $("tabAnalysis").title = hidden ? "Available after you guess" : "";
-  const ls = linesState({ mv, hidden, analysisOn: on, peek: analysis.peek, status: liveStatus });
+  const pos = explore.position();
+  const ls = linesState({ mv: analysisTarget(mv), hidden, analysisOn: on, peek: analysis.peek, status: liveStatus });
   // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
   // while loading only the fill is dimmed.
   const liveResp = ls.kind === "loaded" ? ls.response : null;
   const top = liveResp && liveResp.lines && liveResp.lines[0];
-  const score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  let score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  if (pos && !top) score = ls.kind === "gameOver" ? gameOverScore(ls.result, ls.fen) : lastScore;  // only live values apply
+  lastScore = score;
   renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: !!top,
     dim: barDim(ls), noGame: !mv }));
   // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
   const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response];
   if (shownLines && k.every((v, i) => v === shownLines[i])) return;
   shownLines = k;
-  // Task 6 wires onSelect to exploring mode; until then a line click does nothing.
-  renderLines($("analysisPanel"), ls, { onSelect() {}, onRetry: () => analysis.retry() });
+  const panel = $("analysisPanel"), hadFocus = panel.contains(document.activeElement);
+  renderLines(panel, ls, { onSelect: selectLine, onRetry: () => analysis.retry() });
+  if (hadFocus && !panel.contains(document.activeElement)) {  // a rebuilt line lost focus: keep it near the lines
+    const b = panel.querySelector("button.line-row") || (!$("tabAnalysis").disabled && $("tabAnalysis"));
+    if (b) b.focus();
+  }
 }
-function setAnalysis(on) { settings.set("analysis", on); if (!on) analysis.invalidate(); renderAnalysisChrome(); }
+function setAnalysis(on) {
+  settings.set("analysis", on);
+  if (!on) { analysis.invalidate(); if (explore.active()) { explore.exit(); announce("Back to the game position"); if (state.game) render(); return; } }
+  renderAnalysisChrome();
+}
+
+// ---------- exploring a line ----------
+function playBase(m) { if (motionAllowed()) player.play(soundsFor({ capture: m.capture, check: m.check })); }
+// Click (or Enter) on engine line i: start exploring it, or continue from the current explored step.
+function selectLine(i) {
+  const g = state.game;
+  if (!g || !g.moves.length || !analysisOn() || modalOpen() || hiddenNow(cur())) return;
+  const t = analysisTarget(cur());
+  const resp = analysis.peek(t.fen_before);
+  const line = resp && resp.lines && resp.lines[i];
+  if (!line || !Array.isArray(line.moves) || !line.moves.length) return;
+  const before = t.fen_before, wasExploring = explore.active();
+  if (wasExploring) explore.extend(line.moves); else explore.begin(line.moves);
+  if (!explore.active()) return;
+  state.slides = pieceSlides(before, explore.position().fen);
+  render(motionAllowed());
+  playBase(explore.position().move);
+}
+function exploreStep(d) {
+  const before = explore.position().fen;
+  const r = explore.step(d);
+  if (!r) return;
+  const to = r.exited ? cur().fen_before : explore.position().fen;
+  state.slides = pieceSlides(before, to);
+  render(motionAllowed());
+  if (r.exited) { announce("Back to the game position"); const prevMv = state.game.moves[state.idx - 1]; if (prevMv) playBase(prevMv); }
+  else playBase(r.move);
+}
+// Leave exploring and show the real game position again (Esc and the Back button).
+function leaveExplore(refocus = false) {
+  if (!explore.active()) return;
+  const inBanner = $("exploreBanner").contains(document.activeElement);
+  explore.exit();
+  state.slides = [];
+  announce("Back to the game position");
+  render(false);
+  if (refocus || inBanner) (!$("tabAnalysis").disabled && !$("capTabs").hidden ? $("tabAnalysis") : $("tabCoach")).focus();
+}
 function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
 
 // ---------- rendering ----------
@@ -126,7 +183,12 @@ function render(animate = false) {
   const mv = cur();
   const guessing = guessFlow.active();
   const hidden = hiddenNow(mv);
-  renderBoard($("boardWrap"), mv.fen_before, {
+  if (hidden || !analysisOn()) explore.exit();  // nothing explored may survive a neutral moment or analysis being off
+  const xp = explore.position();
+  renderBoard($("boardWrap"), xp ? xp.fen : mv.fen_before, xp ? {
+    flipped: state.flipped, highlight: [xp.move.uci.slice(0, 2), xp.move.uci.slice(2, 4)], arrows: [],
+    slides: state.slides, motion: animate,
+  } : {
     flipped: state.flipped,
     // Until the user guesses or asks, nothing on the board may give the answer away: no arrows, no played-move highlight.
     highlight: hidden ? (guessing && state.guess.from ? [state.guess.from] : []) : [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
@@ -135,6 +197,8 @@ function render(animate = false) {
     motion: animate,
   });
   state.slides = [];
+  renderBanner($("exploreBanner"), xp ? bannerView({ fen: mv.fen_before, path: explore.path(), step: xp.step }) : null,
+    { onPrev: () => exploreStep(-1), onNext: () => exploreStep(1), onBack: () => leaveExplore(true) });
   $("boardWrap").dataset.guess = guessing ? "on" : "off";
 
   $("gameTitle").textContent = `${g.white} vs ${g.black} · ${g.result}`;
@@ -224,6 +288,7 @@ function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
   if (!canGuess(mv, state.me, state.game) || answered.has(mv.id)) return;
+  explore.exit();  // (cannot normally be exploring here: exploring needs an unhidden move)
   setChat(false);
   chat.invalidate();  // an answer still in flight could name the best move
   analysis.invalidate();  // and so could the engine lines
@@ -332,9 +397,12 @@ function go(i) {
   if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
   const moved = j !== state.idx;
+  const wasExploring = explore.active();
+  explore.exit();  // any game navigation returns to the real position first
   if (moved) guessFlow.cancel();
+  if (wasExploring) announce("Back to the game position");
   // Slide only single steps (either direction); jumps just redraw.
-  state.slides = Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
+  state.slides = !wasExploring && Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
   chat.sync();
   render(moved && motionAllowed());
@@ -344,7 +412,7 @@ function go(i) {
 function goKey(dir) {
   if (!state.game || !state.game.moves.length) return;
   const i = keyIndex(state.game.moves, state.idx, dir);
-  if (i >= 0) go(i);
+  if (i >= 0) go(i); else if (explore.active()) go(state.idx);
 }
 
 function showEmpty() {
@@ -357,6 +425,7 @@ function showEmpty() {
 }
 
 async function selectGame(id) {
+  explore.exit();
   guessFlow.cancel();
   analysis.invalidate();
   try { state.game = await getGame(id); }
@@ -501,17 +570,24 @@ function toggleSoundMute() {
   applySettings("soundPalette");
 }
 const handleKey = createKeyHandler({
-  step: (d) => { if (modalOpen() || !state.game) return false; go(state.idx + d); },
+  step: (d) => {
+    if (modalOpen() || !state.game) return false;
+    if (stepAction({ exploring: explore.active() }) === "explore") exploreStep(d); else go(state.idx + d);
+  },
   nextKey: () => { if (modalOpen() || !state.game) return false; goKey(1); },
   prevKey: () => { if (modalOpen() || !state.game) return false; goKey(-1); },
   guess: () => { if (modalOpen()) return false; startGuess(); },
   chat: () => { if (modalOpen() || !state.game) return false; chat.open(); },
   close: () => {
-    if (!$("meOverlay").hidden) dismissMe();
-    else if (!$("helpOverlay").hidden) setHelp(false);
-    else if (!$("gamesOverlay").hidden) setGames(false);
-    else if ($("chatDrawer").classList.contains("open")) setChat(false);
-    else if (guessFlow.active()) cancelGuess();
+    const t = escapeTarget({ modal: modalOpen(), drawer: $("chatDrawer").classList.contains("open"),
+      guess: guessFlow.active(), exploring: explore.active() });
+    if (t === "modal") {
+      if (!$("meOverlay").hidden) dismissMe();
+      else if (!$("helpOverlay").hidden) setHelp(false);
+      else setGames(false);
+    } else if (t === "drawer") setChat(false);
+    else if (t === "guess") cancelGuess();
+    else if (t === "explore") leaveExplore();
     else return false;
   },
   mute: () => { if (modalOpen()) return false; toggleSoundMute(); },

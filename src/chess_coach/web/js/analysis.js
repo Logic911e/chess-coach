@@ -25,6 +25,19 @@ function mateSign(s) {
   return Math.sign(s.cp);
 }
 
+/**
+ * Score for a position the engine will not search. A checkmate is won by the side NOT to move in the FEN
+ * (read from the FEN string only); stalemate, draw and anything unreadable are level.
+ */
+export function gameOverScore(result, fen) {
+  if (result === "checkmate") {
+    const turn = String(fen || "").split(" ")[1];
+    if (turn === "w") return { cp: -10000, mate: 0 };
+    if (turn === "b") return { cp: 10000, mate: 0 };
+  }
+  return { cp: 0, mate: null };
+}
+
 export function formatScore(score, decimals = 2) {
   const s = norm(score);
   if (s.mate === 0) return "Mate";

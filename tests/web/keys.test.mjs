@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createKeyHandler, toggleMute } from "../../src/chess_coach/web/js/keys.js";
+import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "../../src/chess_coach/web/js/keys.js";
 import { settingNeedsRender } from "../../src/chess_coach/web/js/settings.js";
 import { motionAllowed } from "../../src/chess_coach/web/js/motion.js";
 
@@ -117,4 +117,19 @@ test("test_a_toggles_analysis_and_is_ignored_while_typing", () => {
   assert.equal(handle(ev("a", { repeat: true })), false);
   assert.equal(handle(ev("a", { ctrlKey: true })), false);
   assert.equal(calls.length, 2);
+});
+
+test("test_escape_target_order", () => {
+  for (let n = 0; n < 16; n++) {
+    const f = { modal: !!(n & 8), drawer: !!(n & 4), guess: !!(n & 2), exploring: !!(n & 1) };
+    const want = f.modal ? "modal" : f.drawer ? "drawer" : f.guess ? "guess" : f.exploring ? "explore" : null;
+    assert.equal(escapeTarget(f), want, JSON.stringify(f));
+  }
+  assert.equal(escapeTarget(), null);
+});
+
+test("test_step_action_depends_on_exploring", () => {
+  assert.equal(stepAction({ exploring: true }), "explore");
+  assert.equal(stepAction({ exploring: false }), "game");
+  assert.equal(stepAction(), "game");
 });

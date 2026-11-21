@@ -58,6 +58,7 @@ try {
     <ul id="moveList" class="sr-only" aria-label="Moves of this game"></ul>
   </div>
   <section id="caption" class="caption" aria-label="Move commentary">
+    <div id="exploreBanner" class="explore-banner" role="status" data-active="false"></div>
     <div class="cap-tabs" id="capTabs">
       <button type="button" id="tabCoach" data-tab="coach" aria-pressed="true" aria-controls="coachPanel">Coach</button>
       <button type="button" id="tabAnalysis" data-tab="analysis" aria-pressed="false" aria-controls="analysisPanel">Analysis</button>
@@ -101,7 +102,8 @@ try {
       <dt><kbd>A</kbd></dt><dd>Analysis on or off</dd>
       <dt><kbd>M</kbd></dt><dd>Mute or unmute sound</dd>
       <dt><kbd>?</kbd></dt><dd>This list</dd>
-      <dt><kbd>Esc</kbd></dt><dd>Close a panel</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close a panel, or go back to the game from an explored line</dd>
+      <dt>Click an engine line</dt><dd>Walk it on the board (<kbd>&larr;</kbd> <kbd>&rarr;</kbd> step along it)</dd>
     </dl>
     <p class="note"><span id="meCurrent"></span> <button type="button" id="changeMe" hidden>Not you? Change player</button></p>
   </div>

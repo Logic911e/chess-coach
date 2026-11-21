@@ -120,3 +120,30 @@ test("effectiveTab: Coach while hidden or off, otherwise the saved tab", () => {
   assert.equal(effectiveTab({ saved: "coach", hidden: false, on: true }), "coach");
   assert.equal(effectiveTab({ saved: "junk", hidden: false, on: true }), "coach");
 });
+
+import { linesState, barText as bt, linesView, bannerView } from "../../src/chess_coach/web/js/analysis-ui.js";
+import { gameOverScore } from "../../src/chess_coach/web/js/analysis.js";
+
+test("a game-over explored position shows the note and a decisive bar", () => {
+  const fen = "7k/5Q1p/8/8/8/8/8/K7 b - - 0 1";
+  const ls = linesState({ mv: { fen_before: fen }, hidden: false, analysisOn: true,
+    peek: () => ({ game_over: true, result: "checkmate" }) });
+  assert.equal(ls.kind, "gameOver");
+  assert.equal(linesView(ls).note, "Checkmate");
+  const v = barView({ score: gameOverScore(ls.result, ls.fen) });
+  assert.equal(v.label, "M");
+  assert.equal(v.fill, 0.98);
+  assert.equal(v.labelOn, "white");
+  assert.equal(v.aria, "Evaluation: mate for White");
+  assert.equal(bt(gameOverScore("checkmate", "7k/5Q1p/8/8/8/8/8/K7 w - - 0 1")), "M");
+});
+
+test("bannerView numbers the path from the game position and tracks the step", () => {
+  const path = [{ san: "e4" }, { san: "e5" }, { san: "Nf3" }];
+  const v = bannerView({ fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", path, step: 1 });
+  assert.equal(v.title, "Exploring a line");
+  assert.equal(v.text, "1. e4 e5 2. Nf3");
+  assert.equal(v.position, "2 of 3");
+  assert.equal(v.canNext, true);
+  assert.equal(bannerView({ fen: "x", path: [], step: 0 }), null);
+});

@@ -180,3 +180,35 @@ export function linesState({ mv, hidden, analysisOn = true, peek, status } = {})
 
 /** The bar's fill is dimmed while the live value is loading or the engine failed (the label is never dimmed). */
 export const barDim = (ls) => !!ls && (ls.kind === "thinking" || ls.kind === "error");
+
+/** Pure view of the explore banner; null when there is no path. fen is the REAL game position the path starts from. */
+export function bannerView({ fen, path, step } = {}) {
+  if (!Array.isArray(path) || !path.length) return null;
+  const at = Math.min(Math.max(step | 0, 0), path.length - 1);
+  return { title: "Exploring a line", text: lineText(fen, path, 16), position: `${at + 1} of ${path.length}`,
+    canNext: at < path.length - 1 };
+}
+
+/** Rebuilds the banner (textContent only). An empty banner stays in the DOM so a live region can announce it. */
+export function renderBanner(el, view, handlers = {}) {
+  const doc = el.ownerDocument;
+  if (!view) { el.replaceChildren(); el.dataset.active = "false"; return; }
+  const mk = (tag, cls, text) => { const e = doc.createElement(tag); if (cls) e.className = cls; e.textContent = text; return e; };
+  const btn = (text, label, fn, disabled) => {
+    const b = mk("button", "", text); b.type = "button"; b.setAttribute("aria-label", label); b.disabled = !!disabled;
+    b.addEventListener("click", fn); return b;
+  };
+  const hadFocus = el.contains(doc.activeElement) ? doc.activeElement.dataset.role : null;
+  el.dataset.active = "true";
+  const head = mk("div", "explore-head");
+  head.append(mk("strong", "", view.title), mk("span", "explore-pos", view.position));
+  const ctl = mk("div", "explore-ctl");
+  const prev = btn("\u2039", "Previous position in the line", handlers.onPrev);
+  const next = btn("\u203a", "Next position in the line", handlers.onNext, !view.canNext);
+  prev.dataset.role = "prev"; next.dataset.role = "next";
+  const back = btn("Back to the game (Esc)", "Back to the game", handlers.onBack);
+  back.dataset.role = "back";
+  ctl.append(prev, next, back);
+  el.replaceChildren(head, mk("div", "explore-line", view.text), ctl);
+  if (hadFocus) { const t = el.querySelector(`[data-role="${hadFocus}"]`); if (t && !t.disabled) t.focus(); }
+}

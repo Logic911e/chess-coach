@@ -106,6 +106,16 @@ button:disabled { opacity: .45; cursor: default; }
   padding: 14px 16px; background: color-mix(in srgb, var(--panel) 70%, transparent);
   border: 1px solid var(--line); border-radius: 14px;
 }
+.explore-banner { flex: none; }
+.explore-banner[data-active="true"] {
+  margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.explore-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.explore-pos { color: var(--muted); font-size: 12px; }
+.explore-line { margin: 4px 0 6px; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.explore-ctl { display: flex; gap: 6px; flex-wrap: wrap; }
+.explore-ctl button { font-size: 13px; padding: 2px 10px; }
 .cap-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex: none; }
 .cap-tabs[hidden] { display: none; }
 .cap-tabs button { font-size: 13px; padding: 3px 12px; }
