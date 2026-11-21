@@ -95,15 +95,21 @@ export function lineA11yName(index, score, text) {
  * request() is called on every render, so asking again for the FEN already pending, in flight, loaded or
  * failed is a no-op (retry() is the explicit way out of an error).
  */
+const CACHE_MAX = 200;
+
 export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay = 600, timer } = {}) {
   const clock = timer || { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) };
   const cache = new Map();   // fen -> successful response (including game over)
   let token = 0, handle = null, current = null, status = "idle";
 
+  // A throwing callback must never skip a request, strand the controller or become an unhandled rejection.
+  const tell = (name, ...args) => {
+    try { ui[name](...args); } catch (e) { console.error("analysis ui." + name + " failed:", e); }
+  };
   const cancel = () => { token += 1; if (handle !== null) { clock.clear(handle); handle = null; } current = null; status = "idle"; };
   const deliver = (fen, resp) => {
     status = "loaded";
-    if (resp.game_over) ui.gameOver(fen, resp.result); else ui.loaded(fen, resp);
+    if (resp.game_over) tell("gameOver", fen, resp.result); else tell("loaded", fen, resp);
   };
 
   async function run(fen, my, attempt) {
@@ -113,16 +119,18 @@ export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay =
     catch (e) {
       if (my !== token) return;
       if (e && e.busy && attempt < retries) {
-        ui.busyDim();
+        tell("busyDim");
         handle = clock.set(() => run(fen, my, attempt + 1), retryDelay);
         return;
       }
       status = "error";
-      ui.error(fen, (e && e.message) || "Analysis failed");
+      tell("error", fen, (e && e.message) || "Analysis failed");
       return;
     }
     if (my !== token) return;
+    cache.delete(fen);
     cache.set(fen, resp);
+    if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);  // drop the oldest
     deliver(fen, resp);
   }
 
@@ -135,7 +143,7 @@ export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay =
       const hit = cache.get(fen);
       if (hit) { deliver(fen, hit); return; }
       status = "thinking";
-      ui.thinking(fen);
+      tell("thinking", fen);
       const my = token;
       handle = clock.set(() => run(fen, my, 0), delay);
     },
@@ -143,7 +151,7 @@ export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay =
       if (status !== "error" || current === null) return;
       const fen = current;
       token += 1; status = "thinking";
-      ui.thinking(fen);
+      tell("thinking", fen);
       run(fen, token, 0);
     },
     invalidate() { cancel(); },

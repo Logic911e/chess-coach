@@ -96,6 +96,7 @@ export function linesView(state = {}) {
   switch (state.kind) {
     case "hidden": return { ...none, note: analysisNote({ hidden: true }) };
     case "noGame": return { ...none, note: analysisNote({ noGame: true }) };
+    case "unavailable": return { ...none, note: "Position unavailable" };
     case "thinking": return { ...none, skeleton: 3, note: "Stockfish is thinking..." };
     case "error": return { ...none, retry: true, note: state.message || "Analysis failed" };
     case "gameOver": return { ...none, note: GAME_OVER[state.result] || "Game over" };
@@ -155,3 +156,27 @@ export function renderLines(panelEl, state, handlers = {}) {
   });
   panelEl.replaceChildren(...kids);
 }
+
+/** Whether the page may ask the engine about this move at all (the neutrality rule lives here). */
+export function shouldRequest({ mv, hidden, analysisOn } = {}) {
+  return !!(analysisOn && mv && !hidden && typeof mv.fen_before === "string" && mv.fen_before);
+}
+
+/**
+ * Which lines state to show. peek(fen) returns the cached response for exactly that FEN (or null);
+ * status is the controller's latest { fen, kind, message }, used only when it answers this position.
+ */
+export function linesState({ mv, hidden, analysisOn = true, peek, status } = {}) {
+  if (!mv) return { kind: "noGame" };
+  if (hidden) return { kind: "hidden" };
+  if (!analysisOn) return { kind: "off" };
+  const fen = mv.fen_before;
+  if (typeof fen !== "string" || !fen) return { kind: "unavailable" };
+  const got = typeof peek === "function" ? peek(fen) : null;
+  if (got) return got.game_over ? { kind: "gameOver", fen, result: got.result } : { kind: "loaded", fen, response: got };
+  if (status && status.fen === fen && status.kind === "error") return { kind: "error", fen, message: status.message };
+  return { kind: "thinking", fen };
+}
+
+/** The bar's fill is dimmed while the live value is loading or the engine failed (the label is never dimmed). */
+export const barDim = (ls) => !!ls && (ls.kind === "thinking" || ls.kind === "error");

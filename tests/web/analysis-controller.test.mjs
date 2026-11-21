@@ -204,3 +204,51 @@ test("analysePosition posts the fen and marks 'engine busy' with busy: true", as
     await assert.rejects(analysePosition(FEN_A), (e) => e.busy !== true);
   } finally { globalThis.fetch = real; }
 });
+
+test("test_throwing_ui_callbacks_leave_the_controller_working", async () => {
+  const calls = [], events = [];
+  const api = { analysePosition: (f) => { calls.push(f); return Promise.resolve(OK()); } };
+  const boom = () => { throw new Error("ui broke"); };
+  const ui = { thinking: boom, loaded: boom, gameOver: boom, error: boom, busyDim: boom };
+  const timer = fakeTimer();
+  const a = createAnalysis({ api, ui, timer });
+  const realErr = console.error; console.error = () => {};
+  const unhandled = []; const h = (e) => unhandled.push(e); process.on("unhandledRejection", h);
+  try {
+    a.request(FEN_A, { enabled: true });          // thinking throws: the request must still be scheduled
+    assert.equal(timer.pending(), 1);
+    timer.tick(); await flush();                  // loaded throws: swallowed
+    assert.deepEqual(calls, [FEN_A]);
+    assert.ok(a.peek(FEN_A));                     // and the response was still cached
+    a.request(FEN_B, { enabled: true }); timer.tick(); await flush();
+    assert.deepEqual(calls, [FEN_A, FEN_B]);      // the next request still goes through
+    await flush();
+    assert.equal(unhandled.length, 0);
+  } finally { console.error = realErr; process.off("unhandledRejection", h); }
+  void events;
+});
+
+test("test_cache_is_capped_at_200_dropping_the_oldest", async () => {
+  const s = setup(async () => OK());
+  for (let i = 0; i < 205; i++) { s.a.request(`fen ${i}`, { enabled: true }); s.timer.tick(); await flush(); }
+  assert.equal(s.calls.length, 205);
+  assert.equal(s.a.peek("fen 0"), null);
+  assert.equal(s.a.peek("fen 4"), null);
+  assert.ok(s.a.peek("fen 5"));
+  assert.ok(s.a.peek("fen 204"));
+});
+
+test("test_same_fen_after_invalidate_with_old_response_pending_delivers_once", async () => {
+  const ds = [deferred(), deferred()];
+  const s = setup((f, o, n) => ds[n - 1].p);
+  s.a.request(FEN_A, { enabled: true }); s.timer.tick();
+  s.a.invalidate();
+  s.a.request(FEN_A, { enabled: true }); s.timer.tick();
+  assert.equal(s.calls.length, 2);
+  ds[0].res(OK(1)); await flush();
+  assert.ok(!s.names().includes("loaded"));       // the old one is discarded
+  ds[1].res(OK(2)); await flush();
+  const loaded = s.events.filter((e) => e[0] === "loaded");
+  assert.equal(loaded.length, 1);
+  assert.equal(loaded[0][2].lines[0].score.cp, 20);
+});

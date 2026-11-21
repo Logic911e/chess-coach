@@ -124,3 +124,58 @@ test("renderLines: thinking draws skeleton rows (no buttons)", () => {
   assert.equal(walk(panel).filter((e) => /skeleton/.test(e.className)).length, 3);
   assert.ok(!walk(panel).some((e) => e.tag === "button"));
 });
+
+import { linesState, shouldRequest, barDim } from "../../src/chess_coach/web/js/analysis-ui.js";
+
+const MV = { fen_before: FEN };
+const peekOf = (map) => (f) => map[f] || null;
+
+test("shouldRequest: only with analysis on, a game, a visible move and a fen", () => {
+  assert.equal(shouldRequest({ mv: MV, hidden: false, analysisOn: true }), true);
+  assert.equal(shouldRequest({ mv: MV, hidden: true, analysisOn: true }), false);
+  assert.equal(shouldRequest({ mv: MV, hidden: false, analysisOn: false }), false);
+  assert.equal(shouldRequest({ mv: null, hidden: false, analysisOn: true }), false);
+  assert.equal(shouldRequest({ mv: {}, hidden: false, analysisOn: true }), false);
+  assert.equal(shouldRequest({ mv: { fen_before: "" }, hidden: false, analysisOn: true }), false);
+  assert.equal(shouldRequest(), false);
+});
+
+test("linesState: hidden shows no lines even when a response is cached for the fen", () => {
+  const ls = linesState({ mv: MV, hidden: true, analysisOn: true, peek: peekOf({ [FEN]: RESP }) });
+  assert.deepEqual(ls, { kind: "hidden" });
+});
+
+test("linesState: no game, analysis off, missing fen", () => {
+  assert.equal(linesState({ mv: null, hidden: false, analysisOn: true }).kind, "noGame");
+  assert.equal(linesState({ mv: MV, hidden: false, analysisOn: false }).kind, "off");
+  for (const mv of [{}, { fen_before: "" }, { fen_before: null }]) {
+    const ls = linesState({ mv, hidden: false, analysisOn: true });
+    assert.equal(ls.kind, "unavailable");
+    const v = linesView(ls);
+    assert.equal(v.note, "Position unavailable");
+    assert.equal(v.skeleton, 0);
+    assert.equal(v.retry, false);
+  }
+});
+
+test("linesState: a response for position A never appears for position B", () => {
+  const B = { fen_before: FEN + " b" };
+  const ls = linesState({ mv: B, hidden: false, analysisOn: true, peek: peekOf({ [FEN]: RESP }),
+    status: { fen: FEN, kind: "error", message: "boom" } });
+  assert.deepEqual(ls, { kind: "thinking", fen: B.fen_before });
+});
+
+test("linesState: loaded, game over, error, thinking", () => {
+  assert.equal(linesState({ mv: MV, hidden: false, analysisOn: true, peek: peekOf({ [FEN]: RESP }) }).kind, "loaded");
+  const go = linesState({ mv: MV, hidden: false, analysisOn: true, peek: peekOf({ [FEN]: { game_over: true, result: "draw" } }) });
+  assert.deepEqual([go.kind, go.result], ["gameOver", "draw"]);
+  const er = linesState({ mv: MV, hidden: false, analysisOn: true, peek: peekOf({}), status: { fen: FEN, kind: "error", message: "boom" } });
+  assert.deepEqual([er.kind, er.message], ["error", "boom"]);
+  assert.equal(linesState({ mv: MV, hidden: false, analysisOn: true, peek: peekOf({}), status: { fen: FEN, kind: "thinking" } }).kind, "thinking");
+});
+
+test("barDim: dimmed while thinking or after an error, not when loaded, hidden or without a game", () => {
+  assert.equal(barDim({ kind: "thinking" }), true);
+  assert.equal(barDim({ kind: "error" }), true);
+  for (const k of ["loaded", "gameOver", "hidden", "noGame", "off", "unavailable"]) assert.equal(barDim({ kind: k }), false, k);
+});

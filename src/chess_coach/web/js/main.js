@@ -9,7 +9,7 @@ import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, is
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
 import { scoreFromStored, createAnalysis } from "./analysis.js";
-import { barView, renderBar, renderTabs, effectiveTab, renderLines } from "./analysis-ui.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -75,18 +75,10 @@ const analysis = createAnalysis({
   },
 });
 let shownLines = null;
-function linesState(mv, hidden) {
-  if (!mv) return { kind: "noGame" };
-  if (hidden) return { kind: "hidden" };
-  const fen = mv.fen_before, got = analysis.peek(fen);
-  if (got) return got.game_over ? { kind: "gameOver", fen, result: got.result } : { kind: "loaded", fen, response: got };
-  if (liveStatus.fen === fen && liveStatus.kind === "error") return { kind: "error", fen, message: liveStatus.message };
-  return { kind: "thinking", fen };
-}
 function renderAnalysisChrome() {
   const g = state.game, mv = g && g.moves.length ? cur() : null;
   // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
-  analysis.request(mv ? mv.fen_before : null, { enabled: analysisOn() && !!mv && !hiddenNow(mv) });
+  analysis.request(mv ? mv.fen_before : null, { enabled: shouldRequest({ mv, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn() }) });
   drawAnalysis();
 }
 function drawAnalysis() {
@@ -100,16 +92,17 @@ function drawAnalysis() {
   // the saved choice is untouched and returns once the answer is shown.
   renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
     effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
+  if (hidden && document.activeElement === $("tabAnalysis")) $("tabCoach").focus();  // a disabled button drops focus to body
   $("tabAnalysis").disabled = hidden;
   $("tabAnalysis").title = hidden ? "Available after you guess" : "";
-  const ls = linesState(mv, hidden);
+  const ls = linesState({ mv, hidden, analysisOn: on, peek: analysis.peek, status: liveStatus });
   // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
   // while loading only the fill is dimmed.
   const liveResp = ls.kind === "loaded" ? ls.response : null;
   const top = liveResp && liveResp.lines && liveResp.lines[0];
   const score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
   renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: !!top,
-    dim: ls.kind === "thinking", noGame: !mv }));
+    dim: barDim(ls), noGame: !mv }));
   // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
   const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response];
   if (shownLines && k.every((v, i) => v === shownLines[i])) return;
