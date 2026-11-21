@@ -74,8 +74,8 @@ shows how much each move cost (taller means more expected points lost).
 - **How to use it:** the Analysis button in the top bar or `a` turns the bar, the tabs and all requests on or
   off (remembered in this browser). Click a line to walk the board through it; Left/Right step along it, and
   Esc, the first Left, or "Back to the game" returns to the real position. Clicking another line while you
-  are walking continues from the position you are on. A screen reader hears "Exploring a line", then
-  "Position 3 of 7: Qxe5" for each step and "Back to the game" on leaving.
+  are walking continues from the position you are on. The page puts the text "Exploring a line", then
+  "Position 3 of 7: Qxe5" for each step and "Back to the game" on leaving, into one polite live region.
 - **Hidden until you guess:** at one of your own key moments that you have not guessed or shown, and during an
   active guess, the bar is neutral, the Analysis tab is disabled (Coach stays shown), exploring cannot start
   and no analysis request is sent. After you guess or choose "Show the answer" they appear. In Chrome I saw
@@ -165,7 +165,7 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   320px wide and 300px tall but not looked at on a real phone.
 - Guess-first needs the engine and takes a few seconds to score a guess.
 - Analysis scores are Stockfish at limited depth (16) with a time cap, so they can differ from a desktop engine
-  running deeper. Lines appear after a short delay (about 1-2 s on the author's Mac) and a busy engine can delay them.
+  running deeper. Lines appear after a short delay (roughly 1 to 3 seconds in the author's checks) and a busy engine can delay them.
 - The stored scores that give the instant bar value are at the import depth, and a stored mate shows only `M`
   until the live value arrives.
 - The new controls (bar, tabs, lines, explore banner, announcements) have had structural checks only, not a
@@ -173,6 +173,9 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   Esc, the neutral state and the Show-the-answer path (see above), and the top bar at 900px in Walnut and Slate.
   In the same pass the guess flow worked with analysis on: neutral bar and disabled tab while guessing, the bar
   back after the guess, and no requests after switching analysis off.
+- The top bar layout was only looked at in the Walnut and Slate themes at about 900px wide; the Paper theme was not looked at.
+- Windows narrower than 640px wrap the top bar onto a second row, giving a taller header and a page scroll (the
+  threshold moved from 480px to 640px with this feature); that narrow range was measured but not looked at.
 - The sounds while exploring a line (the ordinary move, capture and check sounds) were never listened to.
 - The explored-line banner has previous, next and back buttons but no per-move jump buttons.
 - The page keeps up to 200 analysed positions in memory per visit.
