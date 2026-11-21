@@ -1,5 +1,7 @@
 // Exploring mode state machine. Pure: no window/document. The path is a list of the server's line moves
 // ({ san, uci, fen, capture, check }); step indexes the current one (the position AFTER that move).
+const validLine = (m) => Array.isArray(m) && m.length > 0 && m.every((x) => x && typeof x.fen === "string" && x.fen);
+
 export function createExplore() {
   let path = [];
   let step = -1;
@@ -9,13 +11,13 @@ export function createExplore() {
 
   return {
     begin(lineMoves) {
-      if (!Array.isArray(lineMoves) || !lineMoves.length) return;
+      if (!validLine(lineMoves)) return;  // junk leaves the state unchanged
       path = lineMoves.slice();
       step = 0;
     },
     /** Keep the path up to the current step, append the line, continue after its first move. */
     extend(lineMoves) {
-      if (!active() || !Array.isArray(lineMoves) || !lineMoves.length) return;
+      if (!active() || !validLine(lineMoves)) return;
       path = path.slice(0, step + 1).concat(lineMoves);
       step += 1;
     },

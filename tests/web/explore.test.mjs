@@ -88,3 +88,38 @@ test("test_position_is_null_when_not_exploring", () => {
   e.extend(line(1));  // nothing to extend
   assert.equal(e.active(), false);
 });
+
+function deepFreeze(o) { Object.values(o).forEach((v) => v && typeof v === "object" && deepFreeze(v)); return Object.freeze(o); }
+
+test("begin ignores junk input without throwing or changing state", () => {
+  const e = createExplore();
+  for (const junk of [[], null, undefined, "abc", 5, {}, [{ san: "x" }], [mv(1), { san: "x", fen: 3 }], [null]]) {
+    assert.doesNotThrow(() => e.begin(junk));
+    assert.equal(e.active(), false);
+  }
+  e.begin(line(1, 2));
+  e.begin([{ san: "bad" }]);  // junk while exploring leaves the path alone
+  assert.deepEqual(e.path().map((m) => m.fen), ["fen1", "fen2"]);
+  assert.equal(e.position().step, 0);
+});
+
+test("a malformed extend leaves the path unchanged", () => {
+  const e = createExplore();
+  e.begin(line(1, 2, 3));
+  e.step(1);
+  for (const junk of [[], null, undefined, "x", [{ san: "x" }], [mv(5), {}]]) e.extend(junk);
+  assert.deepEqual(e.path().map((m) => m.fen), ["fen1", "fen2", "fen3"]);
+  assert.equal(e.position().step, 1);
+});
+
+test("begin and extend never modify the arrays passed in", () => {
+  const e = createExplore();
+  const a = deepFreeze(line(1, 2, 3)), b = deepFreeze(line(7, 8));
+  e.begin(a);
+  e.step(1);
+  e.extend(b);
+  assert.equal(a.length, 3);
+  assert.equal(b.length, 2);
+  e.path().push("x");  // the returned path is a copy
+  assert.equal(e.path().length, 4);
+});

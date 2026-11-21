@@ -147,3 +147,13 @@ test("bannerView numbers the path from the game position and tracks the step", (
   assert.equal(v.canNext, true);
   assert.equal(bannerView({ fen: "x", path: [], step: 0 }), null);
 });
+
+test("bannerView: the previous control says it leaves the line at the first position", () => {
+  const path = [{ san: "e4" }, { san: "e5" }];
+  const f = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  const first = bannerView({ fen: f, path, step: 0 });
+  assert.equal(first.prevLabel, "Back to the game position");
+  assert.ok(first.position.startsWith("1 of 2") && first.position.includes("returns to the game"));
+  assert.equal(bannerView({ fen: f, path, step: 1 }).prevLabel, "Previous position in the line");
+  assert.equal(bannerView({ fen: f, path, step: 1 }).canNext, false);
+});

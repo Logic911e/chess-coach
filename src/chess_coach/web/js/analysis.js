@@ -87,6 +87,32 @@ export function lineText(fen, moves, maxPlies = 8) {
   return text;
 }
 
+/**
+ * A window of at most `size` plies of a path that always contains the current step, numbered from the game
+ * position's FEN, with "..." where the path continues beyond either end.
+ */
+export function pathWindow(fen, path, step, size = 8) {
+  const moves = Array.isArray(path) ? path : [];
+  if (!moves.length) return "";
+  const at = Math.min(Math.max(step | 0, 0), moves.length - 1);
+  const start = Math.max(0, Math.min(at - Math.floor(size / 2) + 1, moves.length - size));
+  const end = Math.min(moves.length, start + size);
+  const parts = String(fen || "").split(" ");
+  const black0 = parts[1] === "b";
+  let n0 = parseInt(parts[5], 10);
+  if (!Number.isFinite(n0) || n0 < 1) n0 = 1;
+  const out = start > 0 ? ["..."] : [];
+  for (let i = start; i < end; i++) {
+    const black = black0 !== (i % 2 === 1);
+    const num = n0 + Math.floor((i + (black0 ? 1 : 0)) / 2);
+    if (!black) out.push(`${num}.`);
+    else if (i === start) out.push(`${num}...`);
+    out.push(moves[i].san);
+  }
+  if (end < moves.length) out.push("...");
+  return out.join(" ");
+}
+
 export function lineA11yName(index, score, text) {
   const sc = norm(score);
   let s;

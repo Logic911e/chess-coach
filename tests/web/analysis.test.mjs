@@ -145,3 +145,34 @@ test("gameOverScore: stalemate, draw and junk are level", () => {
   assert.deepEqual(gameOverScore("checkmate", undefined), { cp: 0, mate: null });
   assert.deepEqual(gameOverScore("???", fen), { cp: 0, mate: null });
 });
+
+import { pathWindow } from "../../src/chess_coach/web/js/analysis.js";
+const mk = (n) => Array.from({ length: n }, (_, i) => ({ san: "m" + i }));
+const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+test("pathWindow: a short path is shown whole without ellipses", () => {
+  assert.equal(pathWindow(START, mk(3), 1), "1. m0 m1 2. m2");
+  assert.equal(pathWindow(START, mk(8), 7), "1. m0 m1 2. m2 m3 3. m4 m5 4. m6 m7");
+  assert.equal(pathWindow(START, [], 0), "");
+});
+
+test("pathWindow: a long path keeps the current step visible at the start, middle and end", () => {
+  const p = mk(20);
+  const at0 = pathWindow(START, p, 0);
+  assert.ok(at0.startsWith("1. m0") && at0.endsWith("...") && !at0.startsWith("..."));
+  const mid = pathWindow(START, p, 10);
+  assert.ok(mid.startsWith("...") && mid.endsWith("...") && mid.includes(" m10"));
+  const end = pathWindow(START, p, 19);
+  assert.ok(end.startsWith("...") && !end.endsWith("...") && end.endsWith("m19"));
+  for (let s = 0; s < 20; s++) {
+    const w = pathWindow(START, p, s);
+    assert.ok(new RegExp(`(^| )m${s}( |$)`).test(w), `step ${s}: ${w}`);
+    assert.ok(w.split(" ").filter((t) => /^m\d+$/.test(t)).length <= 8);
+  }
+});
+
+test("pathWindow: numbering follows the position, black to move shows N...", () => {
+  const fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
+  assert.equal(pathWindow(fen, mk(3), 0), "1... m0 2. m1 m2");
+  assert.equal(pathWindow(fen, mk(20), 12), "... 6. m9 m10 7. m11 m12 8. m13 m14 9. m15 m16 ...");
+});

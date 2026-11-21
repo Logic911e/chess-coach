@@ -127,7 +127,7 @@ function drawAnalysis() {
 }
 function setAnalysis(on) {
   settings.set("analysis", on);
-  if (!on) { analysis.invalidate(); if (explore.active()) { explore.exit(); announce("Back to the game position"); if (state.game) render(); return; } }
+  if (!on) { analysis.invalidate(); if (exitExplore()) return; }
   renderAnalysisChrome();
 }
 
@@ -148,26 +148,32 @@ function selectLine(i) {
   render(motionAllowed());
   playBase(explore.position().move);
 }
-function exploreStep(d) {
-  const before = explore.position().fen;
-  const r = explore.step(d);
-  if (!r) return;
-  const to = r.exited ? cur().fen_before : explore.position().fen;
-  state.slides = pieceSlides(before, to);
-  render(motionAllowed());
-  if (r.exited) { announce("Back to the game position"); const prevMv = state.game.moves[state.idx - 1]; if (prevMv) playBase(prevMv); }
-  else playBase(r.move);
-}
-// Leave exploring and show the real game position again (Esc and the Back button).
-function leaveExplore(refocus = false) {
-  if (!explore.active()) return;
+// The one way out of exploring: clears the state, announces it and redraws the REAL game position (old game when
+// a game switch is pending). render:false lets the caller (go) draw; refocus moves focus to a stable control.
+function exitExplore({ render: redraw = true, slides = [], animate = false, refocus = false } = {}) {
+  if (!explore.active()) return false;
   const inBanner = $("exploreBanner").contains(document.activeElement);
   explore.exit();
-  state.slides = [];
+  state.slides = slides;
   announce("Back to the game position");
-  render(false);
+  if (redraw && state.game && state.game.moves.length) render(animate);
   if (refocus || inBanner) (!$("tabAnalysis").disabled && !$("capTabs").hidden ? $("tabAnalysis") : $("tabCoach")).focus();
+  return true;
 }
+function exploreStep(d) {
+  const before = explore.position().fen;
+  if (d < 0 && explore.atStart()) {  // one step back from the first explored position leaves the line
+    exitExplore({ slides: pieceSlides(before, cur().fen_before), animate: motionAllowed() });
+    const prevMv = state.game.moves[state.idx - 1]; if (prevMv) playBase(prevMv);
+    return;
+  }
+  const r = explore.step(d);
+  if (!r) return;
+  state.slides = pieceSlides(before, explore.position().fen);
+  render(motionAllowed());
+  playBase(r.move);
+}
+function leaveExplore(refocus = false) { exitExplore({ refocus }); }
 function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
 
 // ---------- rendering ----------
@@ -397,10 +403,8 @@ function go(i) {
   if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
   const moved = j !== state.idx;
-  const wasExploring = explore.active();
-  explore.exit();  // any game navigation returns to the real position first
+  const wasExploring = exitExplore({ render: false });  // any game navigation returns to the real position first
   if (moved) guessFlow.cancel();
-  if (wasExploring) announce("Back to the game position");
   // Slide only single steps (either direction); jumps just redraw.
   state.slides = !wasExploring && Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
@@ -425,7 +429,7 @@ function showEmpty() {
 }
 
 async function selectGame(id) {
-  explore.exit();
+  exitExplore();  // redraw the real (old) game now, so no explored board or dead banner outlives the await or a failure
   guessFlow.cancel();
   analysis.invalidate();
   try { state.game = await getGame(id); }

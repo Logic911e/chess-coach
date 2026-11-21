@@ -1,5 +1,5 @@
 // Evaluation bar and tabs. barView is pure; the render adapters touch the DOM only inside their bodies.
-import { barFill, formatScore, lineText, lineA11yName } from "./analysis.js";
+import { barFill, formatScore, lineText, lineA11yName, pathWindow } from "./analysis.js";
 
 const NEUTRAL_ARIA = "Evaluation hidden until you guess";
 
@@ -185,7 +185,10 @@ export const barDim = (ls) => !!ls && (ls.kind === "thinking" || ls.kind === "er
 export function bannerView({ fen, path, step } = {}) {
   if (!Array.isArray(path) || !path.length) return null;
   const at = Math.min(Math.max(step | 0, 0), path.length - 1);
-  return { title: "Exploring a line", text: lineText(fen, path, 16), position: `${at + 1} of ${path.length}`,
+  const first = at === 0;
+  return { title: "Exploring a line", text: pathWindow(fen, path, at, 8),
+    position: `${at + 1} of ${path.length}` + (first ? " \u00b7 \u2039 returns to the game" : ""),
+    prevLabel: first ? "Back to the game position" : "Previous position in the line",
     canNext: at < path.length - 1 };
 }
 
@@ -203,12 +206,12 @@ export function renderBanner(el, view, handlers = {}) {
   const head = mk("div", "explore-head");
   head.append(mk("strong", "", view.title), mk("span", "explore-pos", view.position));
   const ctl = mk("div", "explore-ctl");
-  const prev = btn("\u2039", "Previous position in the line", handlers.onPrev);
+  const prev = btn("\u2039", view.prevLabel, handlers.onPrev);
   const next = btn("\u203a", "Next position in the line", handlers.onNext, !view.canNext);
   prev.dataset.role = "prev"; next.dataset.role = "next";
   const back = btn("Back to the game (Esc)", "Back to the game", handlers.onBack);
   back.dataset.role = "back";
   ctl.append(prev, next, back);
   el.replaceChildren(head, mk("div", "explore-line", view.text), ctl);
-  if (hadFocus) { const t = el.querySelector(`[data-role="${hadFocus}"]`); if (t && !t.disabled) t.focus(); }
+  if (hadFocus) { const t = el.querySelector(`[data-role="${hadFocus}"]`); (t && !t.disabled ? t : el.querySelector('[data-role="back"]')).focus(); }
 }
