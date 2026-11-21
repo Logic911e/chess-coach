@@ -9,7 +9,7 @@ import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, is
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe } from "./me.js";
 import { scoreFromStored } from "./analysis.js";
-import { barView, renderBar, renderTabs, analysisNote } from "./analysis-ui.js";
+import { barView, renderBar, renderTabs, analysisNote, effectiveTab } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -66,14 +66,18 @@ function renderAnalysisChrome() {
   if (on) delete root.dataset.analysis; else root.dataset.analysis = "off";
   $("analysisToggle").setAttribute("aria-pressed", String(on));
   $("capTabs").hidden = !on;
-  renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
-    on ? settings.get("analysisTab", "coach") : "coach");
   const g = state.game, mv = g && g.moves.length ? cur() : null;
-  const hidden = !mv || hiddenNow(mv);  // no game yet: neutral
+  const hidden = !!mv && hiddenNow(mv);
+  // While a guess is pending the Coach panel (with the guess controls) is shown whatever tab is saved;
+  // the saved choice is untouched and returns once the answer is shown.
+  renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
+    effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
+  $("tabAnalysis").disabled = hidden;
+  $("tabAnalysis").title = hidden ? "Available after you guess" : "";
   // Stored value: the position BEFORE the selected move, converted to White's perspective.
   const score = mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
-  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: false }));
-  $("analysisNote").textContent = analysisNote({ hidden });
+  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: false, noGame: !mv }));
+  $("analysisNote").textContent = analysisNote({ hidden, noGame: !mv });
 }
 function setAnalysis(on) { settings.set("analysis", on); renderAnalysisChrome(); }
 function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
@@ -174,7 +178,7 @@ const guessFlow = createGuessFlow({
     reveal(mv, result) {
       if (cur() !== mv) return;  // the flow is cancelled on navigation; this is a second guard
       render();
-      if (document.activeElement === document.body) $("engineBtn").focus();  // the disabled field lost focus
+      if (document.activeElement === document.body) focusAfterReveal();  // the disabled field lost focus
       if (motionAllowed()) {
         // One call: sound.js drops a second play in the same tick, which would swallow the key sound.
         player.play([...soundsFor({ classification: result.classification }).slice(1), ...(result.matched ? ["key"] : [])]);
@@ -183,6 +187,8 @@ const guessFlow = createGuessFlow({
     },
   },
 });
+// After a reveal the Coach panel may be hidden (saved tab is Analysis): focus the visible tab button instead.
+function focusAfterReveal() { $("engineBtn").focus(); if (document.activeElement !== $("engineBtn")) $("tabAnalysis").focus(); }
 function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
@@ -202,7 +208,7 @@ function showAnswer() {
     const cue = soundsFor(mv).slice(1);
     if (cue.length) player.play(cue);
   }
-  $("engineBtn").focus();  // the button that was pressed has just gone
+  focusAfterReveal();  // the button that was pressed has just gone
 }
 
 const HONESTY = "Written by a small local model from engine facts. It is checked for legal moves and piece squares only, so it can still contain mistakes.";

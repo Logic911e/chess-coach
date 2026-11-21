@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { barView, analysisNote } from "../../src/chess_coach/web/js/analysis-ui.js";
+import { barView, analysisNote, barText, effectiveTab } from "../../src/chess_coach/web/js/analysis-ui.js";
 
 const W = (cp) => ({ cp, mate: null, capped: false });
 
@@ -62,7 +62,7 @@ test("barView: mate scores", () => {
   assert.equal(w.label, "M3");
   assert.equal(w.aria, "Evaluation: mate for White");
   const capped = barView({ score: { cp: -9000, mate: null, capped: true }, flipped: false });
-  assert.equal(capped.label, "Mate");
+  assert.equal(capped.label, "M");
   assert.equal(capped.aria, "Evaluation: mate for Black");
 });
 
@@ -74,4 +74,49 @@ test("barView: dim only when asked and never when hidden", () => {
 test("analysisNote: neutral text while hidden", () => {
   assert.equal(analysisNote({ hidden: true }), "Hidden until you guess");
   assert.notEqual(analysisNote({ hidden: false }), "Hidden until you guess");
+});
+
+test("barView: labelOn follows the leader and the label sits at that colour's end, flipped or not", () => {
+  const cases = [
+    // [cp, flipped, labelOn, labelOnTop]
+    [40, false, "white", false], [-40, false, "black", true],
+    [40, true, "white", true], [-40, true, "black", false],
+    [0, false, "white", false], [0, true, "white", true],
+  ];
+  for (const [cp, flipped, on, top] of cases) {
+    const v = barView({ score: W(cp), flipped });
+    assert.equal(v.labelOn, on, `cp ${cp} flipped ${flipped}`);
+    assert.equal(v.labelOnTop, top, `cp ${cp} flipped ${flipped}`);
+  }
+  assert.equal(barView({ score: { cp: 0, mate: -2 }, flipped: true }).labelOn, "black");
+});
+
+test("barText: short bar-only forms", () => {
+  assert.equal(barText(W(40)), "+0.4");
+  assert.equal(barText(W(-120)), "-1.2");
+  assert.equal(barText(W(1050)), "+11");
+  assert.equal(barText(W(-1000)), "-10");
+  assert.equal(barText(W(990)), "+9.9");
+  assert.equal(barText({ cp: 0, mate: 12 }), "M12");
+  assert.equal(barText({ cp: 0, mate: -12 }), "-M12");
+  assert.equal(barText({ cp: 9000, mate: null, capped: true }), "M");
+  assert.equal(barText(undefined), "0.0");
+});
+
+test("no game: neutral level bar that says so, never the guess message", () => {
+  const v = barView({ score: undefined, noGame: true });
+  assert.equal(v.aria, "No game loaded");
+  assert.equal(v.fill, 0.5);
+  assert.equal(v.label, "");
+  assert.equal(analysisNote({ noGame: true }), "No game loaded");
+  assert.equal(analysisNote({ noGame: true, hidden: true }), "No game loaded");
+  assert.ok(!/guess/i.test(v.aria));
+});
+
+test("effectiveTab: Coach while hidden or off, otherwise the saved tab", () => {
+  assert.equal(effectiveTab({ saved: "analysis", hidden: true, on: true }), "coach");
+  assert.equal(effectiveTab({ saved: "analysis", hidden: false, on: true }), "analysis");
+  assert.equal(effectiveTab({ saved: "analysis", hidden: false, on: false }), "coach");
+  assert.equal(effectiveTab({ saved: "coach", hidden: false, on: true }), "coach");
+  assert.equal(effectiveTab({ saved: "junk", hidden: false, on: true }), "coach");
 });

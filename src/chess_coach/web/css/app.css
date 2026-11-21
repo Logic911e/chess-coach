@@ -8,7 +8,7 @@
   /* beside the board: only the top bar, nav row and padding take height */
   --vh: 100vh;
   /* the evaluation bar and its gap come out of the width budget, never out of the height-driven size */
-  --barspace: 30px;
+  --barspace: 36px;
   --boardw: max(160px, min(calc(var(--vh) - var(--topbar-h) - 82px), calc(100vw - var(--cardw) - 64px - var(--barspace))));
 }
 :root[data-analysis="off"] { --barspace: 0px; }
@@ -70,7 +70,7 @@ button:disabled { opacity: .45; cursor: default; }
 #boardWrap { flex: 1; min-width: 0; }
 .nav { margin-left: var(--barspace); }
 #evalBar {
-  position: relative; flex: none; width: 22px; border-radius: 5px; overflow: hidden; background: var(--bar-black);
+  position: relative; flex: none; width: 28px; border-radius: 5px; overflow: hidden; background: var(--bar-black);
   border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .3);
 }
 #evalBar[hidden] { display: none; }
@@ -78,10 +78,11 @@ button:disabled { opacity: .45; cursor: default; }
 #evalBar[data-white-top="true"] .eval-fill { bottom: auto; top: 0; }
 #evalBar[data-dim="true"] { opacity: .6; }
 .eval-label {
-  position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font: 700 10px/1 ui-monospace, Menlo, monospace;
-  letter-spacing: -.02em; color: var(--bar-on-white);
+  position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; white-space: nowrap; font: 700 10px/1 ui-monospace, Menlo, monospace;
+  letter-spacing: -.03em; color: var(--bar-on-white);
 }
-#evalBar[data-label-top="true"] .eval-label { bottom: auto; top: 3px; color: var(--bar-on-black); }
+#evalBar[data-label-top="true"] .eval-label { bottom: auto; top: 3px; }
+#evalBar[data-label-on="black"] .eval-label { color: var(--bar-on-black); }
 #boardWrap {
   position: relative; width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden;
   border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
