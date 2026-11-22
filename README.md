@@ -78,11 +78,15 @@ shows how much each move cost (taller means more expected points lost).
   "Position 3 of 7: Qxe5" for each step and "Back to the game" on leaving, into one polite live region.
 - **Hidden until you guess:** at one of your own key moments that you have not guessed or shown, and during an
   active guess, the bar is neutral, the Analysis tab is disabled (Coach stays shown), exploring cannot start
-  and no analysis request is sent. After you guess or choose "Show the answer" they appear. In Chrome I saw
-  no `/api/analysis` request at such a moment, including after switching analysis off and on, and exactly one
-  after "Show the answer".
+  and no analysis request is sent. The page checks the whole game, not just the selected move: while a key
+  moment of yours is unanswered, engine lines for earlier positions stop at the ply that reaches your key
+  position (they never show a move beyond it), a line you walk stops there too, and the position itself shows a
+  neutral bar and "Hidden until you guess" with no request. Not covered: the bar value and score badges at the
+  move just before the key moment approximate its evaluation (they do not say which move is best), and the
+  position after a key moment you skipped without guessing is not hidden. After you guess or choose "Show the
+  answer" everything appears.
 - **Endpoint:** `POST /api/analysis` with a FEN returns the score of up to three lines from White's side
-  and the moves with their resulting positions. Limits: depth 16, 3 lines, about a 3 s time cap, lines of at
+  and the moves with their resulting positions. Defaults: depth 16 and 3 lines (the page asks for these; the accepted maxima are depth 20 and 5 lines), about a 3 s time cap, lines of at
   most 12 plies, results cached; "engine busy" is retried quietly by the page before an error and Retry button
   show.
 

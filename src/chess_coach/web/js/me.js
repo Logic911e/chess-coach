@@ -11,3 +11,11 @@ export function resolveMe({ stored, players, suggested, dismissed = false }) {
   if (suggested && names.includes(suggested)) return { me: suggested, needsPrompt: false };
   return { me: null, needsPrompt: !dismissed };
 }
+
+/** Resolves with the promise's value once it settles (a rejection gives undefined) or after ms, whichever is first. */
+export function settleWithin(promise, ms) {
+  return new Promise((resolve) => {
+    const t = setTimeout(resolve, ms);
+    Promise.resolve(promise).then((v) => { clearTimeout(t); resolve(v); }, () => { clearTimeout(t); resolve(); });
+  });
+}

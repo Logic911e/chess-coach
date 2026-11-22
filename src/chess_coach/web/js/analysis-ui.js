@@ -33,6 +33,46 @@ export function barText(score) {
   return Math.abs(n) >= 10 ? (n < 0 ? "-" : "+") + Math.round(Math.abs(n)) : f;
 }
 
+// ---- neutrality over the WHOLE game (a line must never reach or pass a position the user has to guess) ----
+
+/** A position without its move counters: placement, side to move, castling, en passant. */
+export const positionKey = (fen) => (typeof fen === "string" ? fen.split(" ").slice(0, 4).join(" ") : "");
+
+/** Keys of the position before every move the page must keep neutral (isHiddenFn is the page's hidden predicate). */
+export function hiddenPositionKeys(moves, isHiddenFn) {
+  const keys = new Set();
+  for (const m of Array.isArray(moves) ? moves : []) {
+    if (m && typeof m.fen_before === "string" && m.fen_before && isHiddenFn(m)) keys.add(positionKey(m.fen_before));
+  }
+  return keys;
+}
+
+/**
+ * Cuts every line after the first ply that reaches a hidden position: a line may arrive there but never go past it.
+ * Returns new arrays and objects; the input (the cached server response) is never mutated.
+ */
+export function truncateLines(lines, hiddenKeys) {
+  if (!Array.isArray(lines)) return [];
+  return lines.map((l) => {
+    if (!l || !Array.isArray(l.moves)) return l;
+    const cut = hiddenKeys ? l.moves.findIndex((m) => m && hiddenKeys.has(positionKey(m.fen))) : -1;
+    return { ...l, moves: cut < 0 ? l.moves.slice() : l.moves.slice(0, cut + 1) };
+  });
+}
+
+/** Whether the engine panel must be neutral for this target: the move is hidden, or its position is a hidden one. */
+export function isHiddenTarget({ hidden, mv, hiddenKeys } = {}) {
+  if (hidden) return true;
+  return !!(mv && hiddenKeys && typeof mv.fen_before === "string" && hiddenKeys.has(positionKey(mv.fen_before)));
+}
+
+/** The moves exploring may start from for line i (already cut at a hidden position), or null when it must not. */
+export function selectableLine({ resp, i, target, hidden, hiddenKeys } = {}) {
+  if (isHiddenTarget({ hidden, mv: target, hiddenKeys })) return null;
+  const line = resp && Array.isArray(resp.lines) ? truncateLines(resp.lines, hiddenKeys)[i] : null;
+  return line && Array.isArray(line.moves) && line.moves.length > 0 ? line.moves : null;
+}
+
 /** Which tab is really shown: Coach while the bar is hidden (guess pending) or analysis is off. */
 export function effectiveTab({ saved, hidden, on }) {
   return on && !hidden && saved === "analysis" ? "analysis" : "coach";
@@ -119,7 +159,7 @@ export function linesView(state = {}) {
       const ver = typeof r.version === "string" ? r.version.trim() : "";
       const parts = [!ver ? "Stockfish" : /^stockfish\b/i.test(ver) ? ver : "Stockfish " + ver];
       if (typeof r.depth === "number" && Number.isFinite(r.depth)) parts.push("depth " + r.depth);
-      const lines = Array.isArray(r.lines) ? r.lines : [];
+      const lines = Array.isArray(state.lines) ? state.lines : Array.isArray(r.lines) ? r.lines : [];
       const rows = lines.map((l, i) => {
         const text = lineText(state.fen, l && l.moves, 8);
         return { index: i + 1, scoreText: formatScore(l && l.score), badge: side(l && l.score) < 0 ? "black" : "white",
@@ -160,7 +200,6 @@ export function renderLines(panelEl, state, handlers = {}) {
     const b = mk("button", "line-row");
     b.type = "button";
     b.setAttribute("aria-label", r.name);
-    // Task 6 wires onSelect to exploring mode; until then the page passes a stub.
     b.addEventListener("click", () => handlers.onSelect && handlers.onSelect(i));
     b.append(mk("span", "score-badge " + r.badge, r.scoreText), mk("span", "line-moves", r.text));
     kids.push(b);
@@ -169,22 +208,22 @@ export function renderLines(panelEl, state, handlers = {}) {
 }
 
 /** Whether the page may ask the engine about this move at all (the neutrality rule lives here). */
-export function shouldRequest({ mv, hidden, analysisOn } = {}) {
-  return !!(analysisOn && mv && !hidden && typeof mv.fen_before === "string" && mv.fen_before);
+export function shouldRequest({ mv, hidden, analysisOn, hiddenKeys } = {}) {
+  return !!(analysisOn && mv && !isHiddenTarget({ hidden, mv, hiddenKeys }) && typeof mv.fen_before === "string" && mv.fen_before);
 }
 
 /**
  * Which lines state to show. peek(fen) returns the cached response for exactly that FEN (or null);
  * status is the controller's latest { fen, kind, message }, used only when it answers this position.
  */
-export function linesState({ mv, hidden, analysisOn = true, peek, status } = {}) {
+export function linesState({ mv, hidden, analysisOn = true, peek, status, hiddenKeys } = {}) {
   if (!mv) return { kind: "noGame" };
-  if (hidden) return { kind: "hidden" };
+  if (isHiddenTarget({ hidden, mv, hiddenKeys })) return { kind: "hidden" };
   if (!analysisOn) return { kind: "off" };
   const fen = mv.fen_before;
   if (typeof fen !== "string" || !fen) return { kind: "unavailable" };
   const got = typeof peek === "function" ? peek(fen) : null;
-  if (got) return got.game_over ? { kind: "gameOver", fen, result: got.result } : { kind: "loaded", fen, response: got };
+  if (got) return got.game_over ? { kind: "gameOver", fen, result: got.result } : { kind: "loaded", fen, response: got, lines: truncateLines(got.lines, hiddenKeys) };
   if (status && status.fen === fen && status.kind === "error") return { kind: "error", fen, message: status.message };
   return { kind: "thinking", fen };
 }

@@ -9,9 +9,9 @@ import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
-import { resolveMe } from "./me.js";
+import { resolveMe, settleWithin } from "./me.js";
 import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
-import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView } from "./analysis-ui.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView, hiddenPositionKeys, isHiddenTarget, selectableLine } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -21,6 +21,9 @@ const QUIET = ["best", "excellent", "good"];
 const answered = new Set();  // move ids whose answer the user chose to see this visit (not persisted)
 // Neutral until the user has guessed or chosen "Show the answer" (also true during an active guess).
 const hiddenNow = (mv) => isHidden(mv, state.me, state.game, guessFlow, answered);
+// Positions the engine panel must never reach or pass: the position before every hidden move of the WHOLE game
+// (recomputed on every use, never cached, so a guess or "Show the answer" takes effect at once).
+const hiddenKeys = () => hiddenPositionKeys(state.game ? state.game.moves : [], hiddenNow);
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -87,7 +90,8 @@ function renderAnalysisChrome() {
   const g = state.game, mv = g && g.moves.length ? cur() : null;
   // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
   const t = analysisTarget(mv);
-  analysis.request(t ? t.fen_before : null, { enabled: shouldRequest({ mv: t, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn() }) });
+  analysis.request(t ? t.fen_before : null, { enabled: shouldRequest({ mv: t, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn(),
+    hiddenKeys: hiddenKeys() }) });
   drawAnalysis();
 }
 function drawAnalysis() {
@@ -97,16 +101,21 @@ function drawAnalysis() {
   $("capTabs").hidden = !on;
   const g = state.game, mv = g && g.moves.length ? cur() : null;
   const hidden = !!mv && hiddenNow(mv);
+  const keys = hiddenKeys(), target = analysisTarget(mv);
+  // The bar and lines are neutral for the hidden move AND for any position that is a hidden one (an explored line's end,
+  // a transposition); the tab and the coach panel follow the real move only.
+  const neutral = !!target && isHiddenTarget({ hidden, mv: target, hiddenKeys: keys });
   // While a guess is pending the Coach panel (with the guess controls) is shown whatever tab is saved;
   // the saved choice is untouched and returns once the answer is shown.
   renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
     effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
-  if (hidden && document.activeElement === $("tabAnalysis")) $("tabCoach").focus();  // a disabled button drops focus to body
   const tv = tabView({ hidden });
   $("tabAnalysis").disabled = tv.disabled;
   $("tabAnalysis").title = tv.title;
+  // A disabled button drops focus to body; hidden tabs cannot hold it either (analysis just switched off).
+  if (document.activeElement && $("capTabs").contains(document.activeElement) && ($("capTabs").hidden || (hidden && document.activeElement === $("tabAnalysis")))) focusTabs();
   const pos = explore.position();
-  const ls = linesState({ mv: analysisTarget(mv), hidden, analysisOn: on, peek: analysis.peek, status: liveStatus });
+  const ls = linesState({ mv: target, hidden, analysisOn: on, peek: analysis.peek, status: liveStatus, hiddenKeys: keys });
   // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
   // while loading only the fill is dimmed.
   const liveResp = ls.kind === "loaded" ? ls.response : null;
@@ -114,10 +123,10 @@ function drawAnalysis() {
   let score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
   if (pos && !top) score = ls.kind === "gameOver" ? gameOverScore(ls.result, ls.fen) : lastScore;  // only live values apply
   lastScore = score;
-  renderBar($("evalBar"), barView({ score, hidden, off: !on, flipped: state.flipped, live: !!top,
+  renderBar($("evalBar"), barView({ score, hidden: neutral, off: !on, flipped: state.flipped, live: !!top,
     dim: barDim(ls), noGame: !mv }));
   // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
-  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response];
+  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response, ls.lines ? ls.lines.map((l) => l.moves.length).join() : ""];
   if (shownLines && k.every((v, i) => v === shownLines[i])) return;
   shownLines = k;
   const panel = $("analysisPanel"), hadFocus = panel.contains(document.activeElement);
@@ -144,12 +153,11 @@ function selectLine(i) {
   const g = state.game;
   if (!g || !g.moves.length || modalOpen()) return;
   const t = analysisTarget(cur());
-  const resp = analysis.peek(t.fen_before);
-  const line = resp && resp.lines && resp.lines[i];
-  const ok = !!line && Array.isArray(line.moves) && line.moves.length > 0;
-  if (!canExplore({ hidden: hiddenNow(cur()), analysisOn: analysisOn(), hasLines: ok })) return;
+  // Cut at a hidden position and refused from one, so exploring can never go past the answer to a guess.
+  const moves = selectableLine({ resp: analysis.peek(t.fen_before), i, target: t, hidden: hiddenNow(cur()), hiddenKeys: hiddenKeys() });
+  if (!canExplore({ hidden: false, analysisOn: analysisOn(), hasLines: !!moves })) return;
   const before = t.fen_before, wasExploring = explore.active();
-  if (wasExploring) explore.extend(line.moves); else explore.begin(line.moves);
+  if (wasExploring) explore.extend(moves); else explore.begin(moves);
   if (!explore.active()) return;
   state.slides = pieceSlides(before, explore.position().fen);
   render(motionAllowed());
@@ -170,8 +178,13 @@ function exitExplore({ render: redraw = true, slides = [], animate = false, refo
   state.slides = slides;
   say("exploreAnnounce", exploreAnnouncement({ kind: "exit" }));
   if (redraw && state.game && state.game.moves.length) render(animate);
-  if (refocus || inBanner) (!$("tabAnalysis").disabled && !$("capTabs").hidden ? $("tabAnalysis") : $("tabCoach")).focus();
+  if (refocus || inBanner) focusTabs();
   return true;
+}
+// A stable control near the tabs: the Analysis tab, else Coach, else the toggle when the tabs are hidden (analysis off).
+function focusTabs() {
+  const tabs = $("capTabs");
+  (tabs.hidden ? $("analysisToggle") : !$("tabAnalysis").disabled ? $("tabAnalysis") : $("tabCoach")).focus();
 }
 function exploreStep(d) {
   const before = explore.position().fen;
@@ -303,7 +316,7 @@ const guessFlow = createGuessFlow({
   },
 });
 // After a reveal the Coach panel may be hidden (saved tab is Analysis): focus the visible tab button instead.
-function focusAfterReveal() { $("engineBtn").focus(); if (document.activeElement !== $("engineBtn")) $("tabAnalysis").focus(); }
+function focusAfterReveal() { $("engineBtn").focus(); if (document.activeElement !== $("engineBtn")) focusTabs(); }
 function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
@@ -618,8 +631,9 @@ const handleKey = createKeyHandler({
 });
 
 async function init() {
+  state.me = settings.get("me", null);  // the stored name applies at once; loadMe() confirms it against the players
   applySettings();
-  loadMe();
+  const meReady = loadMe();  // never rejects
   try { state.games = await getGames(); }
   catch (e) { $("gameTitle").textContent = "Cannot reach the database: " + e.message; return; }
   const list = $("gameList");
@@ -631,6 +645,9 @@ async function init() {
     b.onclick = () => { setGames(false); selectGame(g.id); };
     list.append(el("li", {}, b));
   }
+  // The first game must not render before "me" is known (a key moment would show unhidden and ask the engine);
+  // a slow or failed players request must not block the page for long: it then stays in hidden-off behaviour.
+  await settleWithin(meReady, 3000);
   if (state.games.length) selectGame(state.games[0].id);
   else $("gameTitle").textContent = "No games imported yet";
 }

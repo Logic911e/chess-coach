@@ -12,6 +12,8 @@ try {
   var t = JSON.parse(localStorage.getItem("chesscoach.theme"));
   if (t === "walnut" || t === "slate" || t === "paper") document.documentElement.dataset.theme = t;
   if (JSON.parse(localStorage.getItem("chesscoach.studyMode")) === true) document.documentElement.dataset.study = "on";
+  // keep in sync with settings.js and drawAnalysis (main.js): analysis OFF hides the bar from the first paint
+  if (JSON.parse(localStorage.getItem("chesscoach.analysis")) === false) document.documentElement.dataset.analysis = "off";
 } catch (e) {}
 </script>
 </head>
