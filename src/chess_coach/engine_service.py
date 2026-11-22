@@ -29,6 +29,10 @@ class EngineBusy(RuntimeError):
     """A background analysis could not get the engine (timed out or was replaced)."""
 
 
+class EngineClosed(RuntimeError):
+    """The service was closed; no new engine is started after that."""
+
+
 class EngineService:
     """Shared engine with a contention policy.
 
@@ -44,6 +48,7 @@ class EngineService:
         self._factory = factory
         self._cond = threading.Condition()
         self._running = False
+        self._closed = False
         self._interactive_waiting = 0
         self._bg_waiting: object | None = None  # token of the single waiting background call
         self._stack: ExitStack | None = None
@@ -60,10 +65,12 @@ class EngineService:
         with self._cond:
             self._interactive_waiting += 1
             try:
-                while self._running:
+                while self._running and not self._closed:
                     self._cond.wait()
             finally:
                 self._interactive_waiting -= 1
+            if self._closed:
+                raise EngineClosed("engine service is closed")
             self._running = True
         return self._run(board, depth, multipv, time)
 
@@ -83,6 +90,8 @@ class EngineService:
             self._bg_waiting = token
             try:
                 while True:
+                    if self._closed:
+                        raise EngineBusy("engine service is closed")
                     if self._bg_waiting is not token:
                         raise EngineBusy("superseded by a newer analysis")
                     if not self._running and self._interactive_waiting == 0:
@@ -133,6 +142,8 @@ class EngineService:
 
     def close(self) -> None:
         with self._cond:
+            self._closed = True
+            self._cond.notify_all()  # waiters wake, see the flag and give up
             while self._running:
                 self._cond.wait()
             stack, self._stack, self._engine = self._stack, None, None

@@ -3,7 +3,7 @@ import threading
 import chess
 import pytest
 
-from chess_coach.engine_service import EngineBusy, EngineService
+from chess_coach.engine_service import EngineBusy, EngineClosed, EngineService
 
 
 class FakeEngine:
@@ -320,3 +320,42 @@ def test_version_is_none_until_started_then_engine_name():
     engine.gate(1).set()
     svc.analyse(chess.Board(), 1)
     assert svc.version == "Fake 1"
+
+
+def test_calls_after_close_do_not_start_an_engine():
+    svc, _, log = make()
+    svc.close()
+    with pytest.raises(EngineClosed):
+        svc.analyse(chess.Board(), 1)
+    with pytest.raises(EngineBusy):
+        svc.analyse_background(chess.Board(), 1)
+    assert log["factory"] == 0
+    svc.close()  # still idempotent
+
+
+def test_close_releases_a_started_engine_once():
+    svc, _, log = make()
+    svc.analyse(chess.Board(), 1)
+    svc.close()
+    svc.close()
+    assert log["exit"] == 1
+    with pytest.raises(EngineClosed):
+        svc.analyse(chess.Board(), 1)
+    assert log["factory"] == 1
+
+
+def test_waiters_blocked_during_close_wake_and_raise_without_starting_an_engine():
+    svc, engine, log = make_gated()
+    t1, _ = run(svc.analyse, chess.Board(), 1)
+    assert engine.entered_event(1).wait(3)
+    tc, _ = run(svc.close)
+    assert wait_until(lambda: svc._closed)
+    tb, outb = run(svc.analyse_background, chess.Board(), 2, max_wait=5)
+    ti, outi = run(svc.analyse, chess.Board(), 3)
+    engine.gate(1).set()
+    for t in (t1, tc, tb, ti):
+        t.join(3)
+    assert isinstance(outb.get("error"), EngineBusy)
+    assert isinstance(outi.get("error"), EngineClosed)
+    assert log["factory"] == 1
+    assert engine.started == [1]
