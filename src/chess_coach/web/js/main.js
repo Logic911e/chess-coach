@@ -11,7 +11,7 @@ import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, is
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe, settleWithin } from "./me.js";
 import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
-import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView, hiddenPositionKeys, isHiddenTarget, selectableLine } from "./analysis-ui.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView, hiddenPositionKeys, isHiddenTarget, selectableLine, shouldExitExplore, focusTarget, linePlyCounts } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -126,7 +126,7 @@ function drawAnalysis() {
   renderBar($("evalBar"), barView({ score, hidden: neutral, off: !on, flipped: state.flipped, live: !!top,
     dim: barDim(ls), noGame: !mv }));
   // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
-  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response, ls.lines ? ls.lines.map((l) => l.moves.length).join() : ""];
+  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response, linePlyCounts(ls.lines).join()];
   if (shownLines && k.every((v, i) => v === shownLines[i])) return;
   shownLines = k;
   const panel = $("analysisPanel"), hadFocus = panel.contains(document.activeElement);
@@ -136,8 +136,8 @@ function drawAnalysis() {
   const shown = effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }) === "analysis";
   if (shown && ls.kind !== "thinking") say("analysisAnnounce", linesView(ls).note);
   if (hadFocus && !panel.contains(document.activeElement)) {  // a rebuilt line lost focus: keep it near the lines
-    const b = panel.querySelector("button.line-row") || (!$("tabAnalysis").disabled && $("tabAnalysis"));
-    if (b) b.focus();
+    const b = panel.querySelector("button.line-row");
+    if (b) b.focus(); else focusTabs();
   }
 }
 function setAnalysis(on) {
@@ -184,7 +184,8 @@ function exitExplore({ render: redraw = true, slides = [], animate = false, refo
 // A stable control near the tabs: the Analysis tab, else Coach, else the toggle when the tabs are hidden (analysis off).
 function focusTabs() {
   const tabs = $("capTabs");
-  (tabs.hidden ? $("analysisToggle") : !$("tabAnalysis").disabled ? $("tabAnalysis") : $("tabCoach")).focus();
+  const t = focusTarget({ tabsHidden: tabs.hidden, analysisDisabled: $("tabAnalysis").disabled });
+  $(t === "toggle" ? "analysisToggle" : t === "analysis" ? "tabAnalysis" : "tabCoach").focus();
 }
 function exploreStep(d) {
   const before = explore.position().fen;
@@ -217,6 +218,10 @@ function render(animate = false) {
   const guessing = guessFlow.active();
   const hidden = hiddenNow(mv);
   if (hidden || !analysisOn()) explore.exit();  // nothing explored may survive a neutral moment or analysis being off
+  // A path may end at a hidden position but never pass through one (me or the answers may have changed since it began).
+  if (shouldExitExplore({ exploring: explore.active(), path: explore.path(), hiddenKeys: hiddenKeys(), hiddenSelected: false })) {
+    exitExplore({ render: false });
+  }
   const xp = explore.position();
   renderBoard($("boardWrap"), xp ? xp.fen : mv.fen_before, xp ? {
     flipped: state.flipped, highlight: [xp.move.uci.slice(0, 2), xp.move.uci.slice(2, 4)], arrows: [],

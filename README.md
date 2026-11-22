@@ -83,7 +83,10 @@ shows how much each move cost (taller means more expected points lost).
   position (they never show a move beyond it), a line you walk stops there too, and the position itself shows a
   neutral bar and "Hidden until you guess" with no request. Not covered: the bar value and score badges at the
   move just before the key moment approximate its evaluation (they do not say which move is best), and the
-  position after a key moment you skipped without guessing is not hidden. After you guess or choose "Show the
+  position after a key moment you skipped without guessing is not hidden. When one of your key positions
+  repeats earlier in the same game (an exact repetition), the engine arrow, "the engine preferred X" and the
+  explanation for the EARLIER selected move are not hidden by the whole-game rule (only the bar and lines are
+  neutral there); this is rare and a limit carried over from the earlier feature. After you guess or choose "Show the
   answer" everything appears.
 - **Endpoint:** `POST /api/analysis` with a FEN returns the score of up to three lines from White's side
   and the moves with their resulting positions. Defaults: depth 16 and 3 lines (the page asks for these; the accepted maxima are depth 20 and 5 lines), about a 3 s time cap, lines of at

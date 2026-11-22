@@ -76,6 +76,8 @@ button:disabled { opacity: .45; cursor: default; }
   border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0, 0, 0, .3);
 }
 #evalBar[hidden] { display: none; }
+/* First paint with analysis saved off (the inline script in index.html sets the attribute before the module runs). */
+:root[data-analysis="off"] #evalBar, :root[data-analysis="off"] .cap-tabs { display: none; }
 .eval-fill { position: absolute; left: 0; right: 0; bottom: 0; height: var(--fill, 50%); background: var(--bar-white); transition: height .3s ease; }
 #evalBar[data-white-top="true"] .eval-fill { bottom: auto; top: 0; }
 /* loading: dim the fill share only; the label keeps full contrast */
@@ -121,7 +123,7 @@ button:disabled { opacity: .45; cursor: default; }
 .cap-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex: none; }
 .cap-tabs[hidden] { display: none; }
 .cap-tabs button { font-size: 13px; padding: 3px 12px; }
-.cap-tabs button[aria-pressed="true"], #analysisToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.cap-tabs button[aria-pressed="true"], :root:not([data-analysis="off"]) #analysisToggle[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .lines-head { font-size: 12px; color: var(--muted); margin-bottom: 6px; flex: none; }
 .line-row {
   display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left; margin-bottom: 6px; padding: 7px 10px;

@@ -66,6 +66,29 @@ export function isHiddenTarget({ hidden, mv, hiddenKeys } = {}) {
   return !!(mv && hiddenKeys && typeof mv.fen_before === "string" && hiddenKeys.has(positionKey(mv.fen_before)));
 }
 
+/**
+ * True when a walked path PASSES THROUGH a hidden position (any ply except the last). Ending at one is allowed;
+ * going beyond it would show the answer to a guess. Plies are the server's line moves (fen = position after the ply).
+ */
+export function pathCrossesHidden(path, hiddenKeys) {
+  if (!Array.isArray(path) || !hiddenKeys || typeof hiddenKeys.has !== "function") return false;
+  return path.slice(0, -1).some((m) => !!m && typeof m.fen === "string" && hiddenKeys.has(positionKey(m.fen)));
+}
+
+/** Whether an exploring session must be left: the selected move is hidden, or its path passes through a hidden position. */
+export function shouldExitExplore({ exploring, path, hiddenKeys, hiddenSelected } = {}) {
+  return !!exploring && (!!hiddenSelected || pathCrossesHidden(path, hiddenKeys));
+}
+
+/** Which control keeps focus when the one that had it goes away: the toggle (tabs hidden), else Analysis, else Coach. */
+export function focusTarget({ tabsHidden = false, analysisDisabled = false } = {}) {
+  return tabsHidden ? "toggle" : analysisDisabled ? "coach" : "analysis";
+}
+
+/** Ply count of each line; a line without a moves array counts as 0 (never throws). */
+export const linePlyCounts = (lines) =>
+  Array.isArray(lines) ? lines.map((l) => (l && Array.isArray(l.moves) ? l.moves.length : 0)) : [];
+
 /** The moves exploring may start from for line i (already cut at a hidden position), or null when it must not. */
 export function selectableLine({ resp, i, target, hidden, hiddenKeys } = {}) {
   if (isHiddenTarget({ hidden, mv: target, hiddenKeys })) return null;
