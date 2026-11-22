@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  pathCrossesHidden, shouldExitExplore, focusTarget, linePlyCounts, hiddenPositionKeys, positionKey,
+  pathCrossesHidden, shouldExitExplore, isHiddenTarget, focusTarget, linePlyCounts, hiddenPositionKeys, positionKey,
 } from "../../src/chess_coach/web/js/analysis-ui.js";
 
 const F1 = "r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq d3 0 2";  // the key position
@@ -73,4 +73,19 @@ test("linePlyCounts: a junk line (no moves, null, non-array moves) counts as 0 p
   const lines = [{ moves: [ply(F2), ply(F3)] }, {}, null, { moves: "x" }, { moves: [] }];
   assert.deepEqual(linePlyCounts(lines), [2, 0, 0, 0, 0]);
   assert.deepEqual(linePlyCounts(undefined), []);
+});
+
+// The page's decision: the selected move's own start position counts as hidden too (an exact repetition of a key position).
+const decide = ({ mv, hidden, hiddenKeys, path }) =>
+  shouldExitExplore({ exploring: true, path, hiddenKeys, hiddenSelected: isHiddenTarget({ hidden, mv, hiddenKeys }) });
+
+test("explore start that repeats a hidden key position exits though the move itself is not hidden", () => {
+  const path = [ply(F2), ply(F3)];  // does not cross: only the start is hidden
+  const mvRepeat = { fen_before: F1.replace(" 0 2", " 9 30") };
+  assert.equal(shouldExitExplore({ exploring: true, path, hiddenKeys: keys(F1), hiddenSelected: false }), false);  // the old wiring
+  assert.equal(decide({ mv: mvRepeat, hidden: false, hiddenKeys: keys(F1), path }), true);
+});
+
+test("explore start that is not a hidden key position does not exit", () => {
+  assert.equal(decide({ mv: { fen_before: F4 }, hidden: false, hiddenKeys: keys(F1), path: [ply(F2), ply(F3)] }), false);
 });

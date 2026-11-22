@@ -219,7 +219,8 @@ function render(animate = false) {
   const hidden = hiddenNow(mv);
   if (hidden || !analysisOn()) explore.exit();  // nothing explored may survive a neutral moment or analysis being off
   // A path may end at a hidden position but never pass through one (me or the answers may have changed since it began).
-  if (shouldExitExplore({ exploring: explore.active(), path: explore.path(), hiddenKeys: hiddenKeys(), hiddenSelected: false })) {
+  if (shouldExitExplore({ exploring: explore.active(), path: explore.path(), hiddenKeys: hiddenKeys(),
+    hiddenSelected: isHiddenTarget({ hidden, mv, hiddenKeys: hiddenKeys() }) })) {
     exitExplore({ render: false });
   }
   const xp = explore.position();
