@@ -1,4 +1,6 @@
-/* Theme tokens. One declaration per line, hex colours (parsed by tests/web/contrast.test.mjs). */
+/* Theme tokens. One declaration per line, hex colours (parsed by tests/web/contrast.test.mjs).
+   --bar-*: evaluation bar shares (White, Black) and the label text colour on each share.
+   --badge-*: engine line score badges (light when White is ahead, dark when Black is.) */
 :root[data-theme="walnut"] {
   color-scheme: dark;
   --bg: #1c1612;
@@ -14,6 +16,14 @@
   --board-light: #e4c897;
   --board-dark: #a8744a;
   --highlight: #f0be5a;
+  --bar-white: #e9dfcc;
+  --bar-black: #2a2119;
+  --bar-on-white: #2a2119;
+  --bar-on-black: #eadfce;
+  --badge-white: #e9dfcc;
+  --badge-on-white: #2a2119;
+  --badge-black: #14100c;
+  --badge-on-black: #eadfce;
   --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.012 0.22' numOctaves='3' seed='4'/><feColorMatrix values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.3  0 0 0 -1.1 1.15'/></filter><rect width='300' height='300' filter='url(%23g)'/></svg>");
 }
 :root[data-theme="slate"] {
@@ -31,6 +41,14 @@
   --board-light: #b7c4b0;
   --board-dark: #6d8570;
   --highlight: #6fbfae;
+  --bar-white: #dce3ea;
+  --bar-black: #1a2027;
+  --bar-on-white: #1a2027;
+  --bar-on-black: #d9e0e7;
+  --badge-white: #dce3ea;
+  --badge-on-white: #1a2027;
+  --badge-black: #0c1014;
+  --badge-on-black: #d9e0e7;
 }
 :root[data-theme="paper"] {
   color-scheme: light;
@@ -47,4 +65,12 @@
   --board-light: #ecdcbc;
   --board-dark: #b99b76;
   --highlight: #c4783c;
+  --bar-white: #faf5ea;
+  --bar-black: #2b2620;
+  --bar-on-white: #2b2620;
+  --bar-on-black: #faf5ea;
+  --badge-white: #faf5ea;
+  --badge-on-white: #2b2620;
+  --badge-black: #2b2620;
+  --badge-on-black: #faf5ea;
 }

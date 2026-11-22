@@ -12,6 +12,8 @@ function sanitize(key, value) {
   if (key === "me") return value === null || (typeof value === "string" && value !== "") ? value : undefined;
   if (key === "meDismissed") return typeof value === "boolean" ? value : undefined;
   if (key === "studyMode") return typeof value === "boolean" ? value : undefined;
+  if (key === "analysis") return typeof value === "boolean" ? value : undefined;
+  if (key === "analysisTab") return value === "coach" || value === "analysis" ? value : undefined;
   return value;
 }
 

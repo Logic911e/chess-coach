@@ -1,0 +1,199 @@
+// Pure helpers for the analysis bar and engine lines. No window/document at import time.
+// Scores are { cp, mate } in White's perspective (cp in centipawns, mate in full moves).
+const MATE_CAP = 9000;
+const FILL_MIN = 0.02;
+const FILL_MAX = 0.98;
+
+/** Convert a stored cp_best (mover's perspective) to White's perspective. */
+export function scoreFromStored(cpBest, color) {
+  if (typeof cpBest !== "number" || !Number.isFinite(cpBest)) return { cp: 0, mate: null, capped: false };
+  const cp = color === "black" ? -cpBest : cpBest;
+  return { cp: cp === 0 ? 0 : cp, mate: null, capped: Math.abs(cpBest) >= MATE_CAP };
+}
+
+/** One guard for every helper: junk or missing input reads as level (cp 0), never NaN. */
+function norm(score) {
+  const s = score && typeof score === "object" ? score : {};
+  const cp = typeof s.cp === "number" && Number.isFinite(s.cp) ? s.cp : 0;
+  const mate = typeof s.mate === "number" && Number.isFinite(s.mate) ? Math.trunc(s.mate) : null;
+  return { cp, mate, capped: s.capped === true };
+}
+
+/** +1 White is mating/winning, -1 Black, 0 unknown (only for a mate with no distance and cp 0). */
+function mateSign(s) {
+  if (s.mate !== 0) return s.mate > 0 ? 1 : -1;
+  return Math.sign(s.cp);
+}
+
+/**
+ * Score for a position the engine will not search. A checkmate is won by the side NOT to move in the FEN
+ * (read from the FEN string only); stalemate, draw and anything unreadable are level.
+ */
+export function gameOverScore(result, fen) {
+  if (result === "checkmate") {
+    const turn = String(fen || "").split(" ")[1];
+    if (turn === "w") return { cp: -10000, mate: 0 };
+    if (turn === "b") return { cp: 10000, mate: 0 };
+  }
+  return { cp: 0, mate: null };
+}
+
+export function formatScore(score, decimals = 2) {
+  const s = norm(score);
+  if (s.mate === 0) return "Mate";
+  if (s.mate !== null) return s.mate < 0 ? `-M${-s.mate}` : `M${s.mate}`;
+  if (s.capped) return "Mate";
+  const scale = 10 ** decimals;
+  const n = Math.round((Math.abs(s.cp) * scale) / 100);
+  const text = (n / scale).toFixed(decimals);
+  if (n === 0) return text;
+  return (s.cp < 0 ? "-" : "+") + text;
+}
+
+/** White's share of the bar in [0.02, 0.98]; always finite. */
+export function barFill(score) {
+  const s = norm(score);
+  if (s.mate !== null || s.capped) {
+    const sign = s.mate !== null ? mateSign(s) : Math.sign(s.cp);
+    return sign < 0 ? FILL_MIN : sign > 0 ? FILL_MAX : 0.5;
+  }
+  // tanh is smooth and odd, so fill(+x) + fill(-x) = 1. 0.48 keeps the curve inside the
+  // [0.02, 0.98] clamp with a margin; the 800 cp scale makes one pawn (100 cp) move the bar
+  // about 6 points while leads beyond roughly 3 pawns flatten out towards the clamp.
+  const a = 0.48 * Math.tanh(Math.abs(s.cp) / 800);
+  const f = s.cp < 0 ? 0.5 - a : 0.5 + a;
+  return Math.min(FILL_MAX, Math.max(FILL_MIN, f));
+}
+
+export function barLabel(score) { return formatScore(score, 1); }
+
+/** SAN moves numbered from the FEN's move number and side to move (labelling only). */
+export function lineText(fen, moves, maxPlies = 8) {
+  const parts = String(fen || "").split(" ");
+  let black = parts[1] === "b";
+  let num = parseInt(parts[5], 10);
+  if (!Number.isFinite(num) || num < 1) num = 1;
+  const shown = (moves || []).slice(0, maxPlies);
+  const out = [];
+  shown.forEach((m, i) => {
+    if (!black) out.push(`${num}.`);
+    else if (i === 0) out.push(`${num}...`);
+    out.push(m.san);
+    if (black) num += 1;
+    black = !black;
+  });
+  let text = out.join(" ");
+  if ((moves || []).length > maxPlies) text += " ...";
+  return text;
+}
+
+/**
+ * A window of at most `size` plies of a path that always contains the current step, numbered from the game
+ * position's FEN, with "..." where the path continues beyond either end.
+ */
+export function pathWindow(fen, path, step, size = 8) {
+  const moves = Array.isArray(path) ? path : [];
+  if (!moves.length) return "";
+  const at = Math.min(Math.max(step | 0, 0), moves.length - 1);
+  const start = Math.max(0, Math.min(at - Math.floor(size / 2) + 1, moves.length - size));
+  const end = Math.min(moves.length, start + size);
+  const parts = String(fen || "").split(" ");
+  const black0 = parts[1] === "b";
+  let n0 = parseInt(parts[5], 10);
+  if (!Number.isFinite(n0) || n0 < 1) n0 = 1;
+  const out = start > 0 ? ["..."] : [];
+  for (let i = start; i < end; i++) {
+    const black = black0 !== (i % 2 === 1);
+    const num = n0 + Math.floor((i + (black0 ? 1 : 0)) / 2);
+    if (!black) out.push(`${num}.`);
+    else if (i === start) out.push(`${num}...`);
+    out.push(moves[i].san);
+  }
+  if (end < moves.length) out.push("...");
+  return out.join(" ");
+}
+
+export function lineA11yName(index, score, text) {
+  const sc = norm(score);
+  let s;
+  if (sc.mate !== null && sc.mate !== 0) {
+    s = `mate in ${Math.abs(sc.mate)} for ${sc.mate > 0 ? "White" : "Black"}`;
+  } else if (sc.mate === 0 || sc.capped) {
+    const sign = Math.sign(sc.cp);
+    s = sign === 0 ? "mate" : `mate for ${sign > 0 ? "White" : "Black"}`;
+  } else {
+    const f = formatScore(sc);
+    s = f.startsWith("+") ? `plus ${f.slice(1)}` : f.startsWith("-") ? `minus ${f.slice(1)}` : f;
+  }
+  return `Line ${index}, ${s}, ${text}`;
+}
+
+/**
+ * Debounced, cached, token-guarded live analysis. `api.analysePosition(fen)` does the request; `ui` gets
+ * thinking(fen) / loaded(fen, response) / gameOver(fen, result) / error(fen, message) / busyDim().
+ * request() is called on every render, so asking again for the FEN already pending, in flight, loaded or
+ * failed is a no-op (retry() is the explicit way out of an error).
+ */
+const CACHE_MAX = 200;
+
+export function createAnalysis({ api, ui, delay = 250, retries = 2, retryDelay = 600, timer } = {}) {
+  const clock = timer || { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) };
+  const cache = new Map();   // fen -> successful response (including game over)
+  let token = 0, handle = null, current = null, status = "idle";
+
+  // A throwing callback must never skip a request, strand the controller or become an unhandled rejection.
+  const tell = (name, ...args) => {
+    try { ui[name](...args); } catch (e) { console.error("analysis ui." + name + " failed:", e); }
+  };
+  const cancel = () => { token += 1; if (handle !== null) { clock.clear(handle); handle = null; } current = null; status = "idle"; };
+  const deliver = (fen, resp) => {
+    status = "loaded";
+    if (resp.game_over) tell("gameOver", fen, resp.result); else tell("loaded", fen, resp);
+  };
+
+  async function run(fen, my, attempt) {
+    handle = null;
+    let resp;
+    try { resp = await api.analysePosition(fen); }
+    catch (e) {
+      if (my !== token) return;
+      if (e && e.busy && attempt < retries) {
+        tell("busyDim");
+        handle = clock.set(() => run(fen, my, attempt + 1), retryDelay);
+        return;
+      }
+      status = "error";
+      tell("error", fen, (e && e.message) || "Analysis failed");
+      return;
+    }
+    if (my !== token) return;
+    cache.delete(fen);
+    cache.set(fen, resp);
+    if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);  // drop the oldest
+    deliver(fen, resp);
+  }
+
+  return {
+    request(fen, { enabled } = {}) {
+      if (!enabled || !fen) { if (status !== "idle" || handle !== null) cancel(); return; }
+      if (fen === current && status !== "idle") return;
+      cancel();
+      current = fen;
+      const hit = cache.get(fen);
+      if (hit) { deliver(fen, hit); return; }
+      status = "thinking";
+      tell("thinking", fen);
+      const my = token;
+      handle = clock.set(() => run(fen, my, 0), delay);
+    },
+    retry() {
+      if (status !== "error" || current === null) return;
+      const fen = current;
+      token += 1; status = "thinking";
+      tell("thinking", fen);
+      run(fen, token, 0);
+    },
+    invalidate() { cancel(); },
+    peek(fen) { return cache.get(fen) || null; },
+  };
+}

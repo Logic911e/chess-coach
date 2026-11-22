@@ -82,3 +82,46 @@ test("the focus outline (accent) is >= 3:1 against the strip bar colour (--line)
     assert.ok(ratio(t["--accent"], t["--line"]) >= 3, `${name}: ${ratio(t["--accent"], t["--line"]).toFixed(2)}`);
   }
 });
+
+test("evaluation bar: label text >= 4.5:1 on both shares, shares distinguishable, in every theme", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    for (const k of ["--bar-white", "--bar-black", "--bar-on-white", "--bar-on-black"]) {
+      assert.ok(t[k], `${name} missing ${k}`);
+    }
+    assert.ok(ratio(t["--bar-on-white"], t["--bar-white"]) >= 4.5, `${name} text on white share`);
+    assert.ok(ratio(t["--bar-on-black"], t["--bar-black"]) >= 4.5, `${name} text on dark share`);
+    assert.ok(ratio(t["--bar-white"], t["--bar-black"]) >= 3, `${name} shares differ`);
+    // the label colour is chosen by which share it sits on, so check the right pairs and (as a guard) the wrong ones
+    assert.ok(ratio(t["--bar-on-white"], t["--bar-white"]) >= 4.5, `${name} on-white/white`);
+    assert.ok(ratio(t["--bar-on-black"], t["--bar-black"]) >= 4.5, `${name} on-black/black`);
+    assert.ok(ratio(t["--bar-on-white"], t["--bar-black"]) < 4.5, `${name} on-white must not be used on black`);
+    assert.ok(ratio(t["--bar-on-black"], t["--bar-white"]) < 4.5, `${name} on-black must not be used on white`);
+  }
+});
+
+test("the bar fill transition is switched off by the motion mechanisms", () => {
+  assert.ok(/#evalBar[^{]*\{[^}]*transition/.test(appCss) || /\.eval-fill[^{]*\{[^}]*transition/.test(appCss));
+  assert.ok(/data-motion="off"\] \*/.test(appCss) && /data-study="on"\] \*/.test(appCss));
+});
+
+test("the label colour is driven by data-label-on, not by its position", () => {
+  assert.ok(/\.eval-label\s*\{[^}]*var\(--bar-on-white\)/.test(appCss));
+  assert.ok(/data-label-on="black"\][^{]*\.eval-label\s*\{[^}]*var\(--bar-on-black\)/.test(appCss));
+  assert.ok(!/data-label-top="true"\][^{]*\.eval-label\s*\{[^}]*color/.test(appCss));
+});
+
+test("score badges: text >= 4.5:1 on both badge colours in every theme, badges distinguishable", () => {
+  for (const [name, t] of Object.entries(themes)) {
+    for (const k of ["--badge-white", "--badge-on-white", "--badge-black", "--badge-on-black"]) {
+      assert.ok(t[k], `${name} missing ${k}`);
+    }
+    assert.ok(ratio(t["--badge-on-white"], t["--badge-white"]) >= 4.5, `${name} text on light badge`);
+    assert.ok(ratio(t["--badge-on-black"], t["--badge-black"]) >= 4.5, `${name} text on dark badge`);
+    assert.ok(ratio(t["--badge-white"], t["--badge-black"]) >= 3, `${name} badges differ`);
+  }
+});
+
+test("the dim state fades the bar fill, not the whole bar (label contrast stays)", () => {
+  assert.ok(/data-dim="true"\]\s*\.eval-fill\s*\{[^}]*opacity/.test(appCss));
+  assert.ok(!/#evalBar\[data-dim="true"\]\s*\{[^}]*opacity/.test(appCss));
+});

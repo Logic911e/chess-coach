@@ -60,3 +60,23 @@ test("me and meDismissed are validated and can be cleared", () => {
   s.set("meDismissed", false); assert.equal(s.get("meDismissed", false), false);
   s.set("me", null); assert.equal(s.get("me", "x"), null);
 });
+
+test("test_analysis_settings_defaults_and_junk_fallback", () => {
+  const s = createSettings(memoryStorage());
+  assert.equal(s.get("analysis", true), true);
+  assert.equal(s.get("analysisTab", "coach"), "coach");
+  s.set("analysis", false);
+  s.set("analysisTab", "analysis");
+  assert.equal(s.get("analysis", true), false);
+  assert.equal(s.get("analysisTab", "coach"), "analysis");
+  s.set("analysis", "yes");
+  s.set("analysisTab", "bogus");
+  assert.equal(s.get("analysis", true), false);
+  assert.equal(s.get("analysisTab", "coach"), "analysis");
+  const st = memoryStorage();
+  st.setItem("chesscoach.analysis", JSON.stringify("junk"));
+  st.setItem("chesscoach.analysisTab", JSON.stringify(7));
+  const t = createSettings(st);
+  assert.equal(t.get("analysis", true), true);
+  assert.equal(t.get("analysisTab", "coach"), "coach");
+});

@@ -10,7 +10,7 @@ async function call(path, opts) {
       if (typeof d === "string") msg = d;
       else if (Array.isArray(d) && d.length) msg = d.map((x) => x.msg || String(x)).join("; ");
     } catch (_) { /* keep statusText */ }
-    throw new Error(msg);
+    throw Object.assign(new Error(msg), { status: r.status });
   }
   return r.json();
 }
@@ -26,3 +26,8 @@ export const getPlayers = () => call("/api/players");
 export const explainMove = (id, regenerate = false) => post(`/api/moves/${id}/explain?regenerate=${regenerate ? "true" : "false"}`);
 export const guessMove = (id, uci) => post(`/api/moves/${id}/guess`, { uci });
 export const chatMove = (id, question, history = []) => post(`/api/moves/${id}/chat`, { question, history });
+// A 503 "engine busy" is normal under load (a newer analysis replaced this one): flag it so the caller retries quietly.
+export async function analysePosition(fen, { depth = 16, lines = 3 } = {}) {
+  try { return await post("/api/analysis", { fen, depth, lines }); }
+  catch (e) { if (e.status === 503 && e.message === "engine busy") e.busy = true; throw e; }
+}

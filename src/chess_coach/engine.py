@@ -64,6 +64,13 @@ def find_stockfish() -> str:
     raise EngineNotFoundError(INSTALL_HELP)
 
 
+def search_limit(depth: int | None, time: float | None) -> chess.engine.Limit:
+    """Depth and time limits together: the search stops at whichever is reached first."""
+    if depth is None and time is None:
+        raise ValueError("A search needs a depth, a time limit, or both.")
+    return chess.engine.Limit(depth=depth, time=time)
+
+
 class Engine:
     """Context manager: `with Engine() as eng: eng.analyse(board)`."""
 
@@ -108,15 +115,12 @@ class Engine:
         time: float | None = None,
         multipv: int = 1,
     ) -> list[Analysis]:
-        """Return up to `multipv` lines, best first. Time limit wins over depth if given."""
+        """Return up to `multipv` lines, best first. Depth and time both apply if given."""
         if self._engine is None:
             raise RuntimeError("Engine is not running; use it as a context manager.")
         if board.is_game_over():
             raise ValueError("Position is already game over; nothing to analyse.")
-        if time is not None:
-            limit = chess.engine.Limit(time=time)
-        else:
-            limit = chess.engine.Limit(depth=depth or DEFAULT_DEPTH)
+        limit = search_limit(depth or (None if time is not None else DEFAULT_DEPTH), time)
 
         infos = self._engine.analyse(board, limit, multipv=multipv)
         if isinstance(infos, dict):  # defensive: single-PV result shape

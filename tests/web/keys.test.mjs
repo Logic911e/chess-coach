@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createKeyHandler, toggleMute } from "../../src/chess_coach/web/js/keys.js";
+import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "../../src/chess_coach/web/js/keys.js";
 import { settingNeedsRender } from "../../src/chess_coach/web/js/settings.js";
 import { motionAllowed } from "../../src/chess_coach/web/js/motion.js";
 
@@ -10,7 +10,7 @@ function setup() {
     step: (d) => calls.push(["step", d]), nextKey: () => calls.push(["nextKey"]),
     prevKey: () => calls.push(["prevKey"]), guess: () => calls.push(["guess"]),
     chat: () => calls.push(["chat"]), close: () => calls.push(["close"]),
-    mute: () => calls.push(["mute"]), help: () => calls.push(["help"]),
+    mute: () => calls.push(["mute"]), help: () => calls.push(["help"]), analysis: () => calls.push(["analysis"]),
   };
   return { calls, handle: createKeyHandler(actions) };
 }
@@ -105,4 +105,31 @@ test("test_toggle_mute_junk_previous_falls_back_to_felt", () => {
 test("test_only_theme_changes_need_a_render", () => {
   assert.equal(settingNeedsRender("theme"), true);
   for (const k of ["soundPalette", "volume", "studyMode", "mutedFrom", undefined]) assert.equal(settingNeedsRender(k), false, String(k));
+});
+
+test("test_a_toggles_analysis_and_is_ignored_while_typing", () => {
+  const { calls, handle } = setup();
+  assert.equal(handle(ev("a")), true);
+  assert.equal(handle(ev("A")), true);
+  assert.deepEqual(calls, [["analysis"], ["analysis"]]);
+  assert.equal(handle({ key: "a", target: { tagName: "INPUT" } }), false);
+  assert.equal(handle({ key: "a", target: { tagName: "TEXTAREA" } }), false);
+  assert.equal(handle(ev("a", { repeat: true })), false);
+  assert.equal(handle(ev("a", { ctrlKey: true })), false);
+  assert.equal(calls.length, 2);
+});
+
+test("test_escape_target_order", () => {
+  for (let n = 0; n < 16; n++) {
+    const f = { modal: !!(n & 8), drawer: !!(n & 4), guess: !!(n & 2), exploring: !!(n & 1) };
+    const want = f.modal ? "modal" : f.drawer ? "drawer" : f.guess ? "guess" : f.exploring ? "explore" : null;
+    assert.equal(escapeTarget(f), want, JSON.stringify(f));
+  }
+  assert.equal(escapeTarget(), null);
+});
+
+test("test_step_action_depends_on_exploring", () => {
+  assert.equal(stepAction({ exploring: true }), "explore");
+  assert.equal(stepAction({ exploring: false }), "game");
+  assert.equal(stepAction(), "game");
 });

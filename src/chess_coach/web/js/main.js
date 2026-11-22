@@ -1,13 +1,17 @@
 // Theatre page. All text from the server is inserted with textContent, never innerHTML.
-import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers } from "./api.js";
+import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers, analysePosition } from "./api.js";
 import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
 import { motionAllowed } from "./motion.js";
-import { createKeyHandler, toggleMute } from "./keys.js";
+import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "./keys.js";
+import { createExplore, canExplore } from "./explore.js";
+import { createLatest } from "./latest.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
-import { resolveMe } from "./me.js";
+import { resolveMe, settleWithin } from "./me.js";
+import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
+import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView, hiddenPositionKeys, isHiddenTarget, selectableLine, shouldExitExplore, focusTarget, linePlyCounts } from "./analysis-ui.js";
 
 const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
@@ -17,6 +21,9 @@ const QUIET = ["best", "excellent", "good"];
 const answered = new Set();  // move ids whose answer the user chose to see this visit (not persisted)
 // Neutral until the user has guessed or chosen "Show the answer" (also true during an active guess).
 const hiddenNow = (mv) => isHidden(mv, state.me, state.game, guessFlow, answered);
+// Positions the engine panel must never reach or pass: the position before every hidden move of the WHOLE game
+// (recomputed on every use, never cached, so a guess or "Show the answer" takes effect at once).
+const hiddenKeys = () => hiddenPositionKeys(state.game ? state.game.moves : [], hiddenNow);
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -53,8 +60,149 @@ function applySettings(changed) {
     .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.soundChoice === pal)));
   $("volume").value = String(settings.get("volume", DEFAULT_VOLUME));
   syncMotion();
+  renderAnalysisChrome();
   if (state.game && settingNeedsRender(changed)) render();  // arrow colours are read from the theme
 }
+
+// ---------- analysis bar and tabs (logic in analysis-ui.js) ----------
+const analysisOn = () => settings.get("analysis", true);
+// Live analysis: the controller debounces, caches and discards stale answers; these callbacks only record the
+// status of the CURRENT request and redraw. A cached answer is read back with analysis.peek.
+let liveStatus = { fen: null, kind: "idle", message: "" };
+const analysis = createAnalysis({
+  api: { analysePosition },
+  ui: {
+    thinking(fen) { liveStatus = { fen, kind: "thinking", message: "" }; drawAnalysis(); },
+    loaded(fen) { liveStatus = { fen, kind: "loaded", message: "" }; drawAnalysis(); },
+    gameOver(fen) { liveStatus = { fen, kind: "gameOver", message: "" }; drawAnalysis(); },
+    error(fen, message) { liveStatus = { fen, kind: "error", message }; drawAnalysis(); },
+    busyDim() { drawAnalysis(); },  // the bar already stays dimmed while thinking; nothing is shown for a busy engine
+  },
+});
+let shownLines = null;
+// Exploring mode (state machine in explore.js). While it is active the board, bar and lines follow the explored FEN;
+// everything else (caption, chat, Explain) stays about the real game move.
+const explore = createExplore();
+let lastScore;  // what the bar last showed: kept (dimmed) while an explored position is still loading
+// The position the engine panel is about: the explored one, else the position before the selected move.
+const analysisTarget = (mv) => { const p = explore.position(); return p ? { fen_before: p.fen } : mv; };
+function renderAnalysisChrome() {
+  const g = state.game, mv = g && g.moves.length ? cur() : null;
+  // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
+  const t = analysisTarget(mv);
+  analysis.request(t ? t.fen_before : null, { enabled: shouldRequest({ mv: t, hidden: !!mv && hiddenNow(mv), analysisOn: analysisOn(),
+    hiddenKeys: hiddenKeys() }) });
+  drawAnalysis();
+}
+function drawAnalysis() {
+  const on = analysisOn();
+  if (on) delete root.dataset.analysis; else root.dataset.analysis = "off";
+  $("analysisToggle").setAttribute("aria-pressed", String(on));
+  $("capTabs").hidden = !on;
+  const g = state.game, mv = g && g.moves.length ? cur() : null;
+  const hidden = !!mv && hiddenNow(mv);
+  const keys = hiddenKeys(), target = analysisTarget(mv);
+  // The bar and lines are neutral for the hidden move AND for any position that is a hidden one (an explored line's end,
+  // a transposition); the tab and the coach panel follow the real move only.
+  const neutral = !!target && isHiddenTarget({ hidden, mv: target, hiddenKeys: keys });
+  // While a guess is pending the Coach panel (with the guess controls) is shown whatever tab is saved;
+  // the saved choice is untouched and returns once the answer is shown.
+  renderTabs($("capTabs"), { coach: $("coachPanel"), analysis: $("analysisPanel") },
+    effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }));
+  const tv = tabView({ hidden });
+  $("tabAnalysis").disabled = tv.disabled;
+  $("tabAnalysis").title = tv.title;
+  // A disabled button drops focus to body; hidden tabs cannot hold it either (analysis just switched off).
+  if (document.activeElement && $("capTabs").contains(document.activeElement) && ($("capTabs").hidden || (hidden && document.activeElement === $("tabAnalysis")))) focusTabs();
+  const pos = explore.position();
+  const ls = linesState({ mv: target, hidden, analysisOn: on, peek: analysis.peek, status: liveStatus, hiddenKeys: keys });
+  // The stored value (position BEFORE the selected move, White's perspective) shows until the live top line arrives;
+  // while loading only the fill is dimmed.
+  const liveResp = ls.kind === "loaded" ? ls.response : null;
+  const top = liveResp && liveResp.lines && liveResp.lines[0];
+  let score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  if (pos && !top) score = ls.kind === "gameOver" ? gameOverScore(ls.result, ls.fen) : lastScore;  // only live values apply
+  lastScore = score;
+  renderBar($("evalBar"), barView({ score, hidden: neutral, off: !on, flipped: state.flipped, live: !!top,
+    dim: barDim(ls), noGame: !mv }));
+  // Rebuild only when something changed, so a render() for an unrelated reason cannot drop focus from a line.
+  const k = [ls.kind, ls.fen, ls.message, ls.result, ls.response, linePlyCounts(ls.lines).join()];
+  if (shownLines && k.every((v, i) => v === shownLines[i])) return;
+  shownLines = k;
+  const panel = $("analysisPanel"), hadFocus = panel.contains(document.activeElement);
+  renderLines(panel, ls, { onSelect: selectLine, onRetry: () => analysis.retry() });
+  // Status notes go through one persistent live region (the panel itself is rebuilt); only while the panel is shown,
+  // and "thinking" stays silent because it would repeat on every step.
+  const shown = effectiveTab({ saved: settings.get("analysisTab", "coach"), hidden, on }) === "analysis";
+  if (shown && ls.kind !== "thinking") say("analysisAnnounce", linesView(ls).note);
+  if (hadFocus && !panel.contains(document.activeElement)) {  // a rebuilt line lost focus: keep it near the lines
+    const b = panel.querySelector("button.line-row");
+    if (b) b.focus(); else focusTabs();
+  }
+}
+function setAnalysis(on) {
+  settings.set("analysis", on);
+  if (!on) { analysis.invalidate(); if (exitExplore()) return; }
+  renderAnalysisChrome();
+}
+
+// ---------- exploring a line ----------
+function playBase(m) { if (motionAllowed()) player.play(soundsFor({ capture: m.capture, check: m.check })); }
+// Click (or Enter) on engine line i: start exploring it, or continue from the current explored step.
+function selectLine(i) {
+  const g = state.game;
+  if (!g || !g.moves.length || modalOpen()) return;
+  const t = analysisTarget(cur());
+  // Cut at a hidden position and refused from one, so exploring can never go past the answer to a guess.
+  const moves = selectableLine({ resp: analysis.peek(t.fen_before), i, target: t, hidden: hiddenNow(cur()), hiddenKeys: hiddenKeys() });
+  if (!canExplore({ hidden: false, analysisOn: analysisOn(), hasLines: !!moves })) return;
+  const before = t.fen_before, wasExploring = explore.active();
+  if (wasExploring) explore.extend(moves); else explore.begin(moves);
+  if (!explore.active()) return;
+  state.slides = pieceSlides(before, explore.position().fen);
+  render(motionAllowed());
+  const at = explore.position();
+  say("exploreAnnounce", wasExploring
+    ? exploreAnnouncement({ kind: "step", step: at.step, total: explore.path().length, san: at.move.san })
+    : exploreAnnouncement({ kind: "enter" }));
+  playBase(at.move);
+}
+// Persistent polite live regions: their text is replaced in place, never rebuilt, so a screen reader reads each change once.
+function say(id, text) { const a = $(id); if (a.textContent !== text) a.textContent = text; }
+// The one way out of exploring: clears the state, announces it and redraws the REAL game position (old game when
+// a game switch is pending). render:false lets the caller (go) draw; refocus moves focus to a stable control.
+function exitExplore({ render: redraw = true, slides = [], animate = false, refocus = false } = {}) {
+  if (!explore.active()) return false;
+  const inBanner = $("exploreBanner").contains(document.activeElement);
+  explore.exit();
+  state.slides = slides;
+  say("exploreAnnounce", exploreAnnouncement({ kind: "exit" }));
+  if (redraw && state.game && state.game.moves.length) render(animate);
+  if (refocus || inBanner) focusTabs();
+  return true;
+}
+// A stable control near the tabs: the Analysis tab, else Coach, else the toggle when the tabs are hidden (analysis off).
+function focusTabs() {
+  const tabs = $("capTabs");
+  const t = focusTarget({ tabsHidden: tabs.hidden, analysisDisabled: $("tabAnalysis").disabled });
+  $(t === "toggle" ? "analysisToggle" : t === "analysis" ? "tabAnalysis" : "tabCoach").focus();
+}
+function exploreStep(d) {
+  const before = explore.position().fen;
+  if (d < 0 && explore.atStart()) {  // one step back from the first explored position leaves the line
+    exitExplore({ slides: pieceSlides(before, cur().fen_before), animate: motionAllowed() });
+    const prevMv = state.game.moves[state.idx - 1]; if (prevMv) playBase(prevMv);
+    return;
+  }
+  const r = explore.step(d);
+  if (!r) return;
+  state.slides = pieceSlides(before, explore.position().fen);
+  render(motionAllowed());
+  say("exploreAnnounce", exploreAnnouncement({ kind: "step", step: explore.position().step, total: explore.path().length, san: r.move.san }));
+  playBase(r.move);
+}
+function leaveExplore(refocus = false) { exitExplore({ refocus }); }
+function setTab(tab) { settings.set("analysisTab", tab); renderAnalysisChrome(); }
 
 // ---------- rendering ----------
 function labelColors() {
@@ -69,7 +217,17 @@ function render(animate = false) {
   const mv = cur();
   const guessing = guessFlow.active();
   const hidden = hiddenNow(mv);
-  renderBoard($("boardWrap"), mv.fen_before, {
+  if (hidden || !analysisOn()) explore.exit();  // nothing explored may survive a neutral moment or analysis being off
+  // A path may end at a hidden position but never pass through one (me or the answers may have changed since it began).
+  if (shouldExitExplore({ exploring: explore.active(), path: explore.path(), hiddenKeys: hiddenKeys(),
+    hiddenSelected: isHiddenTarget({ hidden, mv, hiddenKeys: hiddenKeys() }) })) {
+    exitExplore({ render: false });
+  }
+  const xp = explore.position();
+  renderBoard($("boardWrap"), xp ? xp.fen : mv.fen_before, xp ? {
+    flipped: state.flipped, highlight: [xp.move.uci.slice(0, 2), xp.move.uci.slice(2, 4)], arrows: [],
+    slides: state.slides, motion: animate,
+  } : {
     flipped: state.flipped,
     // Until the user guesses or asks, nothing on the board may give the answer away: no arrows, no played-move highlight.
     highlight: hidden ? (guessing && state.guess.from ? [state.guess.from] : []) : [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
@@ -78,6 +236,8 @@ function render(animate = false) {
     motion: animate,
   });
   state.slides = [];
+  renderBanner($("exploreBanner"), xp ? bannerView({ fen: mv.fen_before, path: explore.path(), step: xp.step }) : null,
+    { onPrev: () => exploreStep(-1), onNext: () => exploreStep(1), onBack: () => leaveExplore(true) });
   $("boardWrap").dataset.guess = guessing ? "on" : "off";
 
   $("gameTitle").textContent = `${g.white} vs ${g.black} · ${g.result}`;
@@ -95,6 +255,7 @@ function render(animate = false) {
   if (!hidden) renderExplain(mv);
   renderStrip();
   renderMoveList();
+  renderAnalysisChrome();
   $("engineBtn").setAttribute("aria-pressed", String(state.showEngine));  // one signal: static label + pressed state
   $("engineBtn").disabled = hidden;  // it would give the answer away
   $("engineBtn").title = hidden ? "Available once you have guessed or shown the answer" : "";
@@ -151,7 +312,7 @@ const guessFlow = createGuessFlow({
     reveal(mv, result) {
       if (cur() !== mv) return;  // the flow is cancelled on navigation; this is a second guard
       render();
-      if (document.activeElement === document.body) $("engineBtn").focus();  // the disabled field lost focus
+      if (document.activeElement === document.body) focusAfterReveal();  // the disabled field lost focus
       if (motionAllowed()) {
         // One call: sound.js drops a second play in the same tick, which would swallow the key sound.
         player.play([...soundsFor({ classification: result.classification }).slice(1), ...(result.matched ? ["key"] : [])]);
@@ -160,12 +321,16 @@ const guessFlow = createGuessFlow({
     },
   },
 });
+// After a reveal the Coach panel may be hidden (saved tab is Analysis): focus the visible tab button instead.
+function focusAfterReveal() { $("engineBtn").focus(); if (document.activeElement !== $("engineBtn")) focusTabs(); }
 function startGuess() {
   if (!state.game || !state.game.moves.length || guessFlow.active()) return;
   const mv = cur();
   if (!canGuess(mv, state.me, state.game) || answered.has(mv.id)) return;
+  explore.exit();  // (cannot normally be exploring here: exploring needs an unhidden move)
   setChat(false);
   chat.invalidate();  // an answer still in flight could name the best move
+  analysis.invalidate();  // and so could the engine lines
   guessFlow.begin(mv);
 }
 function cancelGuess() { guessFlow.cancel(); }
@@ -179,7 +344,7 @@ function showAnswer() {
     const cue = soundsFor(mv).slice(1);
     if (cue.length) player.play(cue);
   }
-  $("engineBtn").focus();  // the button that was pressed has just gone
+  focusAfterReveal();  // the button that was pressed has just gone
 }
 
 const HONESTY = "Written by a small local model from engine facts. It is checked for legal moves and piece squares only, so it can still contain mistakes.";
@@ -271,9 +436,10 @@ function go(i) {
   if (!state.game || !state.game.moves.length) return;
   const j = clampIndex(state.game.moves, i);
   const moved = j !== state.idx;
+  const wasExploring = exitExplore({ render: false });  // any game navigation returns to the real position first
   if (moved) guessFlow.cancel();
   // Slide only single steps (either direction); jumps just redraw.
-  state.slides = Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
+  state.slides = !wasExploring && Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
   state.idx = j;
   chat.sync();
   render(moved && motionAllowed());
@@ -283,7 +449,7 @@ function go(i) {
 function goKey(dir) {
   if (!state.game || !state.game.moves.length) return;
   const i = keyIndex(state.game.moves, state.idx, dir);
-  if (i >= 0) go(i);
+  if (i >= 0) go(i); else if (explore.active()) go(state.idx);
 }
 
 function showEmpty() {
@@ -292,12 +458,19 @@ function showEmpty() {
   $("boardWrap").replaceChildren();
   for (const id of ["moveName", "labelPill", "reasons", "happened", "guessMsg", "explainBox", "explainAct", "strip", "moveList"]) $(id).replaceChildren();
   for (const id of ["prevKey", "nextKey", "first", "prev", "next", "last"]) $(id).disabled = true;
+  renderAnalysisChrome();
 }
 
+const gameSeq = createLatest();  // two quick switches can resolve out of order: only the newest selection is applied
 async function selectGame(id) {
+  exitExplore();  // redraw the real (old) game now, so no explored board or dead banner outlives the await or a failure
   guessFlow.cancel();
-  try { state.game = await getGame(id); }
+  analysis.invalidate();
+  let got;
+  try { got = await gameSeq.track(getGame(id)); }
   catch (e) { $("gameTitle").textContent = "Could not open the game: " + e.message; return; }
+  if (got.stale) return;
+  state.game = got.value;
   state.idx = startIndex(state.game.moves);
   state.slides = [];
   chat.sync();
@@ -438,26 +611,35 @@ function toggleSoundMute() {
   applySettings("soundPalette");
 }
 const handleKey = createKeyHandler({
-  step: (d) => { if (modalOpen() || !state.game) return false; go(state.idx + d); },
+  step: (d) => {
+    if (modalOpen() || !state.game) return false;
+    if (stepAction({ exploring: explore.active() }) === "explore") exploreStep(d); else go(state.idx + d);
+  },
   nextKey: () => { if (modalOpen() || !state.game) return false; goKey(1); },
   prevKey: () => { if (modalOpen() || !state.game) return false; goKey(-1); },
   guess: () => { if (modalOpen()) return false; startGuess(); },
   chat: () => { if (modalOpen() || !state.game) return false; chat.open(); },
   close: () => {
-    if (!$("meOverlay").hidden) dismissMe();
-    else if (!$("helpOverlay").hidden) setHelp(false);
-    else if (!$("gamesOverlay").hidden) setGames(false);
-    else if ($("chatDrawer").classList.contains("open")) setChat(false);
-    else if (guessFlow.active()) cancelGuess();
+    const t = escapeTarget({ modal: modalOpen(), drawer: $("chatDrawer").classList.contains("open"),
+      guess: guessFlow.active(), exploring: explore.active() });
+    if (t === "modal") {
+      if (!$("meOverlay").hidden) dismissMe();
+      else if (!$("helpOverlay").hidden) setHelp(false);
+      else setGames(false);
+    } else if (t === "drawer") setChat(false);
+    else if (t === "guess") cancelGuess();
+    else if (t === "explore") leaveExplore();
     else return false;
   },
   mute: () => { if (modalOpen()) return false; toggleSoundMute(); },
+  analysis: () => { if (modalOpen()) return false; setAnalysis(!analysisOn()); },
   help: () => { if ($("helpOverlay").hidden && ($("gamesOverlay").hidden === false || $("meOverlay").hidden === false)) return false; setHelp($("helpOverlay").hidden); },
 });
 
 async function init() {
+  state.me = settings.get("me", null);  // the stored name applies at once; loadMe() confirms it against the players
   applySettings();
-  loadMe();
+  const meReady = loadMe();  // never rejects
   try { state.games = await getGames(); }
   catch (e) { $("gameTitle").textContent = "Cannot reach the database: " + e.message; return; }
   const list = $("gameList");
@@ -469,12 +651,18 @@ async function init() {
     b.onclick = () => { setGames(false); selectGame(g.id); };
     list.append(el("li", {}, b));
   }
+  // The first game must not render before "me" is known (a key moment would show unhidden and ask the engine);
+  // a slow or failed players request must not block the page for long: it then stays in hidden-off behaviour.
+  await settleWithin(meReady, 3000);
   if (state.games.length) selectGame(state.games[0].id);
   else $("gameTitle").textContent = "No games imported yet";
 }
 
 document.querySelectorAll("[data-theme-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("theme", b.dataset.themeChoice); applySettings("theme"); }));
+$("analysisToggle").addEventListener("click", () => setAnalysis(!analysisOn()));
+$("tabCoach").addEventListener("click", () => setTab("coach"));
+$("tabAnalysis").addEventListener("click", () => setTab("analysis"));
 $("studyToggle").addEventListener("click", () => { settings.set("studyMode", !settings.get("studyMode", false)); applySettings("studyMode"); });
 document.querySelectorAll("[data-sound-choice]").forEach((b) =>
   b.addEventListener("click", () => { settings.set("mutedFrom", null); settings.set("soundPalette", b.dataset.soundChoice); applySettings("soundPalette"); }));

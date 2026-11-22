@@ -3,7 +3,13 @@ import shutil
 import chess
 import pytest
 
-from chess_coach.engine import Analysis, Engine, EngineNotFoundError, find_stockfish
+from chess_coach.engine import (
+    Analysis,
+    Engine,
+    EngineNotFoundError,
+    find_stockfish,
+    search_limit,
+)
 
 needs_sf = pytest.mark.skipif(shutil.which("stockfish") is None, reason="Stockfish not installed")
 
@@ -74,3 +80,16 @@ def test_context_manager_shuts_engine_down():
     assert eng._engine is None
     with pytest.raises(RuntimeError):
         eng.analyse(chess.Board())
+
+
+def test_search_limit_combines_depth_and_time():
+    limit = search_limit(12, 1.5)
+    assert limit.depth == 12
+    assert limit.time == 1.5
+    assert search_limit(9, None).time is None
+    assert search_limit(None, 2.0).depth is None
+
+
+def test_search_limit_requires_one_limit():
+    with pytest.raises(ValueError):
+        search_limit(None, None)

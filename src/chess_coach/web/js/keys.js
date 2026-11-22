@@ -1,9 +1,9 @@
 // Keyboard map. Pure: imports cleanly in node, no window/document access.
-const TOGGLES = ["m", "?"];
+const TOGGLES = ["m", "?", "a"];
 const PALETTES = ["felt", "wood"];
 const MAP = {  // key -> [action name, argument]
   ArrowLeft: ["step", -1], ArrowRight: ["step", 1], j: ["nextKey"], k: ["prevKey"], g: ["guess"],
-  "/": ["chat"], Escape: ["close"], m: ["mute"], "?": ["help"],
+  "/": ["chat"], Escape: ["close"], m: ["mute"], "?": ["help"], a: ["analysis"],
 };
 
 /**
@@ -31,3 +31,15 @@ export function toggleMute(current, prev) {
   if (current !== "off") return { palette: "off", prev: current };
   return { palette: PALETTES.includes(prev) ? prev : "felt", prev };
 }
+
+/** What Escape closes first: a dialog, the chat drawer, an active guess, then an explored line. */
+export function escapeTarget({ modal, drawer, guess, exploring } = {}) {
+  if (modal) return "modal";
+  if (drawer) return "drawer";
+  if (guess) return "guess";
+  if (exploring) return "explore";
+  return null;
+}
+
+/** What Left/Right move: the game, or the explored line. */
+export function stepAction({ exploring } = {}) { return exploring ? "explore" : "game"; }

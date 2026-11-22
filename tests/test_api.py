@@ -226,6 +226,25 @@ def test_index_has_live_region_and_move_list_container(app_and_client):
     assert len(live) == 1 and live[0]["aria-live"] == "polite"
 
 
+def test_index_has_analysis_bar_tabs_and_toggle_ids(app_and_client):
+    http, _ = app_and_client
+    els = _elements(http.get("/").text)
+    by_id = {a["id"]: (tag, a) for tag, a in els if "id" in a}
+    for i in ("evalBar", "tabCoach", "tabAnalysis", "coachPanel", "analysisPanel", "analysisToggle",
+              "exploreBanner", "exploreAnnounce"):
+        assert i in by_id, i
+    assert by_id["evalBar"][1]["role"] == "img"
+    for i in ("tabCoach", "tabAnalysis", "analysisToggle"):
+        assert by_id[i][0] == "button" and "aria-pressed" in by_id[i][1], i
+    assert "role" not in by_id["tabCoach"][1] and "role" not in by_id["tabAnalysis"][1]
+    # one persistent polite live region announces exploring; the banner is a labelled region, not live
+    assert by_id["exploreAnnounce"][1]["aria-live"] == "polite"
+    assert "aria-live" not in by_id["exploreBanner"][1] and "role" in by_id["exploreBanner"][1]
+    assert by_id["exploreBanner"][1]["role"] != "status"
+    # the existing caption content stays inside the coach panel
+    assert "moveName" in by_id and "guessForm" in by_id
+
+
 def test_guess_endpoint_played_move_uses_stored_score_and_long_uci_is_422(pg):
     from chess_coach.engine_service import EngineService
 
@@ -248,3 +267,134 @@ def test_guess_endpoint_played_move_uses_stored_score_and_long_uci_is_422(pg):
     assert r["legal"] and r["classification"] == m["classification"]
     assert Counting.calls == 0
     assert http.post(f"/api/moves/{m['id']}/guess", json={"uci": "e2e4qq"}).status_code == 422
+
+
+class _SvcAnalysis:
+    """Stands in for EngineService on /api/analysis."""
+
+    version = "Stockfish test"
+
+    def __init__(self, exc=None):
+        self.exc, self.calls = exc, []
+
+    def analyse_background(self, board, depth, multipv=1, time=None, max_wait=2.0):
+        self.calls.append((board.fen(), depth, multipv, time))
+        if self.exc:
+            raise self.exc
+        out = []
+        for i, mv in enumerate(list(board.legal_moves)[:multipv]):
+            out.append(Analysis(cp=25 - i, mate=None, best_move=mv.uci(), pv=[mv.uci()], depth=9))
+        return out
+
+    def close(self):
+        pass
+
+
+def _analysis_client(svc, **kw):
+    return TestClient(create_app(engine_service=svc), **kw)
+
+
+def test_analysis_endpoint_shape():
+    svc = _SvcAnalysis()
+    http = _analysis_client(svc)
+    black = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    r = http.post("/api/analysis", json={"fen": black, "lines": 2})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["game_over"] is False and j["depth"] == 9 and j["version"] == "Stockfish test"
+    assert len(j["lines"]) == 2
+    assert j["lines"][0]["score"] == {"cp": -25, "mate": None}  # White's perspective
+    mv = j["lines"][0]["moves"][0]
+    assert set(mv) == {"san", "uci", "fen", "capture", "check"}
+    assert svc.calls[0][1:] == (16, 2, 3.0)
+    over = http.post("/api/analysis", json={"fen": "R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1"}).json()
+    assert over == {"game_over": True, "result": "checkmate"}
+    assert len(svc.calls) == 1
+
+
+def test_analysis_rejects_bad_fen_depth_lines_and_long_fen_with_422():
+    http = _analysis_client(_SvcAnalysis())
+    start = chess.STARTING_FEN
+    bad = [
+        {"fen": "nonsense"},
+        {"fen": ""},
+        {"fen": "8/8/8/8/8/8/8/8 w - - 0 1"},  # no kings
+        {"fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 " + "x" * 100},
+        {"fen": start, "depth": 0},
+        {"fen": start, "depth": 21},
+        {"fen": start, "lines": 0},
+        {"fen": start, "lines": 6},
+    ]
+    for body in bad:
+        assert http.post("/api/analysis", json=body).status_code == 422, body
+    assert http.post("/api/analysis", json={"fen": start, "depth": 20, "lines": 5}).status_code == 200
+
+
+def test_analysis_busy_returns_503_engine_busy():
+    from chess_coach.engine_service import EngineBusy
+    http = _analysis_client(_SvcAnalysis(EngineBusy("busy")))
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 503 and r.json()["detail"] == "engine busy"
+
+
+def test_analysis_engine_failure_returns_503():
+    http = _analysis_client(_SvcAnalysis(TimeoutError("engine hung")))
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 503 and "engine unavailable" in r.json()["detail"]
+
+
+def test_analysis_programming_error_is_500_and_logged(caplog):
+    http = _analysis_client(_SvcAnalysis(KeyError("bug")), raise_server_exceptions=False)
+    r = http.post("/api/analysis", json={"fen": chess.STARTING_FEN})
+    assert r.status_code == 500 and "engine unavailable" not in r.text
+    assert any(rec.exc_info for rec in caplog.records)
+
+
+def test_analysis_second_identical_request_is_a_cache_hit():
+    svc = _SvcAnalysis()
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN, "depth": 12, "lines": 2}
+    a = http.post("/api/analysis", json=body).json()
+    b = http.post("/api/analysis", json=body).json()
+    assert a == b and len(svc.calls) == 1
+    http.post("/api/analysis", json={**body, "depth": 13})
+    assert len(svc.calls) == 2
+
+
+class _LazyVersionSvc(_SvcAnalysis):
+    """version is None until the first search has started the engine."""
+
+    def __init__(self, empty=False):
+        super().__init__()
+        self._started, self.empty = False, empty
+
+    @property
+    def version(self):
+        return "Stockfish lazy" if self._started else None
+
+    def analyse_background(self, board, depth, multipv=1, time=None, max_wait=2.0):
+        if self.empty:
+            self.calls.append((board.fen(), depth, multipv, time))
+            out = []
+        else:
+            out = super().analyse_background(board, depth, multipv, time)
+        self._started = True
+        return out
+
+
+def test_analysis_version_is_read_after_the_search_and_cached():
+    svc = _LazyVersionSvc()
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN}
+    assert http.post("/api/analysis", json=body).json()["version"] == "Stockfish lazy"
+    assert http.post("/api/analysis", json=body).json()["version"] == "Stockfish lazy"
+    assert len(svc.calls) == 1
+
+
+def test_analysis_empty_lines_result_is_not_cached():
+    svc = _LazyVersionSvc(empty=True)
+    http = _analysis_client(svc)
+    body = {"fen": chess.STARTING_FEN}
+    assert http.post("/api/analysis", json=body).json()["lines"] == []
+    http.post("/api/analysis", json=body)
+    assert len(svc.calls) == 2

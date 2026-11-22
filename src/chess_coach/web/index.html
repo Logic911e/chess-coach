@@ -12,6 +12,8 @@ try {
   var t = JSON.parse(localStorage.getItem("chesscoach.theme"));
   if (t === "walnut" || t === "slate" || t === "paper") document.documentElement.dataset.theme = t;
   if (JSON.parse(localStorage.getItem("chesscoach.studyMode")) === true) document.documentElement.dataset.study = "on";
+  // keep in sync with settings.js and drawAnalysis (main.js): analysis OFF hides the bar from the first paint
+  if (JSON.parse(localStorage.getItem("chesscoach.analysis")) === false) document.documentElement.dataset.analysis = "off";
 } catch (e) {}
 </script>
 </head>
@@ -34,13 +36,17 @@ try {
       <input type="range" id="volume" min="0" max="1" step="0.05" value="0.6" aria-label="Volume">
     </div>
     <button type="button" id="helpBtn" aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-controls="helpOverlay" title="Keyboard shortcuts (?)">?</button>
+    <button type="button" id="analysisToggle" aria-pressed="true" aria-label="Analysis" title="Analysis bar and lines (A)">Analysis</button>
     <button type="button" id="studyToggle" aria-pressed="false" aria-label="Study mode" title="Study mode: no sound, no motion">Study mode</button>
   </div>
 </header>
 
 <main id="stage">
   <div id="boardCol">
-    <div id="boardWrap" role="group" aria-label="Chess board. The moves are listed in the move list."></div>
+    <div class="board-row">
+      <div id="evalBar" role="img" aria-label="Evaluation hidden until you guess" data-white-top="false" data-label-top="false"><div class="eval-fill"></div><span class="eval-label"></span></div>
+      <div id="boardWrap" role="group" aria-label="Chess board. The moves are listed in the move list."></div>
+    </div>
     <nav class="nav" aria-label="Move navigation">
       <button type="button" id="prevKey" aria-label="Previous key moment" title="Previous key moment">&lsaquo; Key</button>
       <button type="button" id="first" aria-label="First move">&laquo;</button>
@@ -54,6 +60,12 @@ try {
     <ul id="moveList" class="sr-only" aria-label="Moves of this game"></ul>
   </div>
   <section id="caption" class="caption" aria-label="Move commentary">
+    <div id="exploreBanner" class="explore-banner" role="region" aria-label="Explored line" data-active="false"></div>
+    <div class="cap-tabs" id="capTabs">
+      <button type="button" id="tabCoach" data-tab="coach" aria-pressed="true" aria-controls="coachPanel">Coach</button>
+      <button type="button" id="tabAnalysis" data-tab="analysis" aria-pressed="false" aria-controls="analysisPanel">Analysis</button>
+    </div>
+    <div id="coachPanel" class="panel">
     <div class="cap-head"><span class="cap-live" aria-live="polite" aria-atomic="true"><span id="moveName" class="move-name"></span><span id="labelPill"></span></span><span id="reasons"></span></div>
     <div id="happened" class="happened"></div>
     <div id="guessMsg" class="guess-msg" role="status"></div>
@@ -69,6 +81,8 @@ try {
       <button type="button" id="askBtn" aria-controls="chatDrawer" aria-expanded="false">Ask the coach</button>
       <span id="explainAct" class="explain-act"></span>
     </div>
+    </div>
+    <div id="analysisPanel" class="panel" hidden></div>
   </section>
 </main>
 
@@ -87,9 +101,11 @@ try {
       <dt><kbd>J</kbd> <kbd>K</kbd></dt><dd>Next / previous key moment</dd>
       <dt><kbd>G</kbd></dt><dd>Guess the better move</dd>
       <dt><kbd>/</kbd></dt><dd>Ask the coach</dd>
+      <dt><kbd>A</kbd></dt><dd>Analysis on or off</dd>
       <dt><kbd>M</kbd></dt><dd>Mute or unmute sound</dd>
       <dt><kbd>?</kbd></dt><dd>This list</dd>
-      <dt><kbd>Esc</kbd></dt><dd>Close a panel</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close a panel, or go back to the game from an explored line</dd>
+      <dt>Click an engine line</dt><dd>Walk it on the board (<kbd>&larr;</kbd> <kbd>&rarr;</kbd> step along it)</dd>
     </dl>
     <p class="note"><span id="meCurrent"></span> <button type="button" id="changeMe" hidden>Not you? Change player</button></p>
   </div>
@@ -102,6 +118,9 @@ try {
     <ul id="meList" class="pick-list"></ul>
   </div>
 </div>
+
+<div id="exploreAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="analysisAnnounce" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <aside id="chatDrawer" class="drawer" aria-label="Ask the coach" aria-hidden="true" inert>
   <div class="overlay-head"><h2>Ask the coach</h2><button type="button" id="chatClose" aria-label="Close chat">Close</button></div>
