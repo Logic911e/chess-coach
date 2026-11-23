@@ -9,7 +9,7 @@ import chess
 from chess_coach import features as cf
 from chess_coach.claims import truth_boards
 from chess_coach.engine_service import EngineLike
-from chess_coach.explainer import Explanation, run_checked
+from chess_coach.explainer import Explanation, default_style, run_checked
 from chess_coach.llm import ChatClient, Message
 from chess_coach.narrative import render_facts
 
@@ -70,7 +70,10 @@ def answer_question(
     facts: dict, line: list[str], fen: str, question: str, history: list[dict],
     client: ChatClient,
 ) -> Explanation:
-    lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts), 1))
+    rich = default_style() == "statements_rich"
+    lines = "\n".join(
+        f"{i}. {s}" for i, s in enumerate(render_facts(facts, rich), 1)
+    )
     recent = history[-HISTORY_LIMIT:]
     messages: list[Message] = [
         {"role": "system", "content": CHAT_SYSTEM_PROMPT},

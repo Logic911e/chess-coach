@@ -103,8 +103,19 @@ def summarise(results: list[Result]) -> dict:
     return out
 
 
+ALL_CONDITIONS = ("facts", "statements", "statements_strict", "statements_rich", "fen_only")
+
+
+def condition_messages(cond: str, facts: dict, fen: str, san: str) -> list[Message]:
+    """The prompt for one evaluation condition."""
+    if cond == "fen_only":
+        return fen_only_messages(fen, san)
+    return build_messages(facts, "json" if cond == "facts" else cond)
+
+
 def run(
-    client_factory, depth: int, seeds: list[int], out_dir: Path, model: str, temperature: float
+    client_factory, depth: int, seeds: list[int], out_dir: Path, model: str, temperature: float,
+    conditions: tuple[str, ...] = ("facts", "statements", "fen_only"),
 ) -> tuple[list[Result], dict]:
     results: list[Result] = []
     with Engine() as engine:
@@ -113,11 +124,8 @@ def run(
         facts, line, san = prepared[case.id]
         for seed in seeds:
             client: ChatClient = client_factory(seed)
-            for cond, msgs in (
-                ("facts", build_messages(facts)),
-                ("statements", build_messages(facts, "statements")),
-                ("fen_only", fen_only_messages(case.fen, san)),
-            ):
+            for cond in conditions:
+                msgs = condition_messages(cond, facts, case.fen, san)
                 results.append(score(case, cond, seed, client.chat(msgs), line))
             print(f"  done {case.id} seed={seed}", flush=True)
     summary = summarise(results)
@@ -151,11 +159,19 @@ def main() -> None:
         help="0 is deterministic (extra seeds repeat the same answer); use >0 with several seeds",
     )
     ap.add_argument("--out", default="results")
+    ap.add_argument(
+        "--conditions", default="facts,statements,fen_only",
+        help=f"comma list from: {', '.join(ALL_CONDITIONS)}",
+    )
     a = ap.parse_args()
+    conditions = tuple(c.strip() for c in a.conditions.split(","))
+    unknown = [c for c in conditions if c not in ALL_CONDITIONS]
+    if unknown:
+        ap.error(f"unknown condition(s): {', '.join(unknown)}")
     first = OllamaClient(model=a.model)
     _, summary = run(
         lambda s: OllamaClient(model=a.model, seed=s, temperature=a.temperature), a.depth, list(range(a.seeds)), Path(a.out),
-        first.model, a.temperature,
+        first.model, a.temperature, conditions,
     )
     print(json.dumps(summary, indent=1))
 

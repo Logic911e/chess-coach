@@ -27,7 +27,7 @@ from chess_coach.analysis import ANALYSIS_TIME_CAP, AnalysisCache, analyse_fen
 from chess_coach.chat import answer_question, facts_for_move
 from chess_coach.engine import EngineNotFoundError
 from chess_coach.engine_service import EngineBusy, EngineService
-from chess_coach.explainer import explain
+from chess_coach.explainer import default_style, explain
 from chess_coach.guess import score_guess
 from chess_coach.llm import LLMError, OllamaClient
 from chess_coach.store import save_explanation
@@ -249,7 +249,7 @@ def create_app(
             line = line_to_uci(fen, facts.get("best_line", {}).get("line_san", ""))
             try:
                 result = explain(facts, client, best_line_uci=line,  # type: ignore[arg-type]
-                                 style="statements")
+                                 style=default_style())
             except LLMError as exc:
                 raise HTTPException(503, f"local model unavailable: {exc}") from exc
             model = getattr(client, "model", "unknown")

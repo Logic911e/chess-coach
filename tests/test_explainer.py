@@ -82,3 +82,17 @@ def test_run_checked_retries_then_flags():
     assert result.flagged and result.attempts == 3 and result.illegal_moves == ["Rxh7"]
     assert len(client.seen) == 3
     assert "not legal" in client.seen[1][-1]["content"]
+
+
+def test_default_style_comes_from_the_environment(monkeypatch):
+    import pytest
+
+    from chess_coach.explainer import default_style
+
+    monkeypatch.delenv("CHESS_COACH_STYLE", raising=False)
+    assert default_style() == "statements"
+    monkeypatch.setenv("CHESS_COACH_STYLE", "statements_rich")
+    assert default_style() == "statements_rich"
+    monkeypatch.setenv("CHESS_COACH_STYLE", "nonsense")
+    with pytest.raises(ValueError):
+        default_style()

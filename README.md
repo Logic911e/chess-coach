@@ -121,6 +121,18 @@ faithful overall. The flagged responses in the second run have not been manually
 the samples are small and not independent. Details and the first run's manual review:
 `results/REVIEW.md`.
 
+### Prompt styles (experimental)
+
+`CHESS_COACH_STYLE` picks how the explanation prompt is built, for the explanation and the chat:
+`statements` (default), `statements_strict` (stricter prompt) or `statements_rich` (stricter
+prompt plus extra statements about material, hanging pieces, king safety and development).
+Explanations are cached per move, so regenerate one to see a new style.
+
+On the 12 evaluation cases (3 seeds, temperature 0.7) the new styles used fewer vague strategy
+phrases but did not make the answers shorter or more accurate: the 7B model still adds claims
+that are not in the statements, and the automatic check cannot see most of them. Treat them as
+experiments, not improvements.
+
 ## Setup
 
 ```bash

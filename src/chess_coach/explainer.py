@@ -9,6 +9,7 @@ if the retries run out. This does NOT catch wrong judgements or vague filler.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 
 import chess
@@ -49,12 +50,52 @@ Rules:
 - 3 to 5 sentences. Plain language. No lists, no headings."""
 
 
+STATEMENTS_STRICT_SYSTEM_PROMPT = """\
+You are a chess coach explaining one move to an improving club player.
+
+You are given a numbered list of verified statements about the position and the move.
+Write a short explanation that uses ONLY those statements.
+
+Rules:
+- Every sentence must rest on at least one numbered statement. If you cannot point to one,
+  do not write that sentence.
+- Do not add any fact, move, square, plan or judgement that is not in the statements. In
+  particular, do not talk about central control, development, activity, space, initiative,
+  pressure or the engine's later moves unless a statement says so.
+- Keep every piece colour and square exactly as written.
+- Name a move only if it appears in the statements.
+- Start with how good the move was, then say why, then what the engine's best move did better.
+- If the statements give you little to say, write fewer sentences: 2 to 4 in all.
+  Plain language. No lists, no headings."""
+
+# style -> (system prompt, include the richer statements)
+_STATEMENT_STYLES = {
+    "statements": (STATEMENTS_SYSTEM_PROMPT, False),
+    "statements_strict": (STATEMENTS_STRICT_SYSTEM_PROMPT, False),
+    "statements_rich": (STATEMENTS_STRICT_SYSTEM_PROMPT, True),
+}
+
+
+def default_style() -> str:
+    """The statement style the app uses. Set CHESS_COACH_STYLE to switch it without code changes:
+    statements (default), statements_strict or statements_rich."""
+    style = os.environ.get("CHESS_COACH_STYLE", "statements")
+    if style not in _STATEMENT_STYLES:
+        raise ValueError(
+            f"CHESS_COACH_STYLE={style!r} is not one of {', '.join(_STATEMENT_STYLES)}"
+        )
+    return style
+
+
 def build_messages(facts: dict, style: str = "json") -> list[Message]:
-    """style 'json' = raw facts record; 'statements' = plain-English statements (narrative.py)."""
-    if style == "statements":
-        lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts), 1))
+    """style 'json' = raw facts record; 'statements' = plain-English statements (narrative.py);
+    'statements_strict' = same statements, stricter prompt; 'statements_rich' = stricter prompt
+    plus extra statements (material, king safety, hanging pieces, development)."""
+    if style in _STATEMENT_STYLES:
+        prompt, rich = _STATEMENT_STYLES[style]
+        lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts, rich), 1))
         return [
-            {"role": "system", "content": STATEMENTS_SYSTEM_PROMPT},
+            {"role": "system", "content": prompt},
             {"role": "user", "content": "Statements:\n" + lines + "\n\nExplain this move."},
         ]
     return [

@@ -42,3 +42,14 @@ def test_expected_labels_match_engine():
     with Engine() as eng:
         for c in CASES:
             prepare(c, eng, depth=14)  # raises if the engine disagrees with the label
+
+
+def test_every_condition_builds_a_prompt():
+    from chess_coach import features as cf
+    from chess_coach.evaluation import ALL_CONDITIONS, condition_messages
+
+    fen = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
+    facts = cf.build_facts(fen, "g8f6", "g7g6", 0, -900, best_line_uci=["g7g6"])
+    for cond in ALL_CONDITIONS:
+        msgs = condition_messages(cond, facts, fen, "Nf6")
+        assert msgs[0]["role"] == "system" and msgs[-1]["role"] == "user"
