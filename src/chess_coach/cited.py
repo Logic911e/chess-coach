@@ -110,11 +110,11 @@ def parse(raw: str) -> list[dict] | None:
     return out
 
 
-_CITE_PAREN = re.compile(r"\s*\((?:[^()]*\b(?:cite[sd]?|statements?)\b[^()]*)\)", re.I)
+_CITE_PAREN = re.compile(r"\s*\((?:[^()]*\b(?:cite[sd]?|statements?)\b[^()]*)\)", re.IGNORECASE)
 _CITE_PHRASE = re.compile(
     r",?\s*\b(?:as\s+)?(?:stated|noted|mentioned|shown|given|listed|per|see|according to)"
-    r"\s+(?:in\s+)?(?:statements?\s+)?\d+(?:\s*(?:,|and|&)\s*\d+)*", re.I)
-_CITE_BARE = re.compile(r"\s*\(?\bstatements?\s+\d+(?:\s*(?:,|and|&)\s*\d+)*\)?", re.I)
+    r"\s+(?:in\s+)?(?:statements?\s+)?\d+(?:\s*(?:,|and|&)\s*\d+)*", re.IGNORECASE)
+_CITE_BARE = re.compile(r"\s*\(?\bstatements?\s+\d+(?:\s*(?:,|and|&)\s*\d+)*\)?", re.IGNORECASE)
 
 
 def strip_citations(text: str) -> str:
