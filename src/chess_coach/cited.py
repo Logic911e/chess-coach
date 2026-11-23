@@ -57,6 +57,9 @@ Rules:
 - Do not add any fact, move, square, number, plan or judgement that is not in the statements.
   Do not talk about general ideas such as control of the centre, pressure, initiative, space or
   development unless a cited statement says it.
+- Never use these words: effective, optimal, strong, powerful, defensive, tactical, strategic,
+  positional, pressure, control, initiative, space, development, solid, flexible, central,
+  improve, beneficial, favourable, dynamic, momentum. They are not facts.
 - Start with how good the move was, then say why, then what the engine's best move did better.
 - If the statements give little to say, write fewer sentences."""
 
@@ -179,16 +182,35 @@ def _unsupported(text: str, evidence: str) -> str | None:
     return None
 
 
+_RATING_NOTE = re.compile(r"\s*\(0 = no loss, 1 = the whole game\)")
+_SIDE_PREFIX = re.compile(r"^(?:White|Black) to move\.\s*")
+
+
+def _is_reason(s: str) -> bool:
+    return (s.startswith("After ") or " was already under threat" in s
+            or " gives check" in s or " is checkmate" in s)
+
+
 def template(statements: list[str]) -> str:
-    """The explanation straight from the statements: the rating, the move, and what was better.
-    Used when too few model sentences survive. It cannot say anything the facts do not."""
-    keep = [statements[0]]
-    for s in statements[1:]:
-        if s.startswith("The move played is") or " should have played " in s:
-            keep.append(s)
-        elif s.startswith("The engine's best line is") and len(s.split()) <= 16:
-            keep.append(s)  # a short line reads well; a long one is a wall of moves
-    return " ".join(keep)
+    """The explanation straight from the statements, used when too few model sentences survive:
+    the rating, the move, up to three reasons it was good or bad, what the engine preferred, and
+    up to two reasons for that. It cannot say anything the facts do not. Only the rating line is
+    reworded, to drop the scale note."""
+    out = [_RATING_NOTE.sub("", _SIDE_PREFIX.sub("", statements[0]))]
+    out += [s for s in statements[1:] if s.startswith("The move played is") and "also" not in s][:1]
+    best = next((i for i, s in enumerate(statements) if s.startswith("The engine's best move is")),
+                len(statements))
+    out += [s for s in statements[1:best] if _is_reason(s)][:3]
+    should = next((i for i, s in enumerate(statements) if " should have played " in s), None)
+    if should is not None:
+        out.append(statements[should])
+        out += [s for s in statements[best + 1:should] if _is_reason(s)][:2]
+    else:  # the move played was the engine's choice
+        out += [s for s in statements if s.startswith("The move played is also")][:1]
+    line = next((s for s in statements if s.startswith("The engine's best line is")), None)
+    if line and len(line.split()) <= 16:
+        out.append(line)  # a short line reads well; a long one is a wall of moves
+    return " ".join(out)
 
 
 def join_text(sentences: list[dict]) -> str:

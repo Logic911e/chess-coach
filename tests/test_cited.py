@@ -74,14 +74,14 @@ def test_two_good_sentences_are_kept_and_nothing_else_is_added():
 
 def test_unsupported_sentences_are_dropped_and_too_little_falls_back_to_the_statements():
     facts = _facts()
-    st = cited.statements_for(facts)
     client = JsonClient(_reply(
         ("The move was a blunder.", [1]),
         ("It also controls the centre.", [1]),  # vague word not in statement 1
         ("It loses 9 points.", []),             # cites nothing
     ))
     result = explain(facts, client, ["g7g6", "h5f3"], style="cited")
-    assert result.fallback and result.text.startswith(st[0])
+    assert result.fallback and result.text.startswith('The move is rated "blunder"')
+    assert "(0 = no loss" not in result.text and "to move." not in result.text.split(".")[0]
     assert len(result.dropped) == 2 and "centre" in result.dropped[0]
 
 
@@ -171,3 +171,13 @@ def test_one_bad_sentence_in_a_paragraph_does_not_sink_the_good_ones():
     assert not result.fallback and len(result.dropped) == 1 and "strong" in result.dropped[0]
     assert result.text.startswith("The move was rated a blunder.")
     assert "pressure" not in result.text and st
+
+
+def test_the_fallback_explains_why_and_not_only_the_rating():
+    facts = _facts()
+    text = cited.template(cited.statements_for(facts))
+    assert text.startswith('The move is rated "blunder"')
+    assert "already under threat" in text          # the reason Nf6 was bad
+    assert "should have played g6" in text          # what was better
+    assert "(0 = no loss" not in text
+    assert len(text.split(". ")) <= 10              # a short answer, not every statement
