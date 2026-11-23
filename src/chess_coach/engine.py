@@ -74,12 +74,17 @@ def search_limit(depth: int | None, time: float | None) -> chess.engine.Limit:
 class Engine:
     """Context manager: `with Engine() as eng: eng.analyse(board)`."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, options: dict | None = None) -> None:
+        """`options` are UCI settings such as {"Threads": 1, "Hash": 16}. Leave them out for the
+        app, which wants speed; use them for evaluation, which wants repeatable searches."""
         self._path = path or find_stockfish()
+        self._options = options or {}
         self._engine: chess.engine.SimpleEngine | None = None
 
     def __enter__(self) -> Self:
         self._engine = chess.engine.SimpleEngine.popen_uci(self._path)
+        if self._options:
+            self._engine.configure(self._options)
         return self
 
     def __exit__(

@@ -88,4 +88,4 @@ def answer_question(
         after = start.copy(stack=False)
         after.push_uci(uci)
         boards.append(after)
-    return run_checked(messages, client, boards)
+    return run_checked(messages, client, boards, facts=facts, best_line_uci=line)

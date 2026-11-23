@@ -53,3 +53,26 @@ def test_every_condition_builds_a_prompt():
     for cond in ALL_CONDITIONS:
         msgs = condition_messages(cond, facts, fen, "Nf6")
         assert msgs[0]["role"] == "system" and msgs[-1]["role"] == "user"
+
+
+def test_frozen_facts_load_and_manifest_survives_an_unreachable_model_server(tmp_path):
+    import json
+
+    from chess_coach.evaluation import load_frozen, manifest
+
+    data = {"depth": 14, "engine_options": {"Threads": 1}, "stockfish": "Stockfish X",
+            "cases": {"c": {"facts": {"a": 1}, "line": ["e2e4"], "san": "e4"}}}
+    p = tmp_path / "facts.json"
+    p.write_text(json.dumps(data))
+    assert load_frozen(p) == data
+    m = manifest("some-model", "http://127.0.0.1:9", data, {"seeds": [0]})
+    assert m["stockfish"] == "Stockfish X" and m["ollama_version"] == "unknown"
+    assert m["model_digest"] == "unknown" and len(m["facts_sha"]) == 16
+    assert set(m["prompt_sha"]) >= {"statements", "statements_rich", "facts"}
+
+
+def test_best_and_excellent_count_as_the_same_label_band():
+    from chess_coach.evaluation import _same_label
+
+    assert _same_label("best", "excellent") and _same_label("excellent", "best")
+    assert not _same_label("good", "excellent") and not _same_label("blunder", "best")

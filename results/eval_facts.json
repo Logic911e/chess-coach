@@ -1,0 +1,1184 @@
+{
+ "cases": {
+  "backrank_mate": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": true,
+     "line_san": "1. Ra8#",
+     "material_change_for_mover": 0
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1",
+    "material_balance_white_minus_black": 2,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": true,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "a1",
+     "gives_check": true,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "rook",
+     "promotion": null,
+     "san": "Ra8#",
+     "to": "a8",
+     "uci": "a1a8"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": false,
+       "king_file_open": false,
+       "king_square": "g8",
+       "pawn_shield": 3
+      },
+      "passed_pawns": [
+       "f7",
+       "g7",
+       "h7"
+      ],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "e1",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "a1a8"
+   ],
+   "san": "Ra8#"
+  },
+  "bxf7_sac": {
+   "facts": {
+    "best": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "pawn",
+       "reason": "attacked more times than defended",
+       "square": "e5"
+      }
+     ],
+     "forks": [],
+     "from": "d2",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "pawn",
+     "promotion": null,
+     "san": "d4",
+     "to": "d4",
+     "uci": "d2d4"
+    },
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "4. d4 exd4 5. O-O Nf6 6. Ng5 Ne5 7. Bb3 d5 8. exd5 Bd6 9. Qxd4 O-O 10. Bf4 Re8 11. Nc3 h6 12. Rfe1 hxg5 13. Bxe5 Bf5 14. Bg3",
+     "material_change_for_mover": 1
+    },
+    "classification": "blunder",
+    "expected_points_lost": 0.45,
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": "pawn",
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "c4",
+     "gives_check": true,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [
+      {
+       "piece": "bishop",
+       "reason": "attacked and undefended",
+       "square": "f7"
+      }
+     ],
+     "piece": "bishop",
+     "promotion": null,
+     "san": "Bxf7+",
+     "to": "f7",
+     "uci": "c4f7"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 3
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 2
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "d2d4",
+    "e5d4",
+    "e1g1",
+    "g8f6",
+    "f3g5",
+    "c6e5",
+    "c4b3",
+    "d7d5",
+    "e4d5",
+    "f8d6",
+    "d1d4",
+    "e8g8",
+    "c1f4",
+    "f8e8",
+    "b1c3",
+    "h7h6",
+    "f1e1",
+    "h6g5",
+    "f4e5",
+    "c8f5",
+    "e5g3"
+   ],
+   "san": "Bxf7+"
+  },
+  "castle": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "4. O-O Nf6 5. d3 d6 6. Nbd2 a5 7. h3",
+     "material_change_for_mover": 0
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": true,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "e1",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "king",
+     "promotion": null,
+     "san": "O-O",
+     "to": "g1",
+     "uci": "e1g1"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 2
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 2
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "e1g1",
+    "g8f6",
+    "d2d3",
+    "d7d6",
+    "b1d2",
+    "a7a5",
+    "h2h3"
+   ],
+   "san": "O-O"
+  },
+  "develop": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "2. Nf3 Nf6 3. d4 Nxe4 4. Bd3 d5 5. Nxe5 Nd7 6. Nxd7 Bxd7 7. O-O Bd6 8. Nd2 Nxd2",
+     "material_change_for_mover": -3
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "pawn",
+       "reason": "attacked and undefended",
+       "square": "e5"
+      }
+     ],
+     "forks": [],
+     "from": "g1",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nf3",
+     "to": "f3",
+     "uci": "g1f3"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "g1f3",
+    "g8f6",
+    "d2d4",
+    "f6e4",
+    "f1d3",
+    "d7d5",
+    "f3e5",
+    "b8d7",
+    "e5d7",
+    "c8d7",
+    "e1g1",
+    "f8d6",
+    "b1d2",
+    "e4d2"
+   ],
+   "san": "Nf3"
+  },
+  "fork_missed": {
+   "facts": {
+    "best": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "d8"
+      }
+     ],
+     "forks": [
+      {
+       "piece": "queen",
+       "square": "d8",
+       "why": "worth more"
+      },
+      {
+       "piece": "king",
+       "square": "h8",
+       "why": "check"
+      }
+     ],
+     "from": "g5",
+     "gives_check": true,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nf7+",
+     "to": "f7",
+     "uci": "g5f7"
+    },
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "1. Nf7+ Kg7 2. Nxd8 Kf6 3. Kd2 Ke5 4. Kd3 Kf4 5. Ne6+ Kg4",
+     "material_change_for_mover": 9
+    },
+    "classification": "blunder",
+    "expected_points_lost": 0.388,
+    "fen": "3q3k/8/8/6N1/8/8/8/4K3 w - - 0 1",
+    "material_balance_white_minus_black": -6,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "e1",
+     "gives_check": false,
+     "ignored_threats": [
+      {
+       "piece": "knight",
+       "reason": "attacked and undefended",
+       "square": "g5"
+      }
+     ],
+     "leaves_own_piece_hanging": [],
+     "piece": "king",
+     "promotion": null,
+     "san": "Ke2",
+     "to": "e2",
+     "uci": "e1e2"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "h8",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     },
+     "white": {
+      "hanging_pieces": [
+       {
+        "piece": "knight",
+        "reason": "attacked and undefended",
+        "square": "g5"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "e1",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "g5f7",
+    "h8g7",
+    "f7d8",
+    "g7f6",
+    "e1d2",
+    "f6e5",
+    "d2d3",
+    "e5f4",
+    "d8e6",
+    "f4g4"
+   ],
+   "san": "Ke2"
+  },
+  "fork_win": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "1. Nf7+ Kg7 2. Nxd8 Kf6 3. Kd2 Ke5 4. Kd3 Kf4 5. Ne6+ Kg4",
+     "material_change_for_mover": 9
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "3q3k/8/8/6N1/8/8/8/4K3 w - - 0 1",
+    "material_balance_white_minus_black": -6,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "d8"
+      }
+     ],
+     "forks": [
+      {
+       "piece": "queen",
+       "square": "d8",
+       "why": "worth more"
+      },
+      {
+       "piece": "king",
+       "square": "h8",
+       "why": "check"
+      }
+     ],
+     "from": "g5",
+     "gives_check": true,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nf7+",
+     "to": "f7",
+     "uci": "g5f7"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "h8",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     },
+     "white": {
+      "hanging_pieces": [
+       {
+        "piece": "knight",
+        "reason": "attacked and undefended",
+        "square": "g5"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "e1",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "g5f7",
+    "h8g7",
+    "f7d8",
+    "g7f6",
+    "e1d2",
+    "f6e5",
+    "d2d3",
+    "e5f4",
+    "d8e6",
+    "f4g4"
+   ],
+   "san": "Nf7+"
+  },
+  "free_queen_ignored": {
+   "facts": {
+    "best": {
+     "captures": "queen",
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "f3",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nxh4",
+     "to": "h4",
+     "uci": "f3h4"
+    },
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "1. Nxh4 c6 2. Qe2 a5 3. Nf5 f6 4. d4 exd4 5. e5 Kd8 6. Nd6",
+     "material_change_for_mover": 8
+    },
+    "classification": "blunder",
+    "expected_points_lost": 0.366,
+    "fen": "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "pawn",
+       "reason": "attacked and undefended",
+       "square": "e5"
+      },
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "h4"
+      }
+     ],
+     "forks": [],
+     "from": "d2",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "pawn",
+     "promotion": null,
+     "san": "d3",
+     "to": "d3",
+     "uci": "d2d3"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked and undefended",
+        "square": "e5"
+       },
+       {
+        "piece": "queen",
+        "reason": "attacked and undefended",
+        "square": "h4"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     },
+     "white": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked and undefended",
+        "square": "e4"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [
+       {
+        "piece": "pawn",
+        "pinned_by": "queen on h4",
+        "square": "f2"
+       }
+      ],
+      "undeveloped_minor_pieces": 3
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "f3h4",
+    "c7c6",
+    "d1e2",
+    "a7a5",
+    "h4f5",
+    "f7f6",
+    "d2d4",
+    "e5d4",
+    "e4e5",
+    "e8d8",
+    "f5d6"
+   ],
+   "san": "d3"
+  },
+  "free_queen_take": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "1. Nxh4 c6 2. Qe2 a5 3. Nf5 f6 4. d4 exd4 5. e5 Kd8 6. Nd6",
+     "material_change_for_mover": 8
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": "queen",
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "f3",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nxh4",
+     "to": "h4",
+     "uci": "f3h4"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked and undefended",
+        "square": "e5"
+       },
+       {
+        "piece": "queen",
+        "reason": "attacked and undefended",
+        "square": "h4"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     },
+     "white": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked and undefended",
+        "square": "e4"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 1,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [
+       {
+        "piece": "pawn",
+        "pinned_by": "queen on h4",
+        "square": "f2"
+       }
+      ],
+      "undeveloped_minor_pieces": 3
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "f3h4",
+    "c7c6",
+    "d1e2",
+    "a7a5",
+    "h4f5",
+    "f7f6",
+    "d2d4",
+    "e5d4",
+    "e4e5",
+    "e8d8",
+    "f5d6"
+   ],
+   "san": "Nxh4"
+  },
+  "missed_mate": {
+   "facts": {
+    "best": {
+     "captures": null,
+     "castling": false,
+     "checkmate": true,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "a1",
+     "gives_check": true,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "rook",
+     "promotion": null,
+     "san": "Ra8#",
+     "to": "a8",
+     "uci": "a1a8"
+    },
+    "best_line": {
+     "ends_in_checkmate": true,
+     "line_san": "1. Ra8#",
+     "material_change_for_mover": 0
+    },
+    "classification": "mistake",
+    "expected_points_lost": 0.139,
+    "fen": "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1",
+    "material_balance_white_minus_black": 2,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "e1",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "king",
+     "promotion": null,
+     "san": "Kd2",
+     "to": "d2",
+     "uci": "e1d2"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": false,
+       "king_file_open": false,
+       "king_square": "g8",
+       "pawn_shield": 3
+      },
+      "passed_pawns": [
+       "f7",
+       "g7",
+       "h7"
+      ],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": false,
+       "king_file_open": true,
+       "king_square": "e1",
+       "pawn_shield": 0
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 0
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "a1a8"
+   ],
+   "san": "Kd2"
+  },
+  "qh5_g6": {
+   "facts": {
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "3...g6 4. Qf3 Nf6 5. Ne2 Bg7 6. Nbc3 d6 7. d3 O-O 8. Bb3 a5 9. a4 Be6 10. Bxe6 fxe6 11. Qg3 Nd4 12. Nxd4 exd4",
+     "material_change_for_mover": 0
+    },
+    "classification": "best",
+    "expected_points_lost": 0.0,
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "h5"
+      }
+     ],
+     "forks": [],
+     "from": "g7",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "pawn",
+     "promotion": null,
+     "san": "g6",
+     "to": "g6",
+     "uci": "g7g6"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked more times than defended",
+        "square": "f7"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 2,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [
+       {
+        "piece": "pawn",
+        "pinned_by": "queen on h5",
+        "square": "f7"
+       }
+      ],
+      "undeveloped_minor_pieces": 3
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 3
+     }
+    },
+    "side_to_move": "black"
+   },
+   "line": [
+    "g7g6",
+    "h5f3",
+    "g8f6",
+    "g1e2",
+    "f8g7",
+    "b1c3",
+    "d7d6",
+    "d2d3",
+    "e8g8",
+    "c4b3",
+    "a7a5",
+    "a2a4",
+    "c8e6",
+    "b3e6",
+    "f7e6",
+    "f3g3",
+    "c6d4",
+    "e2d4",
+    "e5d4"
+   ],
+   "san": "g6"
+  },
+  "qh5_nf6": {
+   "facts": {
+    "best": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "h5"
+      }
+     ],
+     "forks": [],
+     "from": "g7",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [],
+     "piece": "pawn",
+     "promotion": null,
+     "san": "g6",
+     "to": "g6",
+     "uci": "g7g6"
+    },
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "3...g6 4. Qf3 Nf6 5. Ne2 Bg7 6. Nbc3 d6 7. d3 O-O 8. Bb3 a5 9. a4 Be6 10. Bxe6 fxe6 11. Qg3 Nd4 12. Nxd4 exd4",
+     "material_change_for_mover": 0
+    },
+    "classification": "blunder",
+    "expected_points_lost": 0.533,
+    "fen": "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "h5"
+      },
+      {
+       "piece": "pawn",
+       "reason": "attacked and undefended",
+       "square": "e4"
+      }
+     ],
+     "forks": [
+      {
+       "piece": "pawn",
+       "square": "e4",
+       "why": "undefended"
+      },
+      {
+       "piece": "queen",
+       "square": "h5",
+       "why": "worth more"
+      }
+     ],
+     "from": "g8",
+     "gives_check": false,
+     "ignored_threats": [
+      {
+       "piece": "pawn",
+       "reason": "attacked more times than defended",
+       "square": "f7"
+      }
+     ],
+     "leaves_own_piece_hanging": [],
+     "piece": "knight",
+     "promotion": null,
+     "san": "Nf6",
+     "to": "f6",
+     "uci": "g8f6"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked more times than defended",
+        "square": "f7"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 2,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [
+       {
+        "piece": "pawn",
+        "pinned_by": "queen on h5",
+        "square": "f7"
+       }
+      ],
+      "undeveloped_minor_pieces": 3
+     },
+     "white": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 3
+     }
+    },
+    "side_to_move": "black"
+   },
+   "line": [
+    "g7g6",
+    "h5f3",
+    "g8f6",
+    "g1e2",
+    "f8g7",
+    "b1c3",
+    "d7d6",
+    "d2d3",
+    "e8g8",
+    "c4b3",
+    "a7a5",
+    "a2a4",
+    "c8e6",
+    "b3e6",
+    "f7e6",
+    "f3g3",
+    "c6d4",
+    "e2d4",
+    "e5d4"
+   ],
+   "san": "Nf6"
+  },
+  "queen_hung": {
+   "facts": {
+    "best": {
+     "captures": "pawn",
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "e4",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [
+      {
+       "piece": "pawn",
+       "reason": "attacked and undefended",
+       "square": "d5"
+      }
+     ],
+     "piece": "pawn",
+     "promotion": null,
+     "san": "exd5",
+     "to": "d5",
+     "uci": "e4d5"
+    },
+    "best_line": {
+     "ends_in_checkmate": false,
+     "line_san": "2. exd5 Qxd5 3. Nf3 Qd8 4. Be2",
+     "material_change_for_mover": 0
+    },
+    "classification": "blunder",
+    "expected_points_lost": 0.551,
+    "fen": "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    "material_balance_white_minus_black": 0,
+    "played": {
+     "captures": null,
+     "castling": false,
+     "checkmate": false,
+     "enemy_pieces_hanging_after": [],
+     "forks": [],
+     "from": "d1",
+     "gives_check": false,
+     "ignored_threats": [],
+     "leaves_own_piece_hanging": [
+      {
+       "piece": "queen",
+       "reason": "attacked and undefended",
+       "square": "g4"
+      }
+     ],
+     "piece": "queen",
+     "promotion": null,
+     "san": "Qg4",
+     "to": "g4",
+     "uci": "d1g4"
+    },
+    "position": {
+     "black": {
+      "hanging_pieces": [],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e8",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     },
+     "white": {
+      "hanging_pieces": [
+       {
+        "piece": "pawn",
+        "reason": "attacked and undefended",
+        "square": "e4"
+       }
+      ],
+      "king_safety": {
+       "enemy_pieces_attacking_king_zone": 0,
+       "has_castling_rights": true,
+       "king_file_open": false,
+       "king_square": "e1",
+       "pawn_shield": 2
+      },
+      "passed_pawns": [],
+      "pinned_pieces": [],
+      "undeveloped_minor_pieces": 4
+     }
+    },
+    "side_to_move": "white"
+   },
+   "line": [
+    "e4d5",
+    "d8d5",
+    "g1f3",
+    "d5d8",
+    "f1e2"
+   ],
+   "san": "Qg4"
+  }
+ },
+ "depth": 14,
+ "engine_options": {
+  "Hash": 16,
+  "Threads": 1
+ },
+ "stockfish": "Stockfish 19"
+}

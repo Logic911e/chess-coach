@@ -8,10 +8,13 @@ Run: python -m chess_coach.evaluation --seeds 3
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
+import subprocess
 import time
-from dataclasses import asdict, dataclass
+import urllib.request
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import chess
@@ -20,7 +23,8 @@ from chess_coach import features as cf
 from chess_coach.claims import check_claims, truth_boards
 from chess_coach.engine import Engine
 from chess_coach.eval_cases import CASES, Case
-from chess_coach.explainer import build_messages
+from chess_coach.explainer import _STATEMENT_STYLES, SYSTEM_PROMPT, build_messages, explain
+from chess_coach.factcheck import find_false_claims
 from chess_coach.guess import score_after
 from chess_coach.llm import ChatClient, Message, OllamaClient
 
@@ -48,10 +52,83 @@ class Result:
     false_placements: list[str]
     forbidden_hit: bool
     key_hit: bool
+    false_claims: list[str] = field(default_factory=list)  # tactical claims the board contradicts
+    attempts: int = 1  # model calls used; more than 1 only for the *_checked conditions
+    flagged: bool = False  # a *_checked condition still failed a check after its retries
 
     @property
     def has_false_claim(self) -> bool:
-        return bool(self.illegal_moves or self.false_placements or self.forbidden_hit)
+        return bool(self.illegal_moves or self.false_placements or self.forbidden_hit
+                    or self.false_claims)
+
+
+# One thread, a small hash and a fresh engine per case make a fixed-depth search repeatable.
+# The app keeps the engine's defaults, because it wants speed more than repeatability.
+ENGINE_OPTIONS = {"Threads": 1, "Hash": 16}
+
+
+def freeze_facts(path: Path, depth: int) -> dict:
+    """Run the engine once per case and save the facts, so every later evaluation reads
+    identical facts whatever the engine would say today."""
+    cases, stockfish = {}, ""
+    for case in CASES:
+        with Engine(options=ENGINE_OPTIONS) as engine:
+            facts, line, san = prepare(case, engine, depth)
+            stockfish = engine.version
+        cases[case.id] = {"facts": facts, "line": line, "san": san}
+    data = {"depth": depth, "engine_options": ENGINE_OPTIONS, "stockfish": stockfish,
+            "cases": cases}
+    path.write_text(json.dumps(data, indent=1, sort_keys=True))
+    return data
+
+
+def load_frozen(path: Path) -> dict:
+    return json.loads(path.read_text())
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+
+def _get_json(url: str):
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            return json.load(resp)
+    except OSError:
+        return None
+
+
+def manifest(model: str, host: str, frozen: dict | None, args: dict) -> dict:
+    """What this run ran on, so a number can be traced and a surprise explained."""
+    def git(*a: str) -> str:
+        try:
+            return subprocess.run(["git", *a], capture_output=True, text=True, check=True,
+                                  cwd=Path(__file__).parent).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            return "unknown"
+
+    tags = _get_json(f"{host}/api/tags") or {}
+    digest = next((m.get("digest", "") for m in tags.get("models", []) if m.get("name") == model),
+                  "unknown")
+    return {
+        "git_sha": git("rev-parse", "HEAD"),
+        "git_dirty": bool(git("status", "--porcelain", "--", "src")),
+        "ollama_version": (_get_json(f"{host}/api/version") or {}).get("version", "unknown"),
+        "model_digest": digest[:16],
+        "stockfish": (frozen or {}).get("stockfish", "live engine, not frozen"),
+        "engine_options": (frozen or {}).get("engine_options"),
+        "facts_sha": _sha(json.dumps((frozen or {}).get("cases"), sort_keys=True)),
+        "prompt_sha": {name: _sha(prompt) for name, (prompt, _) in _STATEMENT_STYLES.items()}
+                      | {"facts": _sha(SYSTEM_PROMPT)},
+        "args": args,
+    }
+
+
+_TOP_BAND = {"best", "excellent"}  # a loss under 0.02 expected points: the search can swing it
+
+
+def _same_label(got: str, expected: str) -> bool:
+    return got == expected or {got, expected} <= _TOP_BAND
 
 
 def prepare(case: Case, engine: Engine, depth: int) -> tuple[dict, list[str], str]:
@@ -67,15 +144,19 @@ def prepare(case: Case, engine: Engine, depth: int) -> tuple[dict, list[str], st
     facts = cf.build_facts(
         case.fen, case.played_uci, best.best_move, best.cp_capped, cp_played, best_line_uci=best.pv
     )
-    if facts["classification"] != case.expected:
+    if not _same_label(facts["classification"], case.expected):
         raise AssertionError(
             f"{case.id}: engine says {facts['classification']!r}, case expects {case.expected!r}"
         )
     return facts, best.pv, facts["played"]["san"]
 
 
-def score(case: Case, condition: str, seed: int, text: str, line: list[str]) -> Result:
+def score(
+    case: Case, condition: str, seed: int, text: str, line: list[str],
+    facts: dict | None = None, attempts: int = 1, flagged: bool = False,
+) -> Result:
     report = check_claims(text, truth_boards(case.fen, case.played_uci, line))
+    false_claims = [f.problem for f in find_false_claims(text, facts, line)] if facts else []
     return Result(
         case_id=case.id,
         condition=condition,
@@ -85,6 +166,9 @@ def score(case: Case, condition: str, seed: int, text: str, line: list[str]) -> 
         false_placements=report.false_placements,
         forbidden_hit=bool(case.forbidden and re.search(case.forbidden, text, re.IGNORECASE)),
         key_hit=bool(re.search(case.must_mention, text, re.IGNORECASE)),
+        false_claims=false_claims,
+        attempts=attempts,
+        flagged=flagged,
     )
 
 
@@ -97,13 +181,19 @@ def summarise(results: list[Result]) -> dict:
             "with_false_claim": sum(r.has_false_claim for r in rs),
             "illegal_moves": sum(len(r.illegal_moves) for r in rs),
             "false_piece_placements": sum(len(r.false_placements) for r in rs),
+            "false_tactical_claims": sum(len(r.false_claims) for r in rs),
             "forbidden_claims": sum(r.forbidden_hit for r in rs),
             "key_idea_mentioned": sum(r.key_hit for r in rs),
+            "model_calls": sum(r.attempts for r in rs),
+            "flagged_after_retries": sum(r.flagged for r in rs),
         }
     return out
 
 
-ALL_CONDITIONS = ("facts", "statements", "statements_strict", "statements_rich", "fen_only")
+STYLES = ("statements", "statements_strict", "statements_rich")
+# "<style>_checked" runs the style through the real retry loop (explainer.explain), so the
+# explanation can be rewritten when a check fails; plain styles are a single model call.
+ALL_CONDITIONS = ("facts", *STYLES, *(f"{s}_checked" for s in STYLES), "fen_only")
 
 
 def condition_messages(cond: str, facts: dict, fen: str, san: str) -> list[Message]:
@@ -116,17 +206,29 @@ def condition_messages(cond: str, facts: dict, fen: str, san: str) -> list[Messa
 def run(
     client_factory, depth: int, seeds: list[int], out_dir: Path, model: str, temperature: float,
     conditions: tuple[str, ...] = ("facts", "statements", "fen_only"),
+    frozen: dict | None = None, host: str = "http://localhost:11434",
 ) -> tuple[list[Result], dict]:
     results: list[Result] = []
-    with Engine() as engine:
-        prepared = {c.id: prepare(c, engine, depth) for c in CASES}
+    if frozen is None:  # no frozen file: compute now, with the repeatable engine settings
+        frozen = {"cases": {}, "engine_options": ENGINE_OPTIONS}
+        for c in CASES:
+            with Engine(options=ENGINE_OPTIONS) as engine:
+                f, ln, sn = prepare(c, engine, depth)
+                frozen["stockfish"] = engine.version
+            frozen["cases"][c.id] = {"facts": f, "line": ln, "san": sn}
+    prepared = {cid: (v["facts"], v["line"], v["san"]) for cid, v in frozen["cases"].items()}
     for case in CASES:
         facts, line, san = prepared[case.id]
         for seed in seeds:
             client: ChatClient = client_factory(seed)
             for cond in conditions:
+                if cond.endswith("_checked"):
+                    got = explain(facts, client, line, style=cond.removesuffix("_checked"))
+                    results.append(score(case, cond, seed, got.text, line, facts,
+                                         got.attempts, got.flagged))
+                    continue
                 msgs = condition_messages(cond, facts, case.fen, san)
-                results.append(score(case, cond, seed, client.chat(msgs), line))
+                results.append(score(case, cond, seed, client.chat(msgs), line, facts))
             print(f"  done {case.id} seed={seed}", flush=True)
     summary = summarise(results)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -139,6 +241,9 @@ def run(
                 "cases": len(CASES),
                 "seeds": seeds,
                 "temperature": temperature,
+                "manifest": manifest(model, host, frozen, {
+                    "conditions": list(conditions), "seeds": seeds, "depth": depth,
+                    "temperature": temperature}),
                 "summary": summary,
                 "results": [asdict(r) for r in results],
             },
@@ -163,7 +268,17 @@ def main() -> None:
         "--conditions", default="facts,statements,fen_only",
         help=f"comma list from: {', '.join(ALL_CONDITIONS)}",
     )
+    ap.add_argument("--freeze-facts", metavar="PATH", default=None,
+                    help="write the facts for every case to PATH and exit")
+    ap.add_argument("--facts", metavar="PATH", default=None,
+                    help="read frozen facts from PATH instead of running the engine")
     a = ap.parse_args()
+    if a.freeze_facts:
+        data = freeze_facts(Path(a.freeze_facts), a.depth)
+        print(f"froze {len(data['cases'])} cases at depth {a.depth} ({data['stockfish']}) "
+              f"to {a.freeze_facts}")
+        return
+    frozen = load_frozen(Path(a.facts)) if a.facts else None
     conditions = tuple(c.strip() for c in a.conditions.split(","))
     unknown = [c for c in conditions if c not in ALL_CONDITIONS]
     if unknown:
@@ -171,7 +286,7 @@ def main() -> None:
     first = OllamaClient(model=a.model)
     _, summary = run(
         lambda s: OllamaClient(model=a.model, seed=s, temperature=a.temperature), a.depth, list(range(a.seeds)), Path(a.out),
-        first.model, a.temperature, conditions,
+        first.model, a.temperature, conditions, frozen, first.host,
     )
     print(json.dumps(summary, indent=1))
 

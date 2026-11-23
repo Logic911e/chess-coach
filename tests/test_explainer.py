@@ -96,3 +96,33 @@ def test_default_style_comes_from_the_environment(monkeypatch):
     monkeypatch.setenv("CHESS_COACH_STYLE", "nonsense")
     with pytest.raises(ValueError):
         default_style()
+
+
+WINQ = "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1"
+WINQ_LINE = ["f3h4"]
+FALSE_CLAIM = "By moving the pawn to d3, the white knight on f3 becomes undefended."
+
+
+def _winq_facts():
+    return cf.build_facts(WINQ, "d2d3", "f3h4", 700, -100, best_line_uci=WINQ_LINE)
+
+
+def test_false_tactical_claim_triggers_a_retry_that_names_it():
+    client = ScriptedClient([FALSE_CLAIM, "Nxh4 was the best move, winning the queen."])
+    result = explain(_winq_facts(), client, best_line_uci=WINQ_LINE, style="statements")
+    assert not result.flagged and result.attempts == 2 and result.false_claims == []
+    feedback = client.seen[1][-1]["content"]
+    assert "these claims are wrong: the white knight on f3 is defended" in feedback
+
+
+def test_persistent_false_claim_is_flagged_with_the_claim_recorded():
+    client = ScriptedClient([FALSE_CLAIM] * 3)
+    result = explain(_winq_facts(), client, best_line_uci=WINQ_LINE, style="statements")
+    assert result.flagged and result.attempts == 3
+    assert result.false_claims == ["the white knight on f3 is defended"]
+
+
+def test_true_tactical_claims_do_not_cost_a_retry():
+    client = ScriptedClient(["The white knight on f3 attacks the black queen on h4."])
+    result = explain(_winq_facts(), client, best_line_uci=WINQ_LINE, style="statements")
+    assert not result.flagged and result.attempts == 1

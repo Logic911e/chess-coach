@@ -1,9 +1,11 @@
 """Turn a facts record into a short explanation, and check it before it reaches the user.
 
-The model sees only the facts. Every reply is checked for two kinds of objective error:
-moves that are not legal in the position or along the engine line, and pieces placed on
-squares that never hold them (see claims.py). On either, we ask again, and flag the result
-if the retries run out. This does NOT catch wrong judgements or vague filler.
+The model sees only the facts. Every reply is checked for three kinds of objective error:
+moves that are not legal in the position or along the engine line, pieces placed on squares
+that never hold them (see claims.py), and tactical claims the board contradicts, such as "the
+knight on f3 is undefended" when it is defended (see factcheck.py). On any of these we ask again,
+and flag the result if the retries run out. This does NOT catch strategy claims, wrong
+judgements that are not about the board, or vague filler.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from dataclasses import dataclass, field
 import chess
 
 from chess_coach.claims import check_claims, truth_boards
+from chess_coach.factcheck import find_false_claims
 from chess_coach.llm import ChatClient, Message
 from chess_coach.narrative import render_facts
 
@@ -110,9 +113,10 @@ def build_messages(facts: dict, style: str = "json") -> list[Message]:
 @dataclass
 class Explanation:
     text: str
-    flagged: bool  # True = still named illegal moves after all retries
+    flagged: bool  # True = a check still failed after all retries
     illegal_moves: list[str] = field(default_factory=list)
     false_placements: list[str] = field(default_factory=list)
+    false_claims: list[str] = field(default_factory=list)  # tactical claims the board contradicts
     attempts: int = 1
 
 
@@ -130,7 +134,10 @@ def explain(
     style: str = "json",
 ) -> Explanation:
     boards = boards_for_check(facts, best_line_uci)
-    return run_checked(build_messages(facts, style), client, boards, max_retries)
+    return run_checked(
+        build_messages(facts, style), client, boards, max_retries,
+        facts=facts, best_line_uci=best_line_uci,
+    )
 
 
 def run_checked(
@@ -138,20 +145,30 @@ def run_checked(
     client: ChatClient,
     boards: list[chess.Board],
     max_retries: int = 2,
+    facts: dict | None = None,
+    best_line_uci: list[str] | None = None,
 ) -> Explanation:
-    """Ask the model, check the reply against `boards`, and re-ask with the problems named."""
+    """Ask the model, check the reply against `boards`, and re-ask with the problems named.
+
+    With `facts`, tactical claims in the reply are checked too (see factcheck.py)."""
     report = check_claims("", boards)
+    false_claims: list[str] = []
     text = ""
     for attempt in range(1, max_retries + 2):
         text = client.chat(messages)
         report = check_claims(text, boards)
-        if report.count == 0:
+        false_claims = (
+            [f.problem for f in find_false_claims(text, facts, best_line_uci)] if facts else []
+        )
+        if report.count == 0 and not false_claims:
             return Explanation(text=text, flagged=False, attempts=attempt)
         problems = []
         if report.illegal_moves:
             problems.append(f"these moves are not legal here: {', '.join(report.illegal_moves)}")
         if report.false_placements:
             problems.append(f"these piece placements are wrong: {', '.join(report.false_placements)}")
+        if false_claims:
+            problems.append(f"these claims are wrong: {'; '.join(false_claims)}")
         messages = [
             *messages,
             {"role": "assistant", "content": text},
@@ -159,7 +176,7 @@ def run_checked(
                 "role": "user",
                 "content": (
                     "Check failed: " + "; ".join(problems) + ". Rewrite the explanation using "
-                    "only moves and squares that appear in the facts."
+                    "only moves, squares and claims that the facts support."
                 ),
             },
         ]
@@ -168,5 +185,6 @@ def run_checked(
         flagged=True,
         illegal_moves=report.illegal_moves,
         false_placements=report.false_placements,
+        false_claims=false_claims,
         attempts=max_retries + 1,
     )
