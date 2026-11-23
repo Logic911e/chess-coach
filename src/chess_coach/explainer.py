@@ -132,6 +132,7 @@ class Explanation:
     attempts: int = 1
     dropped: list[str] = field(default_factory=list)  # cited style: sentences removed, and why
     fallback: bool = False  # cited style: too little survived, so the text is the statements
+    sentences: list[dict] = field(default_factory=list)  # cited style: kept text, cites, exact
 
 
 def prompt_hash(facts: dict, style: str) -> str:
@@ -181,6 +182,7 @@ def explain_cited(
         if reason:
             dropped.append(f"{reason}: {s['text']}")
         else:
+            s["exact"] = cited.supported_by_cites(s, statements)
             kept.append(s)
     # Board checks on what is left: illegal moves and wrong piece squares, sentence by sentence.
     boards = boards_for_check(facts, best_line_uci)
@@ -212,6 +214,7 @@ def explain_cited(
         )
     return Explanation(
         text=cited.join_text(clean), flagged=False, checked_claims=result.checked, dropped=dropped,
+        sentences=clean,
     )
 
 

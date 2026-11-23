@@ -112,3 +112,39 @@ def test_the_cited_style_is_selectable_and_has_its_own_prompt_fingerprint(monkey
     assert default_style() == "cited"
     facts = _facts()
     assert prompt_hash(facts, "cited") != prompt_hash(facts, "statements_rich")
+
+
+def test_statement_numbers_written_into_the_prose_are_removed_before_checking():
+    cases = {
+        "This move attacks the queen on h5 (cites: 3).": "This move attacks the queen on h5.",
+        "The move was a blunder, as stated in statement 1.": "The move was a blunder.",
+        "Ra8# is checkmate (cited in 4, 7).": "Ra8# is checkmate.",
+        "It attacks the pawn, as noted in 3 and 5.": "It attacks the pawn.",
+    }
+    for raw, clean in cases.items():
+        assert cited.strip_citations(raw) == clean
+    assert cited.strip_citations("White has 3 minor pieces.") == "White has 3 minor pieces."
+
+
+def test_a_square_in_another_statement_is_accepted_but_the_cites_are_marked_loose():
+    st = ["The move is rated blunder.", "The move played is d3 (a pawn from d2 to d3)."]
+    sentence = {"text": "The move d3 is a blunder.", "cites": [1]}
+    assert cited.ground(sentence, st) is None  # d3 is in the statements, just not the cited one
+    assert cited.supported_by_cites(sentence, st) is False
+    assert cited.supported_by_cites({"text": "The move d3 is a blunder.", "cites": [1, 2]}, st)
+    assert cited.ground({"text": "The move e5 is a blunder.", "cites": [1]}, st)  # e5 nowhere
+
+
+def test_praise_that_the_facts_do_not_contain_is_dropped():
+    st = ["The move is rated best.", "It gives check."]
+    for text in ("It is a strong defensive move.", "It is highly effective.", "A powerful reply."):
+        assert cited.ground({"text": text, "cites": [1]}, st) is not None
+    assert cited.ground({"text": "The move is rated best and gives check.", "cites": [1, 2]}, st) is None
+
+
+def test_the_fallback_skips_a_long_wall_of_moves():
+    st = ["Black to move.", "The move played is g6.",
+          "The engine's best line is " + " ".join(f"{i}. Nf3 Nf6" for i in range(1, 12)) + "."]
+    assert "best line" not in cited.template(st)
+    short = [*st[:2], "The engine's best line is 1. e4 e5."]
+    assert "best line" in cited.template(short)
