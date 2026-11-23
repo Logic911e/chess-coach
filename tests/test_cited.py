@@ -148,3 +148,26 @@ def test_the_fallback_skips_a_long_wall_of_moves():
     assert "best line" not in cited.template(st)
     short = [*st[:2], "The engine's best line is 1. e4 e5."]
     assert "best line" in cited.template(short)
+
+
+def test_a_paragraph_in_one_entry_is_split_into_sentences_that_share_its_cites():
+    raw = json.dumps({"sentences": [{
+        "text": "The move was a blunder (cites 1). It lost 0.5 points (cites 1). "
+                "The line is 3...g6 4. Qf3 Nf6.",
+        "cites": [1, 2]}]})
+    got = cited.parse(raw)
+    assert [s["text"] for s in got] == [
+        "The move was a blunder.", "It lost 0.5 points.", "The line is 3...g6 4. Qf3 Nf6."]
+    assert all(s["cites"] == [1, 2] for s in got)  # the move number "4." did not end a sentence
+
+
+def test_one_bad_sentence_in_a_paragraph_does_not_sink_the_good_ones():
+    facts = _facts()
+    st = cited.statements_for(facts)
+    blob = {"sentences": [{"text": "The move was rated a blunder. It also gives strong pressure. "
+                                    "Black should have played g6 instead of Nf6.",
+                           "cites": [1, 2]}]}
+    result = explain(facts, JsonClient(blob), ["g7g6", "h5f3"], style="cited")
+    assert not result.fallback and len(result.dropped) == 1 and "strong" in result.dropped[0]
+    assert result.text.startswith("The move was rated a blunder.")
+    assert "pressure" not in result.text and st

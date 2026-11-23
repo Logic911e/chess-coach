@@ -104,9 +104,11 @@ def parse(raw: str) -> list[dict] | None:
         cites = item.get("cites")
         cites = [c for c in cites if isinstance(c, int) and not isinstance(c, bool)] \
             if isinstance(cites, list) else []
-        text = strip_citations(item["text"].strip())
-        if text:
-            out.append({"text": text, "cites": cites})
+        # The 7B model often puts a whole paragraph into one entry, so split it into real
+        # sentences. Each keeps the entry's citations, which lets one bad sentence be dropped
+        # without losing the good ones around it.
+        for piece in split_sentences(strip_citations(item["text"].strip())):
+            out.append({"text": piece, "cites": cites})
     return out
 
 
@@ -115,6 +117,14 @@ _CITE_PHRASE = re.compile(
     r",?\s*\b(?:as\s+)?(?:stated|noted|mentioned|shown|given|listed|per|see|according to)"
     r"\s+(?:in\s+)?(?:statements?\s+)?\d+(?:\s*(?:,|and|&)\s*\d+)*", re.IGNORECASE)
 _CITE_BARE = re.compile(r"\s*\(?\bstatements?\s+\d+(?:\s*(?:,|and|&)\s*\d+)*\)?", re.IGNORECASE)
+
+
+# A sentence ends at . ! or ?, but not after a move number such as "4." in "4. Nf3".
+_SENTENCE_END = re.compile(r"(?<=[.!?])(?<!\d\.)\s+(?=[A-Z\"'])")
+
+
+def split_sentences(text: str) -> list[str]:
+    return [s for s in _SENTENCE_END.split(text.strip()) if s]
 
 
 def strip_citations(text: str) -> str:
