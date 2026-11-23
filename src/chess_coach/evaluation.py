@@ -55,6 +55,8 @@ class Result:
     false_claims: list[str] = field(default_factory=list)  # tactical claims the board contradicts
     attempts: int = 1  # model calls used; more than 1 only for the *_checked conditions
     flagged: bool = False  # a *_checked condition still failed a check after its retries
+    dropped: list[str] = field(default_factory=list)  # cited style: sentences removed, and why
+    fallback: bool = False  # cited style: too little survived, so the text is the statements
 
     @property
     def has_false_claim(self) -> bool:
@@ -157,6 +159,7 @@ def prepare(case: Case, engine: Engine, depth: int) -> tuple[dict, list[str], st
 def score(
     case: Case, condition: str, seed: int, text: str, line: list[str],
     facts: dict | None = None, attempts: int = 1, flagged: bool = False,
+    dropped: list[str] | None = None, fallback: bool = False,
 ) -> Result:
     report = check_claims(text, truth_boards(case.fen, case.played_uci, line))
     false_claims = [f.problem for f in find_false_claims(text, facts, line)] if facts else []
@@ -172,6 +175,8 @@ def score(
         false_claims=false_claims,
         attempts=attempts,
         flagged=flagged,
+        dropped=dropped or [],
+        fallback=fallback,
     )
 
 
@@ -189,6 +194,8 @@ def summarise(results: list[Result]) -> dict:
             "key_idea_mentioned": sum(r.key_hit for r in rs),
             "model_calls": sum(r.attempts for r in rs),
             "flagged_after_retries": sum(r.flagged for r in rs),
+            "dropped_sentences": sum(len(r.dropped) for r in rs),
+            "fell_back_to_statements": sum(r.fallback for r in rs),
         }
     return out
 
@@ -196,7 +203,7 @@ def summarise(results: list[Result]) -> dict:
 STYLES = ("statements", "statements_strict", "statements_rich")
 # "<style>_checked" runs the style through the real retry loop (explainer.explain), so the
 # explanation can be rewritten when a check fails; plain styles are a single model call.
-ALL_CONDITIONS = ("facts", *STYLES, *(f"{s}_checked" for s in STYLES), "fen_only")
+ALL_CONDITIONS = ("facts", *STYLES, *(f"{s}_checked" for s in STYLES), "cited", "fen_only")
 
 
 def condition_messages(cond: str, facts: dict, fen: str, san: str) -> list[Message]:
@@ -225,10 +232,10 @@ def run(
         for seed in seeds:
             client: ChatClient = client_factory(seed)
             for cond in conditions:
-                if cond.endswith("_checked"):
+                if cond.endswith("_checked") or cond == "cited":
                     got = explain(facts, client, line, style=cond.removesuffix("_checked"))
                     results.append(score(case, cond, seed, got.text, line, facts,
-                                         got.attempts, got.flagged))
+                                         got.attempts, got.flagged, got.dropped, got.fallback))
                     continue
                 msgs = condition_messages(cond, facts, case.fen, san)
                 results.append(score(case, cond, seed, client.chat(msgs), line, facts))

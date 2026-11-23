@@ -25,7 +25,7 @@ class LLMError(RuntimeError):
 class ChatClient(Protocol):
     model: str
 
-    def chat(self, messages: list[Message]) -> str: ...
+    def chat(self, messages: list[Message], format: dict | None = None) -> str: ...
 
 
 class OllamaClient:
@@ -45,16 +45,18 @@ class OllamaClient:
         self.seed = seed
         self.timeout = timeout
 
-    def chat(self, messages: list[Message]) -> str:
-        body = json.dumps(
-            {
-                "model": self.model,
-                "messages": messages,
-                "stream": False,
-                # Temperature 0 and a fixed seed keep evaluation runs reproducible.
-                "options": {"temperature": self.temperature, "seed": self.seed},
-            }
-        ).encode()
+    def chat(self, messages: list[Message], format: dict | None = None) -> str:
+        """`format` is a JSON schema; Ollama then forces the reply to match it."""
+        payload: dict = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            # Temperature 0 and a fixed seed keep evaluation runs reproducible.
+            "options": {"temperature": self.temperature, "seed": self.seed},
+        }
+        if format is not None:
+            payload["format"] = format
+        body = json.dumps(payload).encode()
         req = urllib.request.Request(
             f"{self.host}/api/chat", data=body, headers={"Content-Type": "application/json"}
         )

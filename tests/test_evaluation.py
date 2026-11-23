@@ -77,3 +77,13 @@ def test_best_and_excellent_count_as_the_same_label_band():
 
     assert _same_label("best", "excellent") and _same_label("excellent", "best")
     assert not _same_label("good", "excellent") and not _same_label("blunder", "best")
+
+
+def test_cited_is_an_evaluation_condition_and_the_summary_counts_drops_and_fallbacks():
+    from chess_coach.eval_cases import CASES
+    from chess_coach.evaluation import ALL_CONDITIONS, score, summarise
+
+    assert "cited" in ALL_CONDITIONS
+    r = score(CASES[0], "cited", 0, "ok", ["g7g6"], dropped=["a", "b"], fallback=True)
+    s = summarise([r])["cited"]
+    assert s["dropped_sentences"] == 2 and s["fell_back_to_statements"] == 1

@@ -1,0 +1,114 @@
+"""Cited sentences: what is kept, what is dropped and why."""
+
+import json
+
+from chess_coach import cited
+from chess_coach import features as cf
+from chess_coach.explainer import default_style, explain, prompt_hash
+
+QH5 = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 3 3"
+WINQ = "rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1"
+
+
+class JsonClient:
+    model = "fake"
+
+    def __init__(self, reply):
+        self.reply, self.seen = reply, []
+
+    def chat(self, messages, format=None):
+        self.seen.append((messages, format))
+        return self.reply if isinstance(self.reply, str) else json.dumps(self.reply)
+
+
+def _facts():
+    return cf.build_facts(QH5, "g8f6", "g7g6", 20, -700, best_line_uci=["g7g6", "h5f3"])
+
+
+def _reply(*pairs):
+    return {"sentences": [{"text": t, "cites": c} for t, c in pairs]}
+
+
+def test_parse_reads_the_expected_shape_and_rejects_the_rest():
+    ok = cited.parse(json.dumps(_reply(("A sentence.", [1, 2]))))
+    assert ok == [{"text": "A sentence.", "cites": [1, 2]}]
+    assert cited.parse("not json") is None
+    assert cited.parse('{"other": 1}') is None
+    assert cited.parse('{"sentences": [{"text": "x"}]}') == [{"text": "x", "cites": []}]
+
+
+def test_each_reason_for_dropping_a_sentence():
+    st = ["The black knight on f6 attacks the white queen on h5.", "Material is level.",
+          "The engine's best move is g6."]
+
+    def g(text, cites):
+        return cited.ground({"text": text, "cites": cites}, st)
+
+    assert g("The knight on f6 attacks the queen on h5.", [1]) is None
+    assert g("Anything.", []) == "cites nothing"
+    assert "does not exist" in g("Anything.", [9])
+    assert "e4" in g("The knight on f6 attacks the pawn on e4.", [1])
+    assert "Qxf7" in g("Black must stop Qxf7.", [1])
+    assert "9" in g("This costs 9 points.", [2])
+    assert "pressure" in g("It adds pressure.", [1])
+
+
+def test_a_strategy_word_is_allowed_when_the_cited_statement_uses_it():
+    st = ["White has more space than Black."]
+    assert cited.ground({"text": "White has more space.", "cites": [1]}, st) is None
+
+
+def test_two_good_sentences_are_kept_and_nothing_else_is_added():
+    facts = _facts()
+    st = cited.statements_for(facts)
+    i = next(n for n, s in enumerate(st, 1) if "rated" in s)
+    j = next(n for n, s in enumerate(st, 1) if "should have played" in s)
+    client = JsonClient(_reply(("The move was a blunder.", [i]),
+                               ("Black should have played g6 instead of Nf6", [j])))
+    result = explain(facts, client, ["g7g6", "h5f3"], style="cited")
+    assert not result.fallback and result.dropped == []
+    assert result.text == "The move was a blunder. Black should have played g6 instead of Nf6."
+    messages, schema = client.seen[0]
+    assert schema == cited.SCHEMA and messages[1]["content"].startswith("Statements:\n1. ")
+
+
+def test_unsupported_sentences_are_dropped_and_too_little_falls_back_to_the_statements():
+    facts = _facts()
+    st = cited.statements_for(facts)
+    client = JsonClient(_reply(
+        ("The move was a blunder.", [1]),
+        ("It also controls the centre.", [1]),  # vague word not in statement 1
+        ("It loses 9 points.", []),             # cites nothing
+    ))
+    result = explain(facts, client, ["g7g6", "h5f3"], style="cited")
+    assert result.fallback and result.text.startswith(st[0])
+    assert len(result.dropped) == 2 and "centre" in result.dropped[0]
+
+
+def test_an_unreadable_reply_falls_back_without_a_retry():
+    client = JsonClient("sorry, here is some prose")
+    result = explain(_facts(), client, ["g7g6"], style="cited")
+    assert result.fallback and "expected format" in result.dropped[0]
+    assert len(client.seen) == 1
+
+
+def test_a_false_tactical_claim_that_cites_a_real_statement_is_still_dropped():
+    facts = cf.build_facts(WINQ, "d2d3", "f3h4", 700, -100, best_line_uci=["f3h4"])
+    st = cited.statements_for(facts)
+    i = next(n for n, s in enumerate(st, 1) if "f3" in s)
+    client = JsonClient(_reply(
+        ("The white knight on f3 is undefended.", [i]),  # it is defended by the queen and a pawn
+        ("The move was a blunder.", [1]),
+        ("The engine's best move is Nxh4.", [i]),
+    ))
+    result = explain(facts, client, ["f3h4"], style="cited")
+    assert "The white knight on f3 is undefended" not in result.text
+    assert any("is defended" in d for d in result.dropped)
+    assert "Nxh4" in result.text
+
+
+def test_the_cited_style_is_selectable_and_has_its_own_prompt_fingerprint(monkeypatch):
+    monkeypatch.setenv("CHESS_COACH_STYLE", "cited")
+    assert default_style() == "cited"
+    facts = _facts()
+    assert prompt_hash(facts, "cited") != prompt_hash(facts, "statements_rich")

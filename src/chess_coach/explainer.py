@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 import chess
 
+from chess_coach import cited
 from chess_coach.claims import check_claims, truth_boards
 from chess_coach.factcheck import check_text
 from chess_coach.llm import ChatClient, Message
@@ -83,6 +84,7 @@ _STATEMENT_STYLES = {
     "statements": (STATEMENTS_SYSTEM_PROMPT, False),
     "statements_strict": (STATEMENTS_STRICT_SYSTEM_PROMPT, False),
     "statements_rich": (STATEMENTS_STRICT_SYSTEM_PROMPT, True),
+    "cited": (cited.CITED_SYSTEM_PROMPT, True),  # structured sentences; see cited.py
 }
 
 
@@ -101,6 +103,8 @@ def build_messages(facts: dict, style: str = "json") -> list[Message]:
     """style 'json' = raw facts record; 'statements' = plain-English statements (narrative.py);
     'statements_strict' = same statements, stricter prompt; 'statements_rich' = stricter prompt
     plus extra statements (material, king safety, hanging pieces, development)."""
+    if style == "cited":
+        return cited.build_messages(facts)
     if style in _STATEMENT_STYLES:
         prompt, rich = _STATEMENT_STYLES[style]
         lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts, rich), 1))
@@ -126,6 +130,8 @@ class Explanation:
     false_claims: list[str] = field(default_factory=list)  # tactical claims the board contradicts
     checked_claims: int = 0  # tactical claims read and tested in the final text
     attempts: int = 1
+    dropped: list[str] = field(default_factory=list)  # cited style: sentences removed, and why
+    fallback: bool = False  # cited style: too little survived, so the text is the statements
 
 
 def prompt_hash(facts: dict, style: str) -> str:
@@ -148,10 +154,64 @@ def explain(
     max_retries: int = 2,
     style: str = "json",
 ) -> Explanation:
+    if style == "cited":
+        return explain_cited(facts, client, best_line_uci)
     boards = boards_for_check(facts, best_line_uci)
     return run_checked(
         build_messages(facts, style), client, boards, max_retries,
         facts=facts, best_line_uci=best_line_uci,
+    )
+
+
+def explain_cited(
+    facts: dict, client: ChatClient, best_line_uci: list[str] | None = None
+) -> Explanation:
+    """One model call, then deterministic filtering: keep only the sentences that are supported
+    by the statements they cite and that pass the board checks. No retry."""
+    statements = cited.statements_for(facts)
+    raw = client.chat(cited.build_messages(facts), format=cited.SCHEMA)
+    sentences = cited.parse(raw)
+    dropped: list[str] = []
+    if sentences is None:
+        sentences = []
+        dropped.append("the reply was not in the expected format")
+    kept = []
+    for s in sentences:
+        reason = cited.ground(s, statements)
+        if reason:
+            dropped.append(f"{reason}: {s['text']}")
+        else:
+            kept.append(s)
+    # Board checks on what is left: illegal moves and wrong piece squares, sentence by sentence.
+    boards = boards_for_check(facts, best_line_uci)
+    clean = []
+    for s in kept:
+        report = check_claims(s["text"], boards)
+        if report.count:
+            bad = [*report.illegal_moves, *report.false_placements]
+            dropped.append(f"fails the board check ({', '.join(bad)}): {s['text']}")
+        else:
+            clean.append(s)
+    # Tactical claims, read across the whole text so "It" keeps its meaning.
+    result = check_text(cited.join_text(clean), facts, best_line_uci)
+    if result.false_claims:
+        bad_sentences = {f.sentence for f in result.false_claims}
+        problems = {f.sentence: f.problem for f in result.false_claims}
+        still = []
+        for s in clean:
+            hit = next((b for b in bad_sentences if b in s["text"] or s["text"] in b), None)
+            if hit:
+                dropped.append(f"{problems[hit]}: {s['text']}")
+            else:
+                still.append(s)
+        clean = still
+    if len(clean) < cited.MIN_SENTENCES:
+        return Explanation(
+            text=cited.template(statements), flagged=False, checked_claims=result.checked,
+            dropped=dropped, fallback=True,
+        )
+    return Explanation(
+        text=cited.join_text(clean), flagged=False, checked_claims=result.checked, dropped=dropped,
     )
 
 
