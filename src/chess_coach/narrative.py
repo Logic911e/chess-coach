@@ -37,7 +37,7 @@ def _move_statements(m: dict, mover: str, opp: str, who: str) -> list[str]:
         desc += f", capturing a {m['captures']}"
     if m["promotion"]:
         desc += f", promoting to a {m['promotion']}"
-    out.append(f"{who} is {m['san']} ({desc}).")
+    out.append(f"{who} is {m['san']} ({_name(mover)}'s {desc}).")
     if m["checkmate"]:
         out.append(f"{m['san']} is checkmate.")
     elif m["gives_check"]:
@@ -136,6 +136,7 @@ def render_facts(facts: dict, rich: bool = False) -> list[str]:
     out += _move_statements(played, mover, opp, "The move played")
     if best:  # build_facts only includes "best" when it differs from the move played
         out += _move_statements(best, mover, opp, "The engine's best move")
+        out.append(f"{_name(mover)} should have played {best['san']} instead of {played['san']}.")
     else:
         out.append("The move played is also the engine's best move.")
     line = facts.get("best_line")

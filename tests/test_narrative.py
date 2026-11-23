@@ -20,6 +20,19 @@ def test_blunder_statements_name_colour_and_square():
     assert "The engine's best move is g6" in text
 
 
+def test_statements_say_which_side_each_move_belongs_to():
+    text = "\n".join(render_facts(_facts("g8f6")))
+    assert "Black's knight from g8 to f6" in text
+    assert "Black's pawn from g7 to g6" in text
+    assert "Black should have played g6 instead of Nf6." in text
+
+
+def test_prompts_require_naming_the_side():
+    for style in ("statements", "statements_strict", "statements_rich"):
+        system = build_messages(_facts("g8f6"), style=style)[0]["content"]
+        assert "Always say which side you mean" in system
+
+
 def test_best_move_played_says_so_and_has_no_alternative():
     text = "\n".join(render_facts(_facts("g7g6")))
     assert "also the engine's best move" in text
