@@ -1,8 +1,8 @@
 // Chat drawer logic. Imports cleanly in node (no window/document); the page supplies `api` and `ui`.
 // History is kept per move and dropped when the move changes; the server uses only the last few turns.
 export const HONESTY_NOTE =
-  "Checked for legal moves and piece squares only, so it can still contain mistakes.";
-export const FLAG_WARNING = "This answer failed the move and square check. Treat it with caution.";
+  "Checked for legal moves, piece squares and tactical claims such as \"undefended\" or \"attacks\". Strategy and reasons are not checked, so it can still contain mistakes.";
+export const FLAG_WARNING = "This answer failed a board check (a move, a square or a tactical claim). Treat it with caution.";
 const MAX_QUESTION = 1000, MAX_TURNS = 20, MAX_TURN_CHARS = 2000;
 
 /**

@@ -110,3 +110,15 @@ def test_which_binds_to_the_move_only_right_after_it():
     # "which" after a piece phrase is not the moved piece, so no claim is made
     text = "Black ignores the white queen on h5, which attacks the black pawn on e5."
     assert problems(text, facts) == []
+
+
+def test_check_text_counts_the_claims_it_tested():
+    from chess_coach.factcheck import CHECKER_VERSION, check_text
+
+    facts = _facts(QH5, "g8f6", "g7g6", 20, -700, ["g7g6", "h5f3"])
+    text = ("The black knight on f6 attacks the white queen on h5. "
+            "The white queen on h5 is attacked and undefended. It improves control of the centre.")
+    result = check_text(text, facts, ["g7g6", "h5f3"])
+    assert result.checked == 2 and result.false_claims == []
+    assert check_text("Strategy only, nothing to test.", facts).checked == 0
+    assert CHECKER_VERSION  # saved explanations record it, so a change forces a re-check

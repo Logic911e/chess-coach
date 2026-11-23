@@ -347,7 +347,7 @@ function showAnswer() {
   focusAfterReveal();  // the button that was pressed has just gone
 }
 
-const HONESTY = "Written by a small local model from engine facts. It is checked for legal moves and piece squares only, so it can still contain mistakes.";
+const HONESTY = "Written by a small local model from engine facts. Moves, piece squares and tactical claims such as \"undefended\" or \"attacks\" are checked against the board. Strategy and reasons are not, so it can still contain mistakes.";
 
 function renderExplain(mv) {
   const box = $("explainBox"), act = $("explainAct");
@@ -355,8 +355,13 @@ function renderExplain(mv) {
   if (mv.explanation) {
     box.append(el("p", { className: "explain-text", textContent: mv.explanation }));
     if (mv.explanation_flagged) box.append(el("div", { className: "warn",
-      textContent: "The checker flagged this text (an illegal move or a wrong piece square) and it ran out of retries." }));
-    box.append(el("div", { className: "note", textContent: HONESTY }));
+      textContent: "The checker flagged this text (an illegal move, a wrong piece square or a false tactical claim) and it ran out of retries." }));
+    if (mv.explanation_current === false) box.append(el("div", { className: "warn",
+      textContent: "Written by an earlier version of the coach. Regenerate to update it." }));
+    const n = mv.explanation_checked_claims;
+    box.append(el("div", { className: "note", textContent: n
+      ? `${n} tactical claim${n === 1 ? "" : "s"} checked against the board. ${HONESTY}`
+      : `No tactical claims in this text could be checked against the board. ${HONESTY}` }));
     const again = el("button", { type: "button", textContent: "Regenerate" });
     again.onclick = () => explain(mv, true);
     act.append(again);
@@ -381,6 +386,7 @@ async function explain(mv, regenerate) {
   try {
     const r = await explainMove(mv.id, regenerate);
     mv.explanation = r.body; mv.explanation_flagged = r.flagged;
+    mv.explanation_checked_claims = r.checked_claims; mv.explanation_current = r.current !== false;
   } catch (e) {
     if (cur() === mv) {
       if (!mayWriteExplain(hiddenNow(mv))) return;

@@ -33,7 +33,8 @@ test("question is trimmed and the answer is shown with its flag", async () => {
   assert.equal(sent[0].q, "why?");
   assert.deepEqual(log.filter((l) => l[0] === "answer"), [["answer", "Nf3 is fine", true]]);
   assert.deepEqual(log.filter((l) => l[0] === "pending").map((l) => l[1]), [true, false]);
-  assert.match(HONESTY_NOTE, /legal moves and piece squares only/);
+  assert.match(HONESTY_NOTE, /tactical claims/);
+  assert.match(HONESTY_NOTE, /Strategy and reasons are not checked/);
 });
 
 test("history resets when the move changes", async () => {

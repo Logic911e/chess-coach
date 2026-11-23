@@ -27,7 +27,8 @@ from chess_coach.analysis import ANALYSIS_TIME_CAP, AnalysisCache, analyse_fen
 from chess_coach.chat import answer_question, facts_for_move
 from chess_coach.engine import EngineNotFoundError
 from chess_coach.engine_service import EngineBusy, EngineService
-from chess_coach.explainer import default_style, explain
+from chess_coach.explainer import default_style, explain, prompt_hash
+from chess_coach.factcheck import CHECKER_VERSION
 from chess_coach.guess import score_guess
 from chess_coach.llm import LLMError, OllamaClient
 from chess_coach.store import save_explanation
@@ -200,19 +201,28 @@ def create_app(
                 SELECT m.id, m.ply, m.move_number, m.color, m.san, m.uci, m.fen_before, m.phase,
                        e.best_uci, e.cp_best, e.cp_played, e.expected_points_lost::float,
                        e.classification, f.reasons,
-                       (SELECT x.body FROM explanations x WHERE x.move_id = m.id
-                        ORDER BY x.id DESC LIMIT 1),
-                       (SELECT x.flagged FROM explanations x WHERE x.move_id = m.id
-                        ORDER BY x.id DESC LIMIT 1)
+                       x.body, x.flagged, x.model, x.prompt_hash, x.checker_version,
+                       x.checked_claims, f.facts
                 FROM moves m
                 JOIN evaluations e ON e.move_id = m.id
                 LEFT JOIN facts f  ON f.move_id = m.id
+                LEFT JOIN LATERAL (
+                    SELECT body, flagged, model, prompt_hash, checker_version, checked_claims
+                    FROM explanations WHERE move_id = m.id ORDER BY id DESC LIMIT 1
+                ) x ON true
                 WHERE m.game_id = %s ORDER BY m.ply
                 """,
                 (game_id,),
             ).fetchall()
+        style = default_style()
+        model_now = getattr(client_factory(), "model", "unknown")
         moves = []
         for r in rows:
+            # "current" = written by the model, prompt and checker that would write it today
+            current = bool(
+                r[14] is not None and r[20] is not None and r[16] == model_now
+                and r[17] == prompt_hash(r[20], style) and r[18] == CHECKER_VERSION
+            )
             capture, check = _move_flags(r[6], r[5])
             moves.append({
                 "capture": capture, "check": check,
@@ -223,12 +233,16 @@ def create_app(
                 "classification": r[12],
                 "is_key_moment": r[13] is not None, "reasons": r[13] or [],
                 "explanation": r[14], "explanation_flagged": r[15],
+                "explanation_current": current, "explanation_checked_claims": r[19],
             })
         keys = ("id", "white", "black", "result", "opening", "eco", "played_on")
         return {**dict(zip(keys, g, strict=True)), "moves": moves}
 
     @app.post("/api/moves/{move_id}/explain")
     def explain_move(move_id: int, regenerate: bool = False) -> dict:
+        client = client_factory()
+        model = getattr(client, "model", "unknown")
+        style = default_style()
         with connect() as conn:
             row = conn.execute(
                 "SELECT f.facts, m.fen_before FROM moves m JOIN facts f ON f.move_id = m.id"
@@ -237,26 +251,36 @@ def create_app(
             if row is None:
                 raise HTTPException(404, "explanations exist only for key moments")
             facts, fen = row
+            fingerprint = prompt_hash(facts, style)
             if not regenerate:
+                # Served from the cache only if the same model, prompt and checker wrote it.
                 cached = conn.execute(
-                    "SELECT body, flagged, model FROM explanations WHERE move_id = %s"
-                    " ORDER BY id DESC LIMIT 1", (move_id,),
+                    "SELECT body, flagged, model, checked_claims, false_claims FROM explanations"
+                    " WHERE move_id = %s AND model = %s AND prompt_hash = %s"
+                    " AND checker_version = %s ORDER BY id DESC LIMIT 1",
+                    (move_id, model, fingerprint, CHECKER_VERSION),
                 ).fetchone()
                 if cached:
                     return {"body": cached[0], "flagged": cached[1], "model": cached[2],
-                            "cached": True}
-            client = client_factory()
-            line = line_to_uci(fen, facts.get("best_line", {}).get("line_san", ""))
-            try:
-                result = explain(facts, client, best_line_uci=line,  # type: ignore[arg-type]
-                                 style=default_style())
-            except LLMError as exc:
-                raise HTTPException(503, f"local model unavailable: {exc}") from exc
-            model = getattr(client, "model", "unknown")
-            save_explanation(conn, move_id, model, result.text, result.flagged, result.attempts)
+                            "checked_claims": cached[3], "false_claims": cached[4],
+                            "cached": True, "current": True}
+        # The connection is closed here: a model call can take a minute and must not hold one.
+        line = line_to_uci(fen, facts.get("best_line", {}).get("line_san", ""))
+        try:
+            result = explain(facts, client, best_line_uci=line,  # type: ignore[arg-type]
+                             style=style)
+        except LLMError as exc:
+            raise HTTPException(503, f"local model unavailable: {exc}") from exc
+        with connect() as conn:
+            save_explanation(
+                conn, move_id, model, result.text, result.flagged, result.attempts,
+                style=style, prompt_hash=fingerprint, checker_version=CHECKER_VERSION,
+                checked_claims=result.checked_claims, false_claims=result.false_claims,
+            )
             conn.commit()
-            return {"body": result.text, "flagged": result.flagged, "model": model,
-                    "cached": False}
+        return {"body": result.text, "flagged": result.flagged, "model": model,
+                "checked_claims": result.checked_claims, "false_claims": result.false_claims,
+                "cached": False, "current": True}
 
     @app.post("/api/moves/{move_id}/guess")
     def guess_move(move_id: int, body: GuessBody) -> dict:

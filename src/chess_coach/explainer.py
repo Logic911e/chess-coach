@@ -10,6 +10,7 @@ judgements that are not about the board, or vague filler.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -17,7 +18,7 @@ from dataclasses import dataclass, field
 import chess
 
 from chess_coach.claims import check_claims, truth_boards
-from chess_coach.factcheck import find_false_claims
+from chess_coach.factcheck import check_text
 from chess_coach.llm import ChatClient, Message
 from chess_coach.narrative import render_facts
 
@@ -117,7 +118,15 @@ class Explanation:
     illegal_moves: list[str] = field(default_factory=list)
     false_placements: list[str] = field(default_factory=list)
     false_claims: list[str] = field(default_factory=list)  # tactical claims the board contradicts
+    checked_claims: int = 0  # tactical claims read and tested in the final text
     attempts: int = 1
+
+
+def prompt_hash(facts: dict, style: str) -> str:
+    """A short fingerprint of exactly what the model is asked: system prompt plus statements.
+    It changes when the style, the prompt wording or the facts change."""
+    messages = build_messages(facts, style)
+    return hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def boards_for_check(facts: dict, best_line_uci: list[str] | None) -> list[chess.Board]:
@@ -153,15 +162,17 @@ def run_checked(
     With `facts`, tactical claims in the reply are checked too (see factcheck.py)."""
     report = check_claims("", boards)
     false_claims: list[str] = []
+    checked = 0
     text = ""
     for attempt in range(1, max_retries + 2):
         text = client.chat(messages)
         report = check_claims(text, boards)
-        false_claims = (
-            [f.problem for f in find_false_claims(text, facts, best_line_uci)] if facts else []
-        )
+        if facts:
+            result = check_text(text, facts, best_line_uci)
+            false_claims = [f.problem for f in result.false_claims]
+            checked = result.checked
         if report.count == 0 and not false_claims:
-            return Explanation(text=text, flagged=False, attempts=attempt)
+            return Explanation(text=text, flagged=False, checked_claims=checked, attempts=attempt)
         problems = []
         if report.illegal_moves:
             problems.append(f"these moves are not legal here: {', '.join(report.illegal_moves)}")
@@ -186,5 +197,6 @@ def run_checked(
         illegal_moves=report.illegal_moves,
         false_placements=report.false_placements,
         false_claims=false_claims,
+        checked_claims=checked,
         attempts=max_retries + 1,
     )

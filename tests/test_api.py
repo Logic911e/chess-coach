@@ -398,3 +398,43 @@ def test_analysis_empty_lines_result_is_not_cached():
     assert http.post("/api/analysis", json=body).json()["lines"] == []
     http.post("/api/analysis", json=body)
     assert len(svc.calls) == 2
+
+
+def _first_move_id(http):
+    gid = http.get("/api/games").json()[0]["id"]
+    return gid, http.get(f"/api/games/{gid}").json()["moves"][0]["id"]
+
+
+def test_changing_the_style_is_a_cache_miss_and_old_text_is_marked_not_current(
+    app_and_client, monkeypatch
+):
+    http, client = app_and_client
+    monkeypatch.setenv("CHESS_COACH_STYLE", "statements")
+    gid, move_id = _first_move_id(http)
+    first = http.post(f"/api/moves/{move_id}/explain").json()
+    assert first["cached"] is False and first["current"] is True and "checked_claims" in first
+    assert http.post(f"/api/moves/{move_id}/explain").json()["cached"] is True
+    assert http.get(f"/api/games/{gid}").json()["moves"][0]["explanation_current"] is True
+
+    monkeypatch.setenv("CHESS_COACH_STYLE", "statements_rich")  # a different prompt
+    assert http.get(f"/api/games/{gid}").json()["moves"][0]["explanation_current"] is False
+    again = http.post(f"/api/moves/{move_id}/explain").json()
+    assert again["cached"] is False and client.calls == 2  # regenerated, not served stale
+    assert http.get(f"/api/games/{gid}").json()["moves"][0]["explanation_current"] is True
+
+
+def test_a_legacy_row_is_shown_but_never_treated_as_current(pg):
+    from chess_coach.store import save_explanation
+
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    client = FakeClient()
+    http = TestClient(create_app(connect=lambda: NoClose(pg), client_factory=lambda: client))
+    gid, move_id = _first_move_id(http)
+    save_explanation(pg, move_id, "fake-model", "old text", False, 1)  # no provenance: 'legacy'
+    pg.commit()
+    shown = http.get(f"/api/games/{gid}").json()["moves"][0]
+    assert shown["explanation"] == "old text" and shown["explanation_current"] is False
+    fresh = http.post(f"/api/moves/{move_id}/explain").json()
+    assert fresh["cached"] is False and fresh["body"] == "This move was a blunder."
+    assert client.calls == 1

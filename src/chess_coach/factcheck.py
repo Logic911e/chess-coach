@@ -25,6 +25,9 @@ import chess
 from chess_coach import features as cf
 from chess_coach.claims import threat_board, truth_boards
 
+# Bump when the patterns or the checks change, so saved explanations are checked again.
+CHECKER_VERSION = "2"
+
 PIECE = r"(?:pawn|knight|bishop|rook|queen|king)"
 SAN = (r"(?:O-O-O|O-O|[KQRBN][a-h]?[1-8]?x?[a-h][1-8]|[a-h]x[a-h][1-8](?:=[QRBN])?"
        r"|[a-h][1-8](?:=[QRBN])?)[+#]?")
@@ -123,6 +126,12 @@ _SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'])")
 class FalseClaim:
     sentence: str
     problem: str  # plain words, fed back to the model when it is asked to rewrite
+
+
+@dataclass(frozen=True)
+class CheckResult:
+    checked: int  # claims that were read and tested (not every sentence has one)
+    false_claims: list[FalseClaim]
 
 
 class _Malformed(Exception):
@@ -472,22 +481,43 @@ def _board_problem(claim: dict) -> str:
     return f"{claim['move']} is not checkmate"
 
 
-def find_false_claims(
-    text: str, facts: dict, best_line_uci: list[str] | None = None
-) -> list[FalseClaim]:
-    """Claims in `text` that the position or the engine line contradicts."""
+def _testable(claim: dict, ctx: _Ctx) -> bool:
+    """False for claims that were read but cannot be tested with what the explainer has."""
+    t = claim["type"]
+    if t == "material":
+        return ctx.delta.get(claim["ref"]) is not None
+    if t == "shift":
+        return ctx.line_change is not None
+    if t == "move_quality":
+        return _clean(claim["move"]) == _clean(ctx.san["played"])
+    return True
+
+
+def check_text(text: str, facts: dict, best_line_uci: list[str] | None = None) -> CheckResult:
+    """Read the tactical claims in `text`, test them, and report how many and which are false."""
     try:
         ctx = _Ctx(facts, best_line_uci)
     except (KeyError, ValueError):  # a facts record we cannot read: say nothing
-        return []
-    out: list[FalseClaim] = []
+        return CheckResult(0, [])
+    false: list[FalseClaim] = []
     seen: set[str] = set()
+    checked = 0
     for claim in extract_claims(text, ctx):
+        if not _testable(claim, ctx):
+            continue
         try:
             problem = _problem(claim, ctx)
         except _Malformed:
             continue
+        checked += 1
         if problem and problem not in seen:
             seen.add(problem)
-            out.append(FalseClaim(sentence=claim["sentence"], problem=problem))
-    return out
+            false.append(FalseClaim(sentence=claim["sentence"], problem=problem))
+    return CheckResult(checked, false)
+
+
+def find_false_claims(
+    text: str, facts: dict, best_line_uci: list[str] | None = None
+) -> list[FalseClaim]:
+    """Claims in `text` that the position or the engine line contradicts."""
+    return check_text(text, facts, best_line_uci).false_claims

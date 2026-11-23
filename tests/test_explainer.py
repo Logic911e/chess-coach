@@ -126,3 +126,12 @@ def test_true_tactical_claims_do_not_cost_a_retry():
     client = ScriptedClient(["The white knight on f3 attacks the black queen on h4."])
     result = explain(_winq_facts(), client, best_line_uci=WINQ_LINE, style="statements")
     assert not result.flagged and result.attempts == 1
+
+
+def test_prompt_hash_changes_with_the_style_and_is_stable_otherwise():
+    from chess_coach.explainer import prompt_hash
+
+    facts = _facts()
+    assert prompt_hash(facts, "statements") == prompt_hash(facts, "statements")
+    assert prompt_hash(facts, "statements") != prompt_hash(facts, "statements_rich")
+    assert prompt_hash(facts, "statements") != prompt_hash(facts, "statements_strict")

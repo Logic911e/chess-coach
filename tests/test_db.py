@@ -82,3 +82,18 @@ def test_bad_migration_name_rejected(tmp_path):
 def test_measured_indexes_exist(pg):
     names = {r[0] for r in pg.execute("SELECT indexname FROM pg_indexes WHERE schemaname='public'")}
     assert {"moves_game_color_ply_idx", "facts_gin_idx", "explanations_move_id_idx"} <= names
+
+
+def test_provenance_columns_default_to_legacy(pg):
+    gid = _game(pg)
+    mid = _move(pg, gid)
+    pg.execute(
+        "INSERT INTO explanations (move_id, model, body, flagged, attempts)"
+        " VALUES (%s,'m','b',false,1)", (mid,),
+    )
+    row = pg.execute(
+        "SELECT style, prompt_hash, checker_version, checked_claims, false_claims"
+        " FROM explanations").fetchone()
+    assert row == ("legacy", "legacy", "legacy", 0, [])
+    with pytest.raises(psycopg.errors.CheckViolation):
+        pg.execute("UPDATE explanations SET checked_claims = -1")

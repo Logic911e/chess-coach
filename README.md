@@ -172,8 +172,13 @@ Local model for explanations: `brew install ollama && ollama serve` and `ollama 
   of six samples for the same blunder (`...Nf6` into `Qxf7#`), all six passed and all six contained
   errors of that kind, for example "the f7 pawn was already pinned", "Knight to g6" (g6 is a pawn
   move) and the white queen described as "undefended on h5".
-- Chat and explanations come from a small local model and are checked only for illegal moves and wrong
-  piece squares, so they can still be wrong or vague.
+- Chat and explanations come from a small local model. They are checked for illegal moves, wrong piece
+  squares and, since checker version 2, tactical claims that name a colour, piece and square or a move
+  ("the white knight on f3 is undefended", "Nf7+ captures the queen", "material shifts by 9 points").
+  The claim reader is pattern-based and covers roughly a third of the sentences; strategy talk, negated
+  claims and claims about what happens after the move played are not checked. A passed check means
+  "nothing I could read was wrong", not "this is accurate". Explanations are saved with the model,
+  prompt and checker version that wrote them, and are written again when any of those changes.
 - Sounds and animation were only checked structurally (the code and tests); nobody listened to them or judged
   the motion by eye on every theme.
 - Accessibility has had only a structural pass, not a test with a real screen reader. In Chrome I inspected
