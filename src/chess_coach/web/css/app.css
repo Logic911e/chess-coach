@@ -21,6 +21,20 @@ body {
   background: radial-gradient(ellipse at 20% 0%, var(--bg-glow) 0%, var(--bg) 60%) fixed var(--bg);
   color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+.bg-pieces {
+  /* free space either side of the board + side card; pieces live only in it, and shrink or vanish as it closes up */
+  --gut: max(0px, calc((100vw - var(--boardw) - var(--barspace) - var(--cardw) - 24px) / 2 - 20px));
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-pieces span {
+  position: absolute; top: var(--y); --w: min(calc(var(--s) * .85), calc(var(--gut) * .8));
+  width: var(--w); height: var(--w);
+  transform: translate(-50%, -50%) rotate(var(--r)); background: var(--ink); opacity: .13;
+  -webkit-mask: var(--p) center / contain no-repeat; mask: var(--p) center / contain no-repeat;
+}
+.bg-pieces .l { left: calc(var(--gut) * var(--f)); }
+.bg-pieces .r { left: calc(100% - var(--gut) * var(--f)); }
+.topbar, #stage { position: relative; z-index: 1; }
 h1, h2, .move-name, .explain-text { font-family: Georgia, "Iowan Old Style", serif; }
 button {
   font: inherit; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
