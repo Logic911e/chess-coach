@@ -118,7 +118,10 @@ def manifest(model: str, host: str, frozen: dict | None, args: dict) -> dict:
         "stockfish": (frozen or {}).get("stockfish", "live engine, not frozen"),
         "engine_options": (frozen or {}).get("engine_options"),
         "facts_sha": _sha(json.dumps((frozen or {}).get("cases"), sort_keys=True)),
-        "prompt_sha": {name: _sha(prompt) for name, (prompt, _) in _STATEMENT_STYLES.items()}
+        # the prompt text plus whether the style adds the richer statements, so a style that only
+        # differs in its statements still gets its own fingerprint
+        "prompt_sha": {name: _sha(f"{prompt}|rich={rich}")
+                       for name, (prompt, rich) in _STATEMENT_STYLES.items()}
                       | {"facts": _sha(SYSTEM_PROMPT)},
         "args": args,
     }

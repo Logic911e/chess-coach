@@ -69,6 +69,7 @@ def test_frozen_facts_load_and_manifest_survives_an_unreachable_model_server(tmp
     assert m["stockfish"] == "Stockfish X" and m["ollama_version"] == "unknown"
     assert m["model_digest"] == "unknown" and len(m["facts_sha"]) == 16
     assert set(m["prompt_sha"]) >= {"statements", "statements_rich", "facts"}
+    assert m["prompt_sha"]["statements_strict"] != m["prompt_sha"]["statements_rich"]
 
 
 def test_best_and_excellent_count_as_the_same_label_band():
