@@ -49,6 +49,9 @@ Write a short explanation that uses ONLY those statements.
 Rules:
 - Do not add any fact, move, square, plan or judgement that is not in the statements.
 - Keep every piece colour and square exactly as written.
+- Always say which side you mean. Write "White" or "Black" for every move and piece; never
+  "the engine's best move is Qf5" without saying for whom. A move belongs to the side to move,
+  and its targets belong to the other side.
 - Name a move only if it appears in the statements.
 - Start with how good the move was, then say why, then what the engine's best move did better.
 - 3 to 5 sentences. Plain language. No lists, no headings."""
@@ -67,6 +70,9 @@ Rules:
   particular, do not talk about central control, development, activity, space, initiative,
   pressure or the engine's later moves unless a statement says so.
 - Keep every piece colour and square exactly as written.
+- Always say which side you mean. Write "White" or "Black" for every move and piece; never
+  "the engine's best move is Qf5" without saying for whom. A move belongs to the side to move,
+  and its targets belong to the other side.
 - Name a move only if it appears in the statements.
 - Start with how good the move was, then say why, then what the engine's best move did better.
 - If the statements give you little to say, write fewer sentences: 2 to 4 in all.

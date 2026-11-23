@@ -247,7 +247,7 @@ function render(animate = false) {
   $("labelPill").replaceChildren(...(view.showPill ? [el("span", { className: "pill " + mv.classification, textContent: mv.classification })] : []));
   $("reasons").replaceChildren(...(view.showReasons ? mv.reasons.map((r) =>
     el("span", { className: "reason", textContent: "key moment: " + r.replace("_", " ") })) : []));
-  const bestTxt = mv.best_uci === mv.uci ? "the engine's best move" : `the engine preferred ${mv.best_san}`;
+  const bestTxt = mv.best_uci === mv.uci ? "the engine's best move" : `the engine preferred ${mv.best_san} for ${mv.color === "white" ? "White" : "Black"}`;
   $("happened").textContent = hidden ? "" :
     `${mv.color === "white" ? g.white : g.black} lost ${mv.expected_points_lost.toFixed(3)} expected points; ${bestTxt}.`;
   renderGuessUi(mv, guessing, hidden);
