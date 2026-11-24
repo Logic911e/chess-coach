@@ -142,7 +142,12 @@ def _moves(text: str) -> set[str]:
     return {m.rstrip("+#") for m in _MOVE.findall(text)}
 
 
-def ground(sentence: dict, statements: list[str]) -> str | None:
+def moves_in(text: str) -> set[str]:
+    """The moves named in a text, without check or mate signs."""
+    return _moves(text)
+
+
+def ground(sentence: dict, statements: list[str], need_cites: bool = True) -> str | None:
     """None if the sentence is supported, otherwise why it is not.
 
     It must cite at least one real statement, and every square, move, number and strategy word in
@@ -150,11 +155,12 @@ def ground(sentence: dict, statements: list[str]) -> str | None:
     only the cited ones, because the 7B model cites loosely: it will cite the rating for a
     sentence that names the move, which is untidy but not invented. `supported_by_cites` says
     whether the citations alone would have been enough."""
-    cites = sentence["cites"]
-    if not cites:
-        return "cites nothing"
-    if any(not 1 <= c <= len(statements) for c in cites):
-        return "cites a statement that does not exist"
+    cites = sentence.get("cites", [])
+    if need_cites:  # the fields style has no citations: only what is named is checked
+        if not cites:
+            return "cites nothing"
+        if any(not 1 <= c <= len(statements) for c in cites):
+            return "cites a statement that does not exist"
     return _unsupported(sentence["text"], " ".join(statements))
 
 
@@ -191,20 +197,40 @@ def _is_reason(s: str) -> bool:
             or " gives check" in s or " is checkmate" in s)
 
 
+def clean_rating(statement: str) -> str:
+    """The rating statement without "White to move." and the scale note."""
+    return _RATING_NOTE.sub("", _SIDE_PREFIX.sub("", statement))
+
+
+def reason_statements(statements: list[str]) -> list[str]:
+    """Up to three statements saying why the move was good or bad."""
+    best = next((i for i, s in enumerate(statements) if s.startswith("The engine's best move is")),
+                len(statements))
+    return [s for s in statements[1:best] if _is_reason(s)][:3]
+
+
+def better_statements(statements: list[str]) -> list[str]:
+    """What the engine preferred, and up to two reasons it was better. Empty if the move played
+    was the engine's choice."""
+    should = next((i for i, s in enumerate(statements) if " should have played " in s), None)
+    if should is None:
+        return []
+    best = next((i for i, s in enumerate(statements) if s.startswith("The engine's best move is")),
+                len(statements))
+    return [statements[should], *[s for s in statements[best + 1:should] if _is_reason(s)][:2]]
+
+
 def template(statements: list[str]) -> str:
     """The explanation straight from the statements, used when too few model sentences survive:
     the rating, the move, up to three reasons it was good or bad, what the engine preferred, and
     up to two reasons for that. It cannot say anything the facts do not. Only the rating line is
     reworded, to drop the scale note."""
-    out = [_RATING_NOTE.sub("", _SIDE_PREFIX.sub("", statements[0]))]
+    out = [clean_rating(statements[0])]
     out += [s for s in statements[1:] if s.startswith("The move played is") and "also" not in s][:1]
-    best = next((i for i, s in enumerate(statements) if s.startswith("The engine's best move is")),
-                len(statements))
-    out += [s for s in statements[1:best] if _is_reason(s)][:3]
-    should = next((i for i, s in enumerate(statements) if " should have played " in s), None)
-    if should is not None:
-        out.append(statements[should])
-        out += [s for s in statements[best + 1:should] if _is_reason(s)][:2]
+    out += reason_statements(statements)
+    better = better_statements(statements)
+    if better:
+        out += better
     else:  # the move played was the engine's choice
         out += [s for s in statements if s.startswith("The move played is also")][:1]
     line = next((s for s in statements if s.startswith("The engine's best line is")), None)

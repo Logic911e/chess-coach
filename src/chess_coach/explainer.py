@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 import chess
 
-from chess_coach import cited
+from chess_coach import cited, fields
 from chess_coach.claims import check_claims, truth_boards
 from chess_coach.factcheck import check_text
 from chess_coach.llm import ChatClient, Message
@@ -85,6 +85,7 @@ _STATEMENT_STYLES = {
     "statements_strict": (STATEMENTS_STRICT_SYSTEM_PROMPT, False),
     "statements_rich": (STATEMENTS_STRICT_SYSTEM_PROMPT, True),
     "cited": (cited.CITED_SYSTEM_PROMPT, True),  # structured sentences; see cited.py
+    "fields": (fields.FIELDS_SYSTEM_PROMPT, True),  # reason and better as fields; see fields.py
 }
 
 
@@ -105,6 +106,8 @@ def build_messages(facts: dict, style: str = "json") -> list[Message]:
     plus extra statements (material, king safety, hanging pieces, development)."""
     if style == "cited":
         return cited.build_messages(facts)
+    if style == "fields":
+        return fields.build_messages(facts)
     if style in _STATEMENT_STYLES:
         prompt, rich = _STATEMENT_STYLES[style]
         lines = "\n".join(f"{i}. {s}" for i, s in enumerate(render_facts(facts, rich), 1))
@@ -133,6 +136,8 @@ class Explanation:
     dropped: list[str] = field(default_factory=list)  # cited style: sentences removed, and why
     fallback: bool = False  # cited style: too little survived, so the text is the statements
     sentences: list[dict] = field(default_factory=list)  # cited style: kept text, cites, exact
+    # fields style: [{"key", "label", "text", "source": "code" | "model" | "facts"}], in order
+    fields: list[dict] = field(default_factory=list)
 
 
 def prompt_hash(facts: dict, style: str) -> str:
@@ -157,6 +162,8 @@ def explain(
 ) -> Explanation:
     if style == "cited":
         return explain_cited(facts, client, best_line_uci)
+    if style == "fields":
+        return explain_fields(facts, client, best_line_uci)
     boards = boards_for_check(facts, best_line_uci)
     return run_checked(
         build_messages(facts, style), client, boards, max_retries,
@@ -164,25 +171,21 @@ def explain(
     )
 
 
-def explain_cited(
-    facts: dict, client: ChatClient, best_line_uci: list[str] | None = None
-) -> Explanation:
-    """One model call, then deterministic filtering: keep only the sentences that are supported
-    by the statements they cite and that pass the board checks. No retry."""
-    statements = cited.statements_for(facts)
-    raw = client.chat(cited.build_messages(facts), format=cited.SCHEMA)
-    sentences = cited.parse(raw)
-    dropped: list[str] = []
-    if sentences is None:
-        sentences = []
-        dropped.append("the reply was not in the expected format")
+def _vet(
+    sentences: list[dict], statements: list[str], facts: dict,
+    best_line_uci: list[str] | None, dropped: list[str], need_cites: bool,
+) -> tuple[list[dict], int]:
+    """Keep the sentences that are supported by the statements and pass the board checks.
+    Returns them and the number of tactical claims that were tested. Why each other sentence
+    went is appended to `dropped`."""
     kept = []
     for s in sentences:
-        reason = cited.ground(s, statements)
+        reason = cited.ground(s, statements, need_cites)
         if reason:
             dropped.append(f"{reason}: {s['text']}")
         else:
-            s["exact"] = cited.supported_by_cites(s, statements)
+            if need_cites:
+                s["exact"] = cited.supported_by_cites(s, statements)
             kept.append(s)
     # Board checks on what is left: illegal moves and wrong piece squares, sentence by sentence.
     boards = boards_for_check(facts, best_line_uci)
@@ -197,24 +200,83 @@ def explain_cited(
     # Tactical claims, read across the whole text so "It" keeps its meaning.
     result = check_text(cited.join_text(clean), facts, best_line_uci)
     if result.false_claims:
-        bad_sentences = {f.sentence for f in result.false_claims}
         problems = {f.sentence: f.problem for f in result.false_claims}
         still = []
         for s in clean:
-            hit = next((b for b in bad_sentences if b in s["text"] or s["text"] in b), None)
+            hit = next((b for b in problems if b in s["text"] or s["text"] in b), None)
             if hit:
                 dropped.append(f"{problems[hit]}: {s['text']}")
             else:
                 still.append(s)
         clean = still
+    return clean, result.checked
+
+
+def explain_cited(
+    facts: dict, client: ChatClient, best_line_uci: list[str] | None = None
+) -> Explanation:
+    """One model call, then deterministic filtering: keep only the sentences that are supported
+    by the statements they cite and that pass the board checks. No retry."""
+    statements = cited.statements_for(facts)
+    raw = client.chat(cited.build_messages(facts), format=cited.SCHEMA)
+    sentences = cited.parse(raw)
+    dropped: list[str] = []
+    if sentences is None:
+        sentences = []
+        dropped.append("the reply was not in the expected format")
+    clean, checked = _vet(sentences, statements, facts, best_line_uci, dropped, need_cites=True)
     if len(clean) < cited.MIN_SENTENCES:
         return Explanation(
-            text=cited.template(statements), flagged=False, checked_claims=result.checked,
+            text=cited.template(statements), flagged=False, checked_claims=checked,
             dropped=dropped, fallback=True,
         )
     return Explanation(
-        text=cited.join_text(clean), flagged=False, checked_claims=result.checked, dropped=dropped,
+        text=cited.join_text(clean), flagged=False, checked_claims=checked, dropped=dropped,
         sentences=clean,
+    )
+
+
+def explain_fields(
+    facts: dict, client: ChatClient, best_line_uci: list[str] | None = None
+) -> Explanation:
+    """The model writes a reason and what was better; code writes the verdict. Each model field
+    is vetted sentence by sentence, and a field that fails is rewritten from the statements on its
+    own, so one bad sentence does not undo the others. One model call, no retry."""
+    statements = cited.statements_for(facts)
+    raw = client.chat(fields.build_messages(facts), format=fields.SCHEMA)
+    got = fields.parse(raw)
+    dropped: list[str] = []
+    if got is None:
+        got = {"reason": "", "better": ""}
+        dropped.append("the reply was not in the expected format")
+    has_better = "best" in facts
+    sentences = [{"text": t, "part": "reason"} for t in cited.split_sentences(got["reason"])]
+    if has_better:
+        sentences += [{"text": t, "part": "better"} for t in cited.split_sentences(got["better"])]
+    elif got["better"]:
+        dropped.append("the move was the engine's choice, so the 'better' field was ignored")
+    kept, checked = _vet(sentences, statements, facts, best_line_uci, dropped, need_cites=False)
+
+    out = [{"key": "verdict", "label": "Verdict", "text": fields.verdict(facts), "source": "code"}]
+    reason = cited.join_text([s for s in kept if s["part"] == "reason"])
+    source = "model"
+    if not reason:
+        reason, source = fields.fallback_reason(statements), "facts"
+    if reason:
+        out.append({"key": "reason", "label": "Why", "text": reason, "source": source})
+    if has_better:
+        better = cited.join_text([s for s in kept if s["part"] == "better"])
+        source = "model"
+        if not better or not fields.mentions_best(better, facts):
+            if better:
+                dropped.append(f"the 'better' field did not name the engine's move: {better}")
+            better, source = fields.fallback_better(statements), "facts"
+        if better:
+            out.append({"key": "better", "label": "What was better", "text": better,
+                        "source": source})
+    return Explanation(
+        text=" ".join(f["text"] for f in out), flagged=False, checked_claims=checked,
+        dropped=dropped, fallback=any(f["source"] == "facts" for f in out), fields=out,
     )
 
 

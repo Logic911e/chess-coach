@@ -87,3 +87,14 @@ def test_cited_is_an_evaluation_condition_and_the_summary_counts_drops_and_fallb
     r = score(CASES[0], "cited", 0, "ok", ["g7g6"], dropped=["a", "b"], fallback=True)
     s = summarise([r])["cited"]
     assert s["dropped_sentences"] == 2 and s["fell_back_to_statements"] == 1
+
+
+def test_fields_is_an_evaluation_condition_and_the_summary_counts_fields_and_time():
+    from chess_coach.eval_cases import CASES
+    from chess_coach.evaluation import ALL_CONDITIONS, score, summarise
+
+    assert "fields" in ALL_CONDITIONS
+    rs = [score(CASES[0], "fields", 0, "ok", ["g7g6"], fields_from_facts=["reason"], seconds=4.0),
+          score(CASES[0], "fields", 1, "ok", ["g7g6"], fields_from_facts=[], seconds=6.0)]
+    s = summarise(rs)["fields"]
+    assert s["fields_written_from_facts"] == 1 and s["median_seconds"] == 5.0

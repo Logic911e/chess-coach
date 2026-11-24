@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import re
+import statistics
 import subprocess
 import time
 import urllib.request
@@ -57,6 +58,8 @@ class Result:
     flagged: bool = False  # a *_checked condition still failed a check after its retries
     dropped: list[str] = field(default_factory=list)  # cited style: sentences removed, and why
     fallback: bool = False  # cited style: too little survived, so the text is the statements
+    fields_from_facts: list[str] = field(default_factory=list)  # fields style: which were rewritten
+    seconds: float = 0.0  # wall time to produce the answer
 
     @property
     def has_false_claim(self) -> bool:
@@ -160,6 +163,7 @@ def score(
     case: Case, condition: str, seed: int, text: str, line: list[str],
     facts: dict | None = None, attempts: int = 1, flagged: bool = False,
     dropped: list[str] | None = None, fallback: bool = False,
+    fields_from_facts: list[str] | None = None, seconds: float = 0.0,
 ) -> Result:
     report = check_claims(text, truth_boards(case.fen, case.played_uci, line))
     false_claims = [f.problem for f in find_false_claims(text, facts, line)] if facts else []
@@ -177,6 +181,8 @@ def score(
         flagged=flagged,
         dropped=dropped or [],
         fallback=fallback,
+        fields_from_facts=fields_from_facts or [],
+        seconds=round(seconds, 2),
     )
 
 
@@ -196,6 +202,8 @@ def summarise(results: list[Result]) -> dict:
             "flagged_after_retries": sum(r.flagged for r in rs),
             "dropped_sentences": sum(len(r.dropped) for r in rs),
             "fell_back_to_statements": sum(r.fallback for r in rs),
+            "fields_written_from_facts": sum(len(r.fields_from_facts) for r in rs),
+            "median_seconds": round(statistics.median(r.seconds for r in rs), 1),
         }
     return out
 
@@ -203,7 +211,7 @@ def summarise(results: list[Result]) -> dict:
 STYLES = ("statements", "statements_strict", "statements_rich")
 # "<style>_checked" runs the style through the real retry loop (explainer.explain), so the
 # explanation can be rewritten when a check fails; plain styles are a single model call.
-ALL_CONDITIONS = ("facts", *STYLES, *(f"{s}_checked" for s in STYLES), "cited", "fen_only")
+ALL_CONDITIONS = ("facts", *STYLES, *(f"{s}_checked" for s in STYLES), "cited", "fields", "fen_only")
 
 
 def condition_messages(cond: str, facts: dict, fen: str, san: str) -> list[Message]:
@@ -232,13 +240,20 @@ def run(
         for seed in seeds:
             client: ChatClient = client_factory(seed)
             for cond in conditions:
-                if cond.endswith("_checked") or cond == "cited":
+                started = time.perf_counter()
+                dropped: list[str] = []
+                from_facts: list[str] = []
+                fallback = flagged = False
+                attempts = 1
+                if cond.endswith("_checked") or cond in ("cited", "fields"):
                     got = explain(facts, client, line, style=cond.removesuffix("_checked"))
-                    results.append(score(case, cond, seed, got.text, line, facts,
-                                         got.attempts, got.flagged, got.dropped, got.fallback))
-                    continue
-                msgs = condition_messages(cond, facts, case.fen, san)
-                results.append(score(case, cond, seed, client.chat(msgs), line, facts))
+                    text, attempts, flagged = got.text, got.attempts, got.flagged
+                    dropped, fallback = got.dropped, got.fallback
+                    from_facts = [f["key"] for f in got.fields if f["source"] == "facts"]
+                else:
+                    text = client.chat(condition_messages(cond, facts, case.fen, san))
+                results.append(score(case, cond, seed, text, line, facts, attempts, flagged,
+                                     dropped, fallback, from_facts, time.perf_counter() - started))
             print(f"  done {case.id} seed={seed}", flush=True)
     summary = summarise(results)
     out_dir.mkdir(parents=True, exist_ok=True)
