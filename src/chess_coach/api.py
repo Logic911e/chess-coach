@@ -31,6 +31,7 @@ from chess_coach.explainer import default_style, explain, prompt_hash
 from chess_coach.factcheck import CHECKER_VERSION
 from chess_coach.guess import score_guess
 from chess_coach.llm import LLMError, OllamaClient
+from chess_coach.stats import build_stats
 from chess_coach.store import save_explanation
 
 WEB_DIR = Path(__file__).parent / "web"
@@ -186,6 +187,17 @@ def create_app(
             "players": [{"name": name, "games": n} for name, n in rows],
             "suggested": suggest_player(counts, total),
         }
+
+    @app.get("/api/stats")
+    def player_stats(player: str) -> dict:
+        name = player.strip()
+        if not name or len(name) > 100:
+            raise HTTPException(422, "player must be 1 to 100 characters")
+        with connect() as conn:
+            data = build_stats(conn, name)
+        if data is None:
+            raise HTTPException(404, "no stored games for that player")
+        return data
 
     @app.get("/api/games/{game_id}")
     def get_game(game_id: int) -> dict:
@@ -376,6 +388,10 @@ def create_app(
         @app.get("/")
         def index() -> FileResponse:
             return FileResponse(WEB_DIR / "index.html")
+
+        @app.get("/stats")
+        def stats_page() -> FileResponse:
+            return FileResponse(WEB_DIR / "stats.html")
 
     return app
 

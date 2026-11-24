@@ -12,6 +12,7 @@ import chess.pgn
 import psycopg
 from psycopg.types.json import Jsonb
 
+from chess_coach import backfill, openings
 from chess_coach.analyser import GameAnalysis, MoveRecord
 
 PIECE_VALUES = {chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
@@ -58,20 +59,28 @@ def save_game(
     """
     h = analysis.headers
     eco = h.get("ECO") if re.fullmatch(r"[A-E][0-9]{2}", h.get("ECO", "")) else None
+    opening = h.get("Opening")
+    if not eco or not opening:  # the export names no opening: name it from the moves
+        found = openings.classify(m.uci for m in analysis.moves)
+        if found:
+            eco, opening = eco or found.eco, opening or found.name
+    elo = backfill.game_headers(pgn)
     with conn.transaction():
         row = conn.execute(
-            "INSERT INTO games (white, black, result, eco, opening, played_on, pgn, pgn_hash)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+            "INSERT INTO games (white, black, result, eco, opening, played_on, pgn, pgn_hash,"
+            " time_control, white_elo, black_elo)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             " ON CONFLICT (pgn_hash) DO NOTHING RETURNING id",
             (
                 h.get("White", "?"),
                 h.get("Black", "?"),
                 h.get("Result", "*") if h.get("Result") in ("1-0", "0-1", "1/2-1/2") else "*",
                 eco,
-                h.get("Opening"),
+                opening,
                 _date(h.get("Date")),
                 pgn,
                 game_hash(h, [m.uci for m in analysis.moves]),
+                elo["time_control"], elo["white_elo"], elo["black_elo"],
             ),
         ).fetchone()
         if row is None:

@@ -468,3 +468,16 @@ def test_a_fields_explanation_is_saved_cached_and_shown_with_its_parts(pg, monke
     assert again["cached"] is True and again["fields"] == first["fields"] and client.calls == 1
     shown = http.get(f"/api/games/{gid}").json()["moves"][0]
     assert shown["explanation_fields"] == first["fields"] and shown["explanation_current"] is True
+
+
+def test_the_stats_endpoint_returns_a_players_stats_and_rejects_bad_requests(app_and_client):
+    http, _ = app_and_client
+    ok = http.get("/api/stats", params={"player": "ann"})
+    assert ok.status_code == 200
+    body = ok.json()
+    assert body["player"] == "ann" and body["overview"]["games"] == 1
+    assert set(body) >= {"trend", "phases", "pieces", "openings", "notes", "time_classes"}
+    assert http.get("/api/stats", params={"player": "Nobody"}).status_code == 404
+    assert http.get("/api/stats", params={"player": "  "}).status_code == 422
+    assert http.get("/api/stats").status_code == 422
+    assert http.get("/api/stats", params={"player": "x" * 101}).status_code == 422
