@@ -42,6 +42,15 @@ def iter_games(path: Path):
             yield dict(game.headers), text, [m.uci() for m in game.mainline_moves()]
 
 
+def iter_games_text(text: str):
+    """Like iter_games, for PGN text that is already in memory."""
+    import io
+    handle = io.StringIO(text)
+    while (game := chess.pgn.read_game(handle)) is not None:
+        out = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+        yield dict(game.headers), out, [m.uci() for m in game.mainline_moves()]
+
+
 def explain_key_moments(
     conn: psycopg.Connection, game_id: int, analysis: GameAnalysis, client: ChatClient,
     summary: ImportSummary,
@@ -67,10 +76,17 @@ def import_pgn(
     client: ChatClient | None = None,
     max_games: int | None = None,
     log=print,
+    *,
+    pgn_text: str | None = None,
+    source_account: int | None = None,
+    should_stop=lambda: False,
 ) -> ImportSummary:
+    """Import the games in `path`, or in `pgn_text` when given. Games from a linked account carry
+    its id. `should_stop()` is checked between games so an import can be cancelled."""
     summary = ImportSummary()
-    for n, (headers, text, ucis) in enumerate(iter_games(path), start=1):
-        if max_games is not None and n > max_games:
+    games = iter_games_text(pgn_text) if pgn_text is not None else iter_games(path)
+    for n, (headers, text, ucis) in enumerate(games, start=1):
+        if (max_games is not None and n > max_games) or should_stop():
             break
         label = f"{headers.get('White', '?')} vs {headers.get('Black', '?')}"
         if not ucis:
@@ -86,6 +102,9 @@ def import_pgn(
         try:
             analysis = analyse_game(text, engine, depth=depth)
             game_id = save_game(conn, text, analysis, depth, engine_version)
+            if game_id is not None and source_account is not None:
+                conn.execute("UPDATE games SET source_account = %s WHERE id = %s",
+                             (source_account, game_id))
             conn.commit()
         except (ValueError, RuntimeError, psycopg.Error, chess.engine.EngineError) as e:
             # keep going: one bad game must not lose the rest of the file

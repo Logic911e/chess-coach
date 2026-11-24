@@ -3,6 +3,7 @@ import {
   plural, pct, lossText, recordText, levelOf, LEVEL_TEXT, barPercent, resultShares, trendGeometry,
   pickPlayer, storedMe,
 } from "./stats-view.js";
+import { mountAccounts } from "./accounts.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, props = {}, ...kids) => {
@@ -122,7 +123,7 @@ function render(d) {
     d.phases, d.overview.avg_loss, "move");
   const pieces = bars("By piece", "The same measure, by the piece you moved.", d.pieces, d.overview.avg_loss, "move");
   root.replaceChildren(summary(d), trend(d), el("div", { className: "two" }, where, pieces), legend(), openings(d),
-    el("p", { className: "foot", textContent: `${d.notes.accuracy}. Everything here is compared with ${d.notes.compared_with}. ${d.unnamed_games ? `${plural(d.unnamed_games, "game")} could not be matched to an opening. ` : ""}Speed, clock use and comparison with other players need clock times and a reference population, which this version does not have.` }));
+    el("p", { className: "foot", textContent: `Accuracy is ${d.notes.accuracy}. Everything here is compared with ${d.notes.compared_with}. ${d.unnamed_games ? `${plural(d.unnamed_games, "game")} could not be matched to an opening. ` : ""}Speed, clock use and comparison with other players need clock times and a reference population, which this version does not have.` }));
 }
 
 async function load(name) {
@@ -137,6 +138,7 @@ async function load(name) {
 
 async function main() {
   const root = document.getElementById("content");
+  mountAccounts(document.getElementById("accounts"), () => location.reload());
   let players;
   try { players = await getJson("/api/players"); } catch (e) {
     root.replaceChildren(el("section", { className: "error", textContent: "The stats could not be loaded. Is the server running?" })); return;

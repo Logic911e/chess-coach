@@ -22,10 +22,10 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from chess_coach import db
+from chess_coach import accounts, db, sources
 from chess_coach.analysis import ANALYSIS_TIME_CAP, AnalysisCache, analyse_fen
 from chess_coach.chat import answer_question, facts_for_move
-from chess_coach.engine import EngineNotFoundError
+from chess_coach.engine import Engine, EngineNotFoundError
 from chess_coach.engine_service import EngineBusy, EngineService
 from chess_coach.explainer import default_style, explain, prompt_hash
 from chess_coach.factcheck import CHECKER_VERSION
@@ -44,6 +44,12 @@ ENGINE_FAILURES = (
     chess.engine.EngineError, chess.engine.EngineTerminatedError, EngineNotFoundError,
     OSError, TimeoutError,
 )
+
+
+class LinkBody(BaseModel):
+    platform: Literal["chesscom", "lichess"]
+    username: str = Field(min_length=2, max_length=30)
+    months: int = Field(default=3, ge=1, le=24)
 
 
 class GuessBody(BaseModel):
@@ -134,6 +140,8 @@ def create_app(
     connect: Callable[[], psycopg.Connection] = db.connect,
     client_factory: Callable[[], object] = OllamaClient,
     engine_service: EngineService | None = None,
+    sync_manager: accounts.SyncManager | None = None,
+    fetch_get: sources.Get = sources.http_get,
 ) -> FastAPI:
     engine = engine_service or EngineService()
 
@@ -145,6 +153,8 @@ def create_app(
             engine.close()
 
     app = FastAPI(title="chess-coach", lifespan=lifespan)
+    sync = sync_manager or accounts.SyncManager(connect, Engine, fetch_get)
+    app.state.sync = sync
     app.state.engine = engine
 
     @app.get("/api/games")
@@ -187,6 +197,57 @@ def create_app(
             "players": [{"name": name, "games": n} for name, n in rows],
             "suggested": suggest_player(counts, total),
         }
+
+    # ---- linked accounts -------------------------------------------------------------------
+    def _account_view(conn: psycopg.Connection) -> list[dict]:
+        return [{**a, "sync": sync.status(a["id"])} for a in accounts.list_accounts(conn)]
+
+    @app.get("/api/accounts")
+    def get_accounts() -> list[dict]:
+        with connect() as conn:
+            return _account_view(conn)
+
+    @app.post("/api/accounts", status_code=201)
+    def link_account(body: LinkBody) -> dict:
+        try:
+            sources.verify(body.platform, body.username, fetch_get)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
+        except sources.NoSuchUser as e:
+            raise HTTPException(404, "that account does not exist on the site") from e
+        except sources.SourceError as e:
+            raise HTTPException(502, str(e)) from e
+        with connect() as conn:
+            try:
+                acct = accounts.link(conn, body.platform, body.username)
+            except accounts.AlreadyLinked as e:
+                raise HTTPException(409, str(e)) from e
+        sync.start(acct, sources.months_ago(body.months))
+        return {**acct, "sync": sync.status(acct["id"])}
+
+    @app.post("/api/accounts/{account_id}/sync", status_code=202)
+    def sync_account(account_id: int, months: int = 3) -> dict:
+        if not 1 <= months <= 24:
+            raise HTTPException(422, "months must be 1 to 24")
+        with connect() as conn:
+            acct = accounts.get(conn, account_id)
+        if acct is None:
+            raise HTTPException(404, "no such linked account")
+        if not sync.start(acct, sources.months_ago(months)):
+            raise HTTPException(409, "another sync is running; wait for it to finish")
+        return sync.status(account_id)
+
+    @app.delete("/api/accounts/{account_id}")
+    def unlink_account(account_id: int, delete_games: bool = False) -> dict:
+        sync.cancel(account_id)
+        if sync.busy():
+            sync.wait(60)  # let the running import stop between games before rows go away
+        with connect() as conn:
+            deleted = accounts.unlink(conn, account_id, delete_games)
+        if deleted is None:
+            raise HTTPException(404, "no such linked account")
+        sync.states.pop(account_id, None)
+        return {"unlinked": account_id, "games_deleted": deleted}
 
     @app.get("/api/stats")
     def player_stats(player: str) -> dict:
