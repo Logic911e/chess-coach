@@ -50,7 +50,7 @@ def test_backfill_names_old_games_without_touching_a_name_that_is_already_there(
     pg.execute("UPDATE games SET opening = NULL, eco = NULL, time_control = NULL, white_elo = NULL")
     assert openings.backfill(pg) == 1
     assert pg.execute("SELECT eco, opening FROM games").fetchone() == ("C60", "Ruy Lopez")
-    assert backfill.run(pg) == {"openings_named": 0, "headers_filled": 1}
+    assert backfill.run(pg) == {"openings_named": 0, "headers_filled": 1, "games_with_clocks": 0}
     pg.execute("UPDATE games SET opening = 'My own name'")
     pg.execute("UPDATE games SET eco = NULL")
     openings.backfill(pg)

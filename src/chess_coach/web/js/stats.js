@@ -117,12 +117,35 @@ function legend() {
     item("var(--lv-poor)", "worse than your own average"), item("var(--lv-few)", "too few moves or games to judge"));
 }
 
+function timeSection(d) {
+  const t = d.time;
+  if (!t) return null;
+  const th = t.thresholds;
+  const label = { instant: `Under ${th.instant_s} s`, quick: `${th.instant_s} to ${th.long_s} s`, long: `Over ${th.long_s} s` };
+  const rowOf = (name, r, note) => el("tr", {}, el("td", { textContent: name }),
+    el("td", { className: "num", textContent: String(r.moves) }),
+    el("td", { className: "num", textContent: r.avg_loss == null ? "–" : `${(100 * r.avg_loss).toFixed(1)}%` }),
+    el("td", { className: "num", textContent: r.errors_per_100 == null ? "–" : String(r.errors_per_100) }),
+    el("td", { className: "muted", textContent: r.small ? "few moves" : note || "" }));
+  const head = el("tr", {}, ...["How long the move took", "Moves", "Points lost", "Errors per 100", ""].map((h, i) =>
+    el("th", { className: i && i < 4 ? "num" : "", textContent: h })));
+  const tbl = el("table", {}, el("caption", { className: "muted", textContent: "Your moves from games that have clock times" }),
+    el("thead", {}, head),
+    el("tbody", {}, ...t.by_time.map((r) => rowOf(label[r.key], r)),
+      rowOf(`Under ${Math.round(th.trouble_share * 100)}% of the time left`, t.trouble),
+      rowOf("Everything else", t.not_trouble)));
+  const per = el("p", { className: "sub", textContent: "Average time per move: " + t.phases.map((p) => `${p.key} ${p.avg_seconds} s`).join(", ") + "." });
+  return el("section", {}, el("h2", { textContent: "Time" }),
+    el("p", { className: "sub", textContent: `From ${plural(t.games, "game")} with clock times. Time spent is the drop on your clock plus the increment, so the first move of each game is left out. This compares your own moves with each other; fast moves are often simple ones, so a low loss on instant moves is not proof that you could play faster.` }),
+    tbl, per);
+}
+
 function render(d) {
   const root = document.getElementById("content");
   const where = bars("Where you lose points", "Average win chance lost on each of your moves, by phase of the game. Compared with your own average, not with other players. Middlegames are harder than openings for everyone, so a low number in the opening is not by itself a strength.",
     d.phases, d.overview.avg_loss, "move");
   const pieces = bars("By piece", "The same measure, by the piece you moved.", d.pieces, d.overview.avg_loss, "move");
-  root.replaceChildren(summary(d), trend(d), el("div", { className: "two" }, where, pieces), legend(), openings(d),
+  root.replaceChildren(summary(d), trend(d), el("div", { className: "two" }, where, pieces), legend(), ...[timeSection(d)].filter(Boolean), openings(d),
     el("p", { className: "foot", textContent: `Accuracy is ${d.notes.accuracy}. Everything here is compared with ${d.notes.compared_with}. ${d.unnamed_games ? `${plural(d.unnamed_games, "game")} could not be matched to an opening. ` : ""}Speed, clock use and comparison with other players need clock times and a reference population, which this version does not have.` }));
 }
 

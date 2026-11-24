@@ -67,6 +67,68 @@ def time_class(time_control: str | None) -> str:
             else "rapid" if total <= 1499 else "classical")
 
 
+INSTANT_MS = 2_000    # a move played in under 2 seconds
+LONG_MS = 10_000      # a move that took more than 10 seconds
+TROUBLE_SHARE = 0.10  # under a tenth of the starting time left
+
+_TIMED = r"""
+, timed AS (
+    SELECT mm.game_id, mm.phase, mm.loss, mm.classification, m.clock_ms,
+           mi.time_control ~ '^[0-9]+(\+[0-9]+)?$' AS plain,
+           lag(m.clock_ms) OVER (PARTITION BY mm.game_id ORDER BY mm.ply) AS prev_ms
+    FROM my_moves mm
+    JOIN mine mi ON mi.game_id = mm.game_id
+    JOIN moves m ON m.game_id = mm.game_id AND m.ply = mm.ply
+    WHERE m.clock_ms IS NOT NULL
+),
+spent AS (
+    SELECT t.*, mi.time_control,
+           CASE WHEN plain THEN split_part(mi.time_control, '+', 1)::int * 1000 END AS base_ms,
+           CASE WHEN plain THEN coalesce(nullif(split_part(mi.time_control, '+', 2), '')::int, 0)
+                     * 1000 END AS inc_ms
+    FROM timed t JOIN mine mi ON mi.game_id = t.game_id
+)
+"""
+
+
+def _time_section(conn: psycopg.Connection, player: str) -> dict | None:
+    """How the player's time use relates to the quality of their moves, from the clock times
+    stored with each move. None when no game has them."""
+    base = _MINE.rstrip().rstrip(")") + ")" + _TIMED
+    sql = base + f"""
+        SELECT CASE WHEN spent_ms < {INSTANT_MS} THEN 'instant'
+                    WHEN spent_ms <= {LONG_MS} THEN 'quick' ELSE 'long' END AS bucket,
+               CASE WHEN clock_ms < {TROUBLE_SHARE} * base_ms THEN 1 ELSE 0 END AS trouble,
+               phase, loss, classification, game_id, spent_ms
+        FROM (SELECT *, greatest(0, prev_ms - clock_ms + inc_ms) AS spent_ms FROM spent
+              WHERE prev_ms IS NOT NULL AND base_ms IS NOT NULL) x"""
+    rows = conn.execute(sql, {"p": player}).fetchall()
+    if not rows:
+        return None
+
+    def agg(sel) -> dict:
+        r = [x for x in rows if sel(x)]
+        n = len(r)
+        errs = sum(1 for x in r if x[4] in ("mistake", "blunder"))
+        return {"moves": n, "avg_loss": _round(sum(x[3] for x in r) / n) if n else None,
+                "errors_per_100": _round(100 * errs / n, 1) if n else None,
+                "small": n < FEW_MOVES}
+
+    by_time = [{"key": k, **agg(lambda x, k=k: x[0] == k)} for k in ("instant", "quick", "long")]
+    phases = []
+    for ph in PHASE_ORDER:
+        sp = [x[6] for x in rows if x[2] == ph]
+        if sp:
+            phases.append({"key": ph, "moves": len(sp), "avg_seconds": round(sum(sp) / len(sp) / 1000, 1)})
+    return {
+        "games": len({x[5] for x in rows}), "moves": len(rows), "by_time": by_time,
+        "trouble": agg(lambda x: x[1] == 1), "not_trouble": agg(lambda x: x[1] == 0),
+        "phases": phases,
+        "thresholds": {"instant_s": INSTANT_MS // 1000, "long_s": LONG_MS // 1000,
+                       "trouble_share": TROUBLE_SHARE},
+    }
+
+
 def _round(x: float | None, places: int = 4) -> float | None:
     return None if x is None else round(float(x), places)
 
@@ -143,6 +205,7 @@ def build_stats(conn: psycopg.Connection, player: str) -> dict | None:
         "player": player, "overview": overall, "time_classes": classes, "trend": trend,
         "phases": grouped("phase", PHASE_ORDER), "pieces": grouped("piece", PIECE_ORDER),
         "openings": {side: rows[:10] for side, rows in openings.items()}, "unnamed_games": unnamed,
+        "time": _time_section(conn, player),
         "notes": {
             "compared_with": "your own average, not other players",
             "accuracy": "an estimate on this app's scale; Lichess and Chess.com figures differ",

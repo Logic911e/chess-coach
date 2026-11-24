@@ -86,19 +86,22 @@ def save_game(
         if row is None:
             return None
         game_id = row[0]
+        clk = backfill.clocks(pgn)
         for m in analysis.moves:
-            _save_move(conn, game_id, m, engine_depth, engine_version)
+            _save_move(conn, game_id, m, engine_depth, engine_version,
+                       clk[m.ply - 1] if m.ply <= len(clk) else None)
     return game_id
 
 
 def _save_move(
-    conn: psycopg.Connection, game_id: int, m: MoveRecord, depth: int, engine_version: str
+    conn: psycopg.Connection, game_id: int, m: MoveRecord, depth: int, engine_version: str,
+    clock_ms: int | None = None,
 ) -> None:
     move_id = conn.execute(
-        "INSERT INTO moves (game_id, ply, move_number, color, san, uci, fen_before, phase)"
-        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        "INSERT INTO moves (game_id, ply, move_number, color, san, uci, fen_before, phase, clock_ms)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (game_id, m.ply, m.move_number, m.color, m.san, m.uci, m.fen_before,
-         phase_of(m.fen_before, m.ply)),
+         phase_of(m.fen_before, m.ply), clock_ms),
     ).fetchone()[0]  # type: ignore[index]
     conn.execute(
         "INSERT INTO evaluations VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",

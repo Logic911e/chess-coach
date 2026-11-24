@@ -74,3 +74,29 @@ def test_time_class_follows_the_lichess_rule_and_copes_with_odd_values():
     assert time_class("600") == "rapid" and time_class("1800+0") == "classical"
     assert time_class("1/86400") == "unknown" and time_class("-") == "unknown"
     assert time_class(None) == "unknown" and time_class("abc") == "unknown"
+
+
+CLOCKED = ('[White "Ann"]\n[Black "Bo"]\n[Result "1-0"]\n[Date "2025.04.01"]\n[TimeControl "180+2"]\n\n'
+           '1. e4 {[%clk 0:03:00]} e5 {[%clk 0:03:00]} 2. Nf3 {[%clk 0:02:59]} Nc6 {[%clk 0:02:50]} '
+           '3. Bb5 {[%clk 0:00:10]} 1-0')
+
+
+def test_clock_times_are_read_per_ply():
+    from chess_coach.backfill import clocks
+    assert clocks(CLOCKED) == [180000, 180000, 179000, 170000, 10000]
+    assert clocks(GAMES[0]) == [None] * 5
+
+
+def test_time_stats_split_moves_by_how_long_they_took(pg):
+    save_game(pg, CLOCKED, analyse_game(CLOCKED, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    assert pg.execute("SELECT clock_ms FROM moves ORDER BY ply").fetchall() == [
+        (180000,), (180000,), (179000,), (170000,), (10000,)]
+    t = build_stats(pg, "Ann")["time"]
+    # Ann's second move: 180 - 179 + 2 = 3 s. Her third: 179 - 10 + 2 = 171 s, with 10 s left.
+    assert {b["key"]: b["moves"] for b in t["by_time"]} == {"instant": 0, "quick": 1, "long": 1}
+    assert t["trouble"]["moves"] == 1 and t["not_trouble"]["moves"] == 1  # 10 s < a tenth of 180 s
+    assert t["games"] == 1 and t["thresholds"]["long_s"] == 10
+
+
+def test_no_clock_times_means_no_time_section(seeded):
+    assert build_stats(seeded, "Ann")["time"] is None

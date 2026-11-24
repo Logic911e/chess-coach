@@ -38,7 +38,7 @@ def iter_games(path: Path):
     """Yield (headers, pgn_text, uci_moves) for each game in a PGN file."""
     with path.open(encoding="utf-8", errors="replace") as handle:
         while (game := chess.pgn.read_game(handle)) is not None:
-            text = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+            text = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=True))
             yield dict(game.headers), text, [m.uci() for m in game.mainline_moves()]
 
 
@@ -47,7 +47,7 @@ def iter_games_text(text: str):
     import io
     handle = io.StringIO(text)
     while (game := chess.pgn.read_game(handle)) is not None:
-        out = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+        out = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=True))
         yield dict(game.headers), out, [m.uci() for m in game.mainline_moves()]
 
 

@@ -1,4 +1,4 @@
-"""Fill in what older games are missing: opening names, time control and ratings.
+"""Fill in what older games are missing: opening names, time control, ratings and clock times.
 
     python -m chess_coach.backfill
 
@@ -7,8 +7,10 @@ Safe to run again: it only fills empty values. New games get all of this when th
 
 from __future__ import annotations
 
+import io
 import re
 
+import chess.pgn
 import psycopg
 
 from chess_coach import db, openings
@@ -30,6 +32,18 @@ def game_headers(pgn: str) -> dict:
     }
 
 
+def clocks(pgn: str) -> list[int | None]:
+    """Time left after each move, in ms, one entry per ply; None where the PGN has no clock."""
+    game = chess.pgn.read_game(io.StringIO(pgn))
+    out: list[int | None] = []
+    node = game
+    while game is not None and node.variations:
+        node = node.variations[0]
+        c = node.clock()
+        out.append(round(c * 1000) if c is not None and c >= 0 else None)
+    return out
+
+
 def run(conn: psycopg.Connection) -> dict:
     named = openings.backfill(conn)
     filled = 0
@@ -43,7 +57,17 @@ def run(conn: psycopg.Connection) -> dict:
                 "UPDATE games SET time_control = %s, white_elo = %s, black_elo = %s WHERE id = %s",
                 (h["time_control"], h["white_elo"], h["black_elo"], game_id))
             filled += 1
-    return {"openings_named": named, "headers_filled": filled}
+    timed = 0
+    for game_id, pgn in conn.execute(
+            "SELECT g.id, g.pgn FROM games g WHERE g.pgn LIKE '%%[%%clk %%'"
+            " AND EXISTS (SELECT 1 FROM moves m WHERE m.game_id = g.id AND m.clock_ms IS NULL)"
+    ).fetchall():
+        for ply, ms in enumerate(clocks(pgn), start=1):
+            if ms is not None:
+                conn.execute("UPDATE moves SET clock_ms = %s WHERE game_id = %s AND ply = %s"
+                             " AND clock_ms IS NULL", (ms, game_id, ply))
+        timed += 1
+    return {"openings_named": named, "headers_filled": filled, "games_with_clocks": timed}
 
 
 def main() -> None:

@@ -105,7 +105,7 @@ def split_pgns(text: str) -> Iterator[str]:
     import io
     handle = io.StringIO(text)
     while (game := chess.pgn.read_game(handle)) is not None:
-        yield game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+        yield game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=True))
 
 
 def fetch(platform: str, username: str, since: datetime, get: Get = http_get) -> list[str]:
