@@ -27,8 +27,15 @@ _FORK_WHY = {
 }
 
 
-def _move_statements(m: dict, mover: str, opp: str, who: str) -> list[str]:
-    """Statements about one move. `who` is 'The move played' or 'The engine's best move'."""
+def _move_statements(
+    m: dict, mover: str, opp: str, who: str, threats: bool = True
+) -> list[str]:
+    """Statements about one move. `who` is 'The move played' or 'The engine's best move'.
+
+    `threats` adds "already under threat ... and X does not deal with that threat". It is left off
+    for the engine's best move: the engine often plays on without answering a threat it has judged
+    harmless, and the sentence sat next to the move played, so the model read it as a fault of that
+    move (it told a player that Nd3 "does not address the threat" to the very knight Nd3 moved)."""
     out = []
     desc = f"{m['piece']} from {m['from']} to {m['to']}"
     if m["castling"]:
@@ -48,7 +55,7 @@ def _move_statements(m: dict, mover: str, opp: str, who: str) -> list[str]:
                    f"{_piece(opp, f)}, {why}.")
     for h in m["leaves_own_piece_hanging"]:
         out.append(f"After {m['san']}, the {_piece(mover, h)} is {h['reason']}.")
-    for t in m["ignored_threats"]:
+    for t in m["ignored_threats"] if threats else []:
         out.append(f"The {_piece(mover, t)} was already under threat ({t['reason']}), "
                    f"and {m['san']} does not deal with that threat.")
     for h in m["enemy_pieces_hanging_after"]:
@@ -135,7 +142,7 @@ def render_facts(facts: dict, rich: bool = False) -> list[str]:
     ]
     out += _move_statements(played, mover, opp, "The move played")
     if best:  # build_facts only includes "best" when it differs from the move played
-        out += _move_statements(best, mover, opp, "The engine's best move")
+        out += _move_statements(best, mover, opp, "The engine's best move", threats=False)
         out.append(f"{_name(mover)} should have played {best['san']} instead of {played['san']}.")
     else:
         out.append("The move played is also the engine's best move.")

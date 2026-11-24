@@ -122,3 +122,28 @@ def test_check_text_counts_the_claims_it_tested():
     assert result.checked == 2 and result.false_claims == []
     assert check_text("Strategy only, nothing to test.", facts).checked == 0
     assert CHECKER_VERSION  # saved explanations record it, so a change forces a re-check
+
+
+ND3 = "5rk1/5pbp/r2qp1p1/p2pN3/4n3/1P2P3/PB3PPP/2RQ1RK1 w - - 4 17"
+
+
+def test_a_threat_the_move_removed_by_moving_the_piece_is_caught_even_without_a_colour():
+    facts = _facts(ND3, "e5d3", "d1e2", 5, -58, ["d1e2"])
+    bad = problems("The move Nd3 does not address the threat to the knight on e5.", facts)
+    assert bad == [("Nd3 moves the white knight on e5 to d3, out of attack, "
+                    "so it does deal with the threat")]
+    assert problems("Nd3 fails to address the threat to the white knight on e5.", facts) == bad
+
+
+def test_a_threat_that_really_was_left_is_not_flagged_and_the_subject_move_is_resolved():
+    facts = _facts(QH5, "g8f6", "g7g6", 20, -700, ["g7g6", "h5f3"])
+    assert problems("Nf6 does not address the threat to the pawn on f7.", facts) == []
+    # the sentence is about the engine's move, which really does leave the knight attacked
+    nd3 = _facts(ND3, "e5d3", "d1e2", 5, -58, ["d1e2"])
+    assert problems("Qe2 does not deal with the threat to the knight on e5.", nd3) == []
+
+
+def test_the_checker_version_moved_on_so_saved_explanations_are_checked_again():
+    from chess_coach.factcheck import CHECKER_VERSION
+
+    assert CHECKER_VERSION == "3"

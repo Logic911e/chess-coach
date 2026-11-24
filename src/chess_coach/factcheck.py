@@ -26,7 +26,7 @@ from chess_coach import features as cf
 from chess_coach.claims import threat_board, truth_boards
 
 # Bump when the patterns or the checks change, so saved explanations are checked again.
-CHECKER_VERSION = "2"
+CHECKER_VERSION = "3"
 
 PIECE = r"(?:pawn|knight|bishop|rook|queen|king)"
 SAN = (r"(?:O-O-O|O-O|[KQRBN][a-h]?[1-8]?x?[a-h][1-8]|[a-h]x[a-h][1-8](?:=[QRBN])?"
@@ -113,11 +113,18 @@ _MATES = [
                r"(?:a\s+|an\s+)?(?:\w+\s+)?(?:checkmate|mate)\b", re.IGNORECASE),
     re.compile(rf"\b{_SUBJ}\s+(?:immediately\s+)?checkmates\b", re.IGNORECASE),
 ]
+def _ph_any(n: str) -> str:
+    """A piece phrase whose colour is optional: 'the white knight on e5' or 'the knight on e5'."""
+    return (rf"(?:the\s+)?(?:(?P<c{n}>white|black)(?:'s)?\s+)?(?P<p{n}>{PIECE})s?\s+"
+            rf"(?:on|at)\s+(?P<s{n}>[a-h][1-8])\b")
+
+
 _THREAT_PIECE = re.compile(
     r"(?:fails?|failed|failing|does\s+not|doesn't|did\s+not)\s+(?:to\s+)?"
-    r"(?:address|deal\s+with|stop|prevent|meet|handle|respond\s+to)\s+(?:the\s+)?(?:\w+\s+)?threat"
-    rf"\s+(?:to|against)\s+{_ph('x')}"
-    rf"|ignor\w+\s+(?:the\s+)?(?:\w+\s+)?threat\s+(?:to|against)\s+{_ph('y')}", re.IGNORECASE)
+    r"(?:fully\s+)?(?:address|deal\s+with|stop|prevent|meet|handle|respond\s+to)\s+"
+    rf"(?:the\s+)?(?:\w+\s+)?threat\s+(?:to|against)\s+{_ph_any('x')}"
+    rf"|ignor\w+\s+(?:the\s+)?(?:\w+\s+)?threat\s+(?:to|against)\s+{_ph_any('y')}",
+    re.IGNORECASE)
 _THREAT_MOVE = re.compile(rf"\bthreat\s+of\s+(?P<san>{SAN})", re.IGNORECASE)
 _SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'])")
 
@@ -278,6 +285,19 @@ def _resolve(subj: str, pos: int, cur: str, ctx: _Ctx, s: str) -> str | None:
     return ref if _subject_piece(subj, ref, ctx) else None
 
 
+def _threatened_piece(m: re.Match, n: str, ctx: _Ctx) -> dict | None:
+    """The piece a threat claim is about. A missing colour is read off the board before the move."""
+    ptype = m.group(f"p{n}").lower()
+    sq = m.group(f"s{n}").lower()
+    color = m.group(f"c{n}")
+    if color is None:
+        there = ctx.start.piece_at(chess.parse_square(sq))
+        if there is None or chess.piece_name(there.piece_type) != ptype:
+            return None
+        color = "white" if there.color else "black"
+    return {"color": color.lower(), "piece": ptype, "square": sq}
+
+
 def _claims_in(orig: str, cur: str, ctx: _Ctx, prev_explicit: bool = False) -> list[dict]:
     s = _normalize(orig)
     claims: list[dict] = []
@@ -378,7 +398,10 @@ def _claims_in(orig: str, cur: str, ctx: _Ctx, prev_explicit: bool = False) -> l
             if ref:
                 add({"type": "checkmate", "move": ctx.san[ref]}, ref)
     for m in _THREAT_PIECE.finditer(s):
-        add({"type": "threat", "piece": _pc(m, "x") if m.group("cx") else _pc(m, "y")}, "played")
+        n = "x" if m.group("px") else "y"
+        piece = _threatened_piece(m, n, ctx)
+        if piece:  # the sentence is about the move named just before it, else the one under discussion
+            add({"type": "threat", "piece": piece}, _ref_at(s, m.start(), cur, ctx))
     for m in _THREAT_MOVE.finditer(s):
         add({"type": "threat_move", "move": m.group("san")}, "played")
     return claims
@@ -445,10 +468,16 @@ def _problem(claim: dict, ctx: _Ctx) -> str | None:
                 f"{'winning' if claim['win'] else 'losing'} material")
     if t == "threat":
         color, ptype, sq = _piece(claim["piece"])
-        after = ctx.after["played"]
-        p = after.piece_at(sq)
-        if p and p.color == color and p.piece_type == ptype and after.attackers(not color, sq):
+        ref = claim.get("ref", "played")
+        move, after = ctx.move_of(ref), ctx.after[ref]
+        moved = move.from_square == sq  # the piece in question is the one that moved: follow it
+        target = move.to_square if moved else sq
+        p = after.piece_at(target)
+        if p and p.color == color and p.piece_type == ptype and after.attackers(not color, target):
             return None
+        if moved:
+            return (f"{ctx.san[ref]} moves the {_name(claim['piece'])} to "
+                    f"{chess.square_name(target)}, out of attack, so it does deal with the threat")
         return f"nothing attacks the {_name(claim['piece'])} after the move"
     if t == "threat_move":
         for board in (ctx.after["played"], ctx.start):

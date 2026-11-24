@@ -181,3 +181,19 @@ def test_the_fallback_explains_why_and_not_only_the_rating():
     assert "should have played g6" in text          # what was better
     assert "(0 = no loss" not in text
     assert len(text.split(". ")) <= 10              # a short answer, not every statement
+
+
+def test_a_sentence_that_ends_in_a_square_is_split_from_the_next_but_a_move_number_is_not():
+    got = cited.split_sentences("Nd3 moves the knight from e5 to d3. It is rated best. The line is 3...g6 4. Qf3 Nf6.")
+    assert got == ["Nd3 moves the knight from e5 to d3.", "It is rated best.",
+                   "The line is 3...g6 4. Qf3 Nf6."]
+    assert cited.split_sentences("Black plays 10. Bxe6 fxe6.") == ["Black plays 10. Bxe6 fxe6."]
+
+
+def test_vague_judgement_of_a_position_is_dropped_unless_a_statement_says_it():
+    st = ["The move played is Nd3.", "The engine's best move is Qe2."]
+    for text in ("Nd3 does not maximize White's potential.",
+                 "It does not compensate for the overall worse position.",
+                 "Qe2 gives White a stronger setup."):
+        assert cited.ground({"text": text}, st, need_cites=False) is not None
+    assert cited.ground({"text": "The engine preferred Qe2."}, st, need_cites=False) is None

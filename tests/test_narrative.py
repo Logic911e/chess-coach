@@ -86,3 +86,22 @@ def test_strict_and_rich_styles_use_the_strict_prompt():
     assert strict[0]["content"] == rich[0]["content"] == STATEMENTS_STRICT_SYSTEM_PROMPT
     assert len(rich[1]["content"]) > len(strict[1]["content"])
     assert strict[1]["content"] == build_messages(facts, "statements")[1]["content"]
+
+
+ND3 = "5rk1/5pbp/r2qp1p1/p2pN3/4n3/1P2P3/PB3PPP/2RQ1RK1 w - - 4 17"
+
+
+def test_the_best_moves_unanswered_threat_is_not_stated_next_to_the_move_played():
+    # 17. Nd3 moves the attacked knight away; the engine's Qe2 does not. The statement "Qe2 does not
+    # deal with that threat" made a model tell a player that Nd3 left the knight en prise.
+    facts = cf.build_facts(ND3, "e5d3", "d1e2", 5, -58, best_line_uci=["d1e2"])
+    assert facts["best"]["ignored_threats"]  # the fact is still in the record
+    text = "\n".join(render_facts(facts))
+    assert "does not deal with that threat" not in text
+    assert "The move played is Nd3 (White's knight from e5 to d3)." in text
+
+
+def test_a_played_moves_ignored_threat_is_still_stated():
+    text = "\n".join(render_facts(_facts("g8f6")))
+    assert "black pawn on f7 was already under threat" in text
+    assert "Nf6 does not deal with that threat" in text

@@ -151,3 +151,46 @@ def test_history_bounds_rejected_with_422_and_limits_accepted(http):
     assert h.post(url, json={"question": "hi", "history": turns(1, 2001)}).status_code == 422
     ok = h.post(url, json={"question": "hi", "history": turns(20, 2000)})
     assert ok.status_code == 200
+
+
+def _nd3_facts():
+    fen = "5rk1/5pbp/r2qp1p1/p2pN3/4n3/1P2P3/PB3PPP/2RQ1RK1 w - - 4 17"
+    return fen, cf.build_facts(fen, "e5d3", "d1e2", 5, -58, best_line_uci=["d1e2"])
+
+
+def test_vet_answer_drops_fluff_and_invention_but_keeps_what_the_facts_support():
+    from chess_coach.chat import vet_answer
+
+    st = ["The move played is Nd3 (White's knight from e5 to d3).", "The engine's best move is Qe2."]
+    text = ("Nd3 moves the knight from e5 to d3. It also keeps better control of the position. "
+            "Bd5 would have won a pawn.")
+    kept, dropped = vet_answer(text, st, "why not Nf4?")
+    assert kept == "Nd3 moves the knight from e5 to d3."
+    assert len(dropped) == 2 and "control" in dropped[0] and "d5" in dropped[1]
+
+
+def test_a_move_the_player_named_may_be_repeated_in_the_answer():
+    from chess_coach.chat import vet_answer
+
+    kept, _ = vet_answer("The facts say nothing about Nf4.", ["The move played is Nd3."], "what about Nf4?")
+    assert kept == "The facts say nothing about Nf4."
+
+
+def test_an_answer_that_is_all_fluff_becomes_the_plain_cannot_answer_message():
+    from chess_coach.chat import CANNOT_ANSWER
+
+    fen, facts = _nd3_facts()
+    client = Scripted("It maintains better control of the position and applies pressure.")
+    out = answer_question(facts, ["d1e2"], fen, "why?", [], client)
+    assert out.text == CANNOT_ANSWER and out.dropped
+
+
+def test_the_chat_prompt_tells_the_model_to_agree_with_what_the_facts_confirm():
+    from chess_coach.chat import CHAT_SYSTEM_PROMPT
+
+    assert "agree and say so first" in CHAT_SYSTEM_PROMPT
+    assert "do not say WHY" in CHAT_SYSTEM_PROMPT.replace("\n ", " ") or "WHY the engine" in CHAT_SYSTEM_PROMPT
+    fen, facts = _nd3_facts()
+    client = Scripted("You are right: Nd3 moves the knight from e5 to d3.")
+    out = answer_question(facts, ["d1e2"], fen, "but the knight moved out of the way by going to d3", [], client)
+    assert out.text == "You are right: Nd3 moves the knight from e5 to d3." and not out.dropped

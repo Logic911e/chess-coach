@@ -76,7 +76,10 @@ _VAGUE = ("control", "pressure", "initiative", "space", "develop", "solid", "fle
           "positional", "dynamic", "comfortable", "harmon", "tempo",
           # praise that says nothing the facts do not
           "effective", "powerful", "optimal", "beneficial", "favorabl", "favourabl",
-          "advantageous", "improv", "enhanc", "promising", "strong", "defensive", "tactical")
+          "advantageous", "improv", "enhanc", "promising", "strong", "defensive", "tactical",
+          # vague judgement of a position that no statement makes
+          "potential", "maximi", "compensat", "overall", "better position", "worse position",
+          "weaker", "stronger")
 
 
 def statements_for(facts: dict) -> list[str]:
@@ -122,12 +125,20 @@ _CITE_PHRASE = re.compile(
 _CITE_BARE = re.compile(r"\s*\(?\bstatements?\s+\d+(?:\s*(?:,|and|&)\s*\d+)*\)?", re.IGNORECASE)
 
 
-# A sentence ends at . ! or ?, but not after a move number such as "4." in "4. Nf3".
-_SENTENCE_END = re.compile(r"(?<=[.!?])(?<!\d\.)\s+(?=[A-Z\"'])")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"'])")
+_ENDS_IN_MOVE_NUMBER = re.compile(r"(?:^|\s)\d{1,3}\.{1,3}$")  # "4." in "4. Nf3", but not "d3."
 
 
 def split_sentences(text: str) -> list[str]:
-    return [s for s in _SENTENCE_END.split(text.strip()) if s]
+    """Split at a full stop followed by a capital, except after a move number such as "4." in
+    "4. Nf3". A square at the end of a sentence ("... to d3.") does end the sentence."""
+    out: list[str] = []
+    for part in (p for p in _SENTENCE_END.split(text.strip()) if p):
+        if out and _ENDS_IN_MOVE_NUMBER.search(out[-1]):
+            out[-1] += " " + part
+        else:
+            out.append(part)
+    return out
 
 
 def strip_citations(text: str) -> str:
