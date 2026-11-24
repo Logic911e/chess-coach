@@ -90,7 +90,7 @@ def test_default_style_comes_from_the_environment(monkeypatch):
     from chess_coach.explainer import default_style
 
     monkeypatch.delenv("CHESS_COACH_STYLE", raising=False)
-    assert default_style() == "statements"
+    assert default_style() == "fields"
     monkeypatch.setenv("CHESS_COACH_STYLE", "statements_rich")
     assert default_style() == "statements_rich"
     monkeypatch.setenv("CHESS_COACH_STYLE", "nonsense")

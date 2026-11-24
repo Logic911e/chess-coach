@@ -121,17 +121,43 @@ faithful overall. The flagged responses in the second run have not been manually
 the samples are small and not independent. Details and the first run's manual review:
 `results/REVIEW.md`.
 
-### Prompt styles (experimental)
+### Prompt styles
 
-`CHESS_COACH_STYLE` picks how the explanation prompt is built, for the explanation and the chat:
-`statements` (default), `statements_strict` (stricter prompt) or `statements_rich` (stricter
-prompt plus extra statements about material, hanging pieces, king safety and development).
-Explanations are cached per move, so regenerate one to see a new style.
+`CHESS_COACH_STYLE` picks how an explanation is produced, for the explanation and the chat. The
+default is `fields`.
 
-On the 12 evaluation cases (3 seeds, temperature 0.7) the new styles used fewer vague strategy
-phrases but did not make the answers shorter or more accurate: the 7B model still adds claims
-that are not in the statements, and the automatic check cannot see most of them. Treat them as
-experiments, not improvements.
+- `statements`, `statements_strict`, `statements_rich`: the model writes free text from numbered facts
+  (the strict prompt forbids strategy talk; rich adds material, hanging pieces and king safety).
+- `cited`: the model returns sentences that each cite the facts they rest on; code drops any sentence
+  that cites nothing or names a square, move, number or strategy word its facts do not contain.
+- `fields` (default): code writes the verdict from the engine's rating, and the model writes only a
+  "why" and a "what was better", each checked on its own. A field that fails is replaced by the plain
+  fact it was meant to rephrase, so the worst case is a dull but correct line.
+
+Why `fields` is the default (12 cases, 3 seeds, temperature 0.7, frozen engine facts, one 7B model,
+`results/eval_qwen2.5_7b-instruct_20261124_165729.json`):
+
+| style | false claims found | key idea named | model calls | median time | text not written by the model |
+|---|---|---|---|---|---|
+| `statements_rich` with the fact check and retries | 0 | 36 / 36 | 39 | 7.9 s | none |
+| `cited` | 0 | 33 / 36 | 36 | 10.4 s | 12 of 36 answers are entirely the facts |
+| `fields` | 0 | 31 / 36 | 36 | 3.8 s | 28 of 72 fields |
+
+All three score 0 on the automatic check, so that check does not separate them; it reads only about
+a third of sentences, and soft filler such as "supports the bishop" passes it. The choice rests on
+how each style fails and on speed:
+
+- Free text can still carry filler the check cannot see. `cited` and `fields` limit what the model may
+  say, instead of trying to catch it afterwards.
+- When `cited` cannot trust enough sentences it throws the whole explanation away (a third of the
+  time here). `fields` falls back one field at a time, so the verdict and most answers stay useful.
+- `fields` is about twice as fast as the others, which matters when stepping through a game, and it
+  keeps the verdict out of the model's hands.
+
+The cost is real: `fields` names the key idea in 31 of 36 answers against 36 for free text, and about
+two fifths of its fields are plain facts rather than the model's wording, so it reads more stiffly.
+No reader study has compared how the styles read. Set `CHESS_COACH_STYLE=statements_rich` to go back
+to free text. Explanations are cached per style, so changing it regenerates them on demand.
 
 ## Stats
 

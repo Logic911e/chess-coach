@@ -90,9 +90,10 @@ _STATEMENT_STYLES = {
 
 
 def default_style() -> str:
-    """The statement style the app uses. Set CHESS_COACH_STYLE to switch it without code changes:
-    statements (default), statements_strict or statements_rich."""
-    style = os.environ.get("CHESS_COACH_STYLE", "statements")
+    """The style the app uses, `fields` unless CHESS_COACH_STYLE says otherwise: statements,
+    statements_strict, statements_rich, cited or fields. Why fields is the default is in the
+    README (Prompt styles)."""
+    style = os.environ.get("CHESS_COACH_STYLE", "fields")
     if style not in _STATEMENT_STYLES:
         raise ValueError(
             f"CHESS_COACH_STYLE={style!r} is not one of {', '.join(_STATEMENT_STYLES)}"

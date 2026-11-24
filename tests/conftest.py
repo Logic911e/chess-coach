@@ -25,3 +25,10 @@ def pg():
         conn.close()
         admin.execute(f'DROP DATABASE "{name}" WITH (FORCE)')
         admin.close()
+
+
+@pytest.fixture(autouse=True)
+def _plain_statements_style(monkeypatch):
+    """The app's default style is `fields`, which needs a model that returns JSON. Most tests use a
+    fake model that returns plain text, so they run the `statements` style unless they say otherwise."""
+    monkeypatch.setenv("CHESS_COACH_STYLE", "statements")
