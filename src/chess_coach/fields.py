@@ -86,6 +86,17 @@ def verdict(facts: dict) -> str:
     return f"{who}'s {san} is rated {label}, losing {lost} expected points."
 
 
+def repeats_verdict(sentence: str, facts: dict) -> bool:
+    """A sentence that only restates the rating, which the verdict already says: it quotes the points
+    lost, says "rated", or is a short "...is the engine's best move"."""
+    low = sentence.lower()
+    if "point" in low and str(facts["expected_points_lost"]) in sentence:
+        return True
+    if re.search(r"\brated\b", low):
+        return True
+    return len(sentence.split()) <= 9 and "best move" in low
+
+
 def fallback_reason(statements: list[str]) -> str:
     """The reason straight from the statements, used when the model's wording fails the checks."""
     found = cited.reason_statements(statements)

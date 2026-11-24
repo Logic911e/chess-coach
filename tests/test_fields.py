@@ -111,3 +111,18 @@ def test_pawn_pushes_count_as_naming_the_engines_move():
     assert fields.mentions_best("Black should have played g6.", _facts())
     assert not fields.mentions_best("Black should have played g5.", _facts())
     assert cited.statements_for(_facts())  # the statements the fallbacks are built from
+
+
+def test_a_reason_sentence_that_only_restates_the_rating_is_dropped_but_a_real_reason_stays():
+    facts = _facts()
+    lost = facts["expected_points_lost"]
+    assert fields.repeats_verdict(f"Nf6 is rated a blunder, losing {lost} points.", facts)
+    assert fields.repeats_verdict("Nf6 is rated a blunder.", facts)
+    best = _facts("g7g6", 20)
+    assert fields.repeats_verdict("g6 is the engine's best move.", best)
+    assert not fields.repeats_verdict(GOOD["reason"], facts)
+    reply = {"reason": f"Nf6 is rated a blunder, losing {lost} points. {GOOD['reason']}",
+             "better": GOOD["better"]}
+    result = explain(facts, JsonClient(reply), LINE, style="fields")
+    assert any("repeats the verdict" in d for d in result.dropped)
+    assert by_key(result)["reason"]["text"] == GOOD["reason"]

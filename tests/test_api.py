@@ -1,3 +1,5 @@
+import json
+
 import chess
 import pytest
 from fastapi.testclient import TestClient
@@ -438,3 +440,31 @@ def test_a_legacy_row_is_shown_but_never_treated_as_current(pg):
     fresh = http.post(f"/api/moves/{move_id}/explain").json()
     assert fresh["cached"] is False and fresh["body"] == "This move was a blunder."
     assert client.calls == 1
+
+
+class FieldsClient:
+    model = "fake-model"
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, messages, format=None):
+        self.calls += 1
+        return json.dumps({"reason": "It was a poor choice.", "better": "Something else was better."})
+
+
+def test_a_fields_explanation_is_saved_cached_and_shown_with_its_parts(pg, monkeypatch):
+    monkeypatch.setenv("CHESS_COACH_STYLE", "fields")
+    save_game(pg, PGN, analyse_game(PGN, Swingy(), depth=1), engine_depth=1, engine_version="f")
+    pg.commit()
+    client = FieldsClient()
+    http = TestClient(create_app(connect=lambda: NoClose(pg), client_factory=lambda: client))
+    gid, move_id = _first_move_id(http)
+    first = http.post(f"/api/moves/{move_id}/explain").json()
+    keys = [f["key"] for f in first["fields"]]
+    assert keys[0] == "verdict" and first["fields"][0]["source"] == "code"
+    assert first["body"] == " ".join(f["text"] for f in first["fields"]) and first["cached"] is False
+    again = http.post(f"/api/moves/{move_id}/explain").json()
+    assert again["cached"] is True and again["fields"] == first["fields"] and client.calls == 1
+    shown = http.get(f"/api/games/{gid}").json()["moves"][0]
+    assert shown["explanation_fields"] == first["fields"] and shown["explanation_current"] is True

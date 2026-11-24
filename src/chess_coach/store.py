@@ -107,15 +107,16 @@ def save_explanation(
     conn: psycopg.Connection, move_id: int, model: str, body: str, flagged: bool, attempts: int,
     *, style: str = "legacy", prompt_hash: str = "legacy", checker_version: str = "legacy",
     checked_claims: int = 0, false_claims: list[str] | None = None,
+    fields: list[dict] | None = None,
 ) -> int:
     """Save an explanation with its provenance. The defaults mark a row as 'legacy', which never
     matches a current fingerprint, so it will not be served as if it were current."""
     row = conn.execute(
         "INSERT INTO explanations (move_id, model, body, flagged, attempts, style, prompt_hash,"
-        " checker_version, checked_claims, false_claims)"
-        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        " checker_version, checked_claims, false_claims, fields)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (move_id, model, body, flagged, attempts, style, prompt_hash, checker_version,
-         checked_claims, Jsonb(false_claims or [])),
+         checked_claims, Jsonb(false_claims or []), Jsonb(fields) if fields else None),
     ).fetchone()
     assert row is not None
     return int(row[0])

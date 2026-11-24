@@ -7,6 +7,7 @@ import { createExplore, canExplore } from "./explore.js";
 import { createLatest } from "./latest.js";
 import { createSettings, settingNeedsRender } from "./settings.js";
 import { soundsFor, createPlayer, DEFAULT_VOLUME } from "./sound.js";
+import { explainBlocks, fieldsNote } from "./explain-view.js";
 import { canGuess, createGuessFlow, guessView, mayWriteExplain, moveA11yName, isHidden, stripBarHeight } from "./guess.js";
 import { createChat, HONESTY_NOTE, FLAG_WARNING } from "./chat.js";
 import { resolveMe, settleWithin } from "./me.js";
@@ -358,15 +359,19 @@ function renderExplain(mv) {
   const box = $("explainBox"), act = $("explainAct");
   box.replaceChildren(); act.replaceChildren();
   if (mv.explanation) {
-    box.append(el("p", { className: "explain-text", textContent: mv.explanation }));
+    // Written in fields: the verdict, why, and what was better each get their own line. An older text is one block.
+    for (const b of explainBlocks(mv.explanation_fields, mv.explanation)) {
+      box.append(el("p", { className: "explain-text" }, ...(b.label ? [el("strong", { textContent: b.label + ": " })] : []), b.text));
+    }
     if (mv.explanation_flagged) box.append(el("div", { className: "warn",
       textContent: "The checker flagged this text (an illegal move, a wrong piece square or a false tactical claim) and it ran out of retries." }));
     if (mv.explanation_current === false) box.append(el("div", { className: "warn",
       textContent: "Written by an earlier version of the coach. Regenerate to update it." }));
     const n = mv.explanation_checked_claims;
-    box.append(el("div", { className: "note", textContent: n
+    const fromFacts = fieldsNote(mv.explanation_fields);
+    box.append(el("div", { className: "note", textContent: (n
       ? `${n} tactical claim${n === 1 ? "" : "s"} checked against the board. ${HONESTY}`
-      : `No tactical claims in this text could be checked against the board. ${HONESTY}` }));
+      : `No tactical claims in this text could be checked against the board. ${HONESTY}`) + (fromFacts ? " " + fromFacts : "") }));
     const again = el("button", { type: "button", textContent: "Regenerate" });
     again.onclick = () => explain(mv, true);
     act.append(again);
@@ -392,6 +397,7 @@ async function explain(mv, regenerate) {
     const r = await explainMove(mv.id, regenerate);
     mv.explanation = r.body; mv.explanation_flagged = r.flagged;
     mv.explanation_checked_claims = r.checked_claims; mv.explanation_current = r.current !== false;
+    mv.explanation_fields = r.fields;
   } catch (e) {
     if (cur() === mv) {
       if (!mayWriteExplain(hiddenNow(mv))) return;

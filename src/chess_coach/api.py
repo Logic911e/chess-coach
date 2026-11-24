@@ -202,12 +202,12 @@ def create_app(
                        e.best_uci, e.cp_best, e.cp_played, e.expected_points_lost::float,
                        e.classification, f.reasons,
                        x.body, x.flagged, x.model, x.prompt_hash, x.checker_version,
-                       x.checked_claims, f.facts
+                       x.checked_claims, f.facts, x.fields
                 FROM moves m
                 JOIN evaluations e ON e.move_id = m.id
                 LEFT JOIN facts f  ON f.move_id = m.id
                 LEFT JOIN LATERAL (
-                    SELECT body, flagged, model, prompt_hash, checker_version, checked_claims
+                    SELECT body, flagged, model, prompt_hash, checker_version, checked_claims, fields
                     FROM explanations WHERE move_id = m.id ORDER BY id DESC LIMIT 1
                 ) x ON true
                 WHERE m.game_id = %s ORDER BY m.ply
@@ -234,6 +234,7 @@ def create_app(
                 "is_key_moment": r[13] is not None, "reasons": r[13] or [],
                 "explanation": r[14], "explanation_flagged": r[15],
                 "explanation_current": current, "explanation_checked_claims": r[19],
+                "explanation_fields": r[21],
             })
         keys = ("id", "white", "black", "result", "opening", "eco", "played_on")
         return {**dict(zip(keys, g, strict=True)), "moves": moves}
@@ -255,7 +256,7 @@ def create_app(
             if not regenerate:
                 # Served from the cache only if the same model, prompt and checker wrote it.
                 cached = conn.execute(
-                    "SELECT body, flagged, model, checked_claims, false_claims FROM explanations"
+                    "SELECT body, flagged, model, checked_claims, false_claims, fields FROM explanations"
                     " WHERE move_id = %s AND model = %s AND prompt_hash = %s"
                     " AND checker_version = %s ORDER BY id DESC LIMIT 1",
                     (move_id, model, fingerprint, CHECKER_VERSION),
@@ -263,7 +264,7 @@ def create_app(
                 if cached:
                     return {"body": cached[0], "flagged": cached[1], "model": cached[2],
                             "checked_claims": cached[3], "false_claims": cached[4],
-                            "cached": True, "current": True}
+                            "fields": cached[5], "cached": True, "current": True}
         # The connection is closed here: a model call can take a minute and must not hold one.
         line = line_to_uci(fen, facts.get("best_line", {}).get("line_san", ""))
         try:
@@ -276,11 +277,12 @@ def create_app(
                 conn, move_id, model, result.text, result.flagged, result.attempts,
                 style=style, prompt_hash=fingerprint, checker_version=CHECKER_VERSION,
                 checked_claims=result.checked_claims, false_claims=result.false_claims,
+                fields=result.fields,
             )
             conn.commit()
         return {"body": result.text, "flagged": result.flagged, "model": model,
                 "checked_claims": result.checked_claims, "false_claims": result.false_claims,
-                "cached": False, "current": True}
+                "fields": result.fields or None, "cached": False, "current": True}
 
     @app.post("/api/moves/{move_id}/guess")
     def guess_move(move_id: int, body: GuessBody) -> dict:

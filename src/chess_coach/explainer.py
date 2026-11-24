@@ -250,7 +250,12 @@ def explain_fields(
         got = {"reason": "", "better": ""}
         dropped.append("the reply was not in the expected format")
     has_better = "best" in facts
-    sentences = [{"text": t, "part": "reason"} for t in cited.split_sentences(got["reason"])]
+    sentences = []
+    for t in cited.split_sentences(got["reason"]):
+        if fields.repeats_verdict(t, facts):  # the verdict above already says it
+            dropped.append(f"repeats the verdict: {t}")
+        else:
+            sentences.append({"text": t, "part": "reason"})
     if has_better:
         sentences += [{"text": t, "part": "better"} for t in cited.split_sentences(got["better"])]
     elif got["better"]:
