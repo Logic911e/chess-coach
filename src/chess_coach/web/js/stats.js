@@ -118,11 +118,10 @@ function legend() {
 
 function render(d) {
   const root = document.getElementById("content");
-  const where = bars("Where you lose points", "Average win chance lost on each of your moves, by phase of the game. Compared with your own average, not with other players.",
+  const where = bars("Where you lose points", "Average win chance lost on each of your moves, by phase of the game. Compared with your own average, not with other players. Middlegames are harder than openings for everyone, so a low number in the opening is not by itself a strength.",
     d.phases, d.overview.avg_loss, "move");
   const pieces = bars("By piece", "The same measure, by the piece you moved.", d.pieces, d.overview.avg_loss, "move");
-  where.append(legend());
-  root.replaceChildren(summary(d), trend(d), el("div", { className: "two" }, where, pieces), openings(d),
+  root.replaceChildren(summary(d), trend(d), el("div", { className: "two" }, where, pieces), legend(), openings(d),
     el("p", { className: "foot", textContent: `${d.notes.accuracy}. Everything here is compared with ${d.notes.compared_with}. ${d.unnamed_games ? `${plural(d.unnamed_games, "game")} could not be matched to an opening. ` : ""}Speed, clock use and comparison with other players need clock times and a reference population, which this version does not have.` }));
 }
 

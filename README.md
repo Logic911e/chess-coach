@@ -133,6 +133,25 @@ phrases but did not make the answers shorter or more accurate: the 7B model stil
 that are not in the statements, and the automatic check cannot see most of them. Treat them as
 experiments, not improvements.
 
+## Stats
+
+`/stats` (the Stats button on the board page) shows, for one player across all stored games: the
+record, an accuracy estimate, a game-by-game trend, where points are lost by phase and by piece, and
+how each opening went. Everything is computed in SQL (`src/chess_coach/stats.py`) from what the importer
+already stores.
+
+- **Compared with yourself, not with other players.** There is no reference population here, so a bar
+  is green or red against your own average. Phases differ in difficulty (a low loss in the opening
+  is not by itself a strength).
+- **Accuracy is an estimate.** It uses the published Lichess curve on this app's own win-chance model,
+  so it will not match the Lichess or Chess.com figure.
+- **Openings** are named from the moves with the open Lichess opening list (CC0, in
+  `src/chess_coach/data/`), matched by position so transpositions count as one opening. New games are
+  named when saved; `python -m chess_coach.backfill` names older ones and fills time control and
+  ratings from the PGN.
+- **Not here yet:** speed, flagging and clock use (the Chess.com export has no clock times), and any
+  comparison with other players.
+
 ## Setup
 
 ```bash

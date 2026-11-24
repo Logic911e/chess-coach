@@ -55,8 +55,9 @@ export function trendGeometry(trend, { width = 640, height = 150, pad = 14, wind
   const acc = trend.map((t) => t.accuracy);
   const known = acc.filter((v) => v != null);
   if (known.length < 2) return null;
-  const lo = Math.floor(Math.min(...known) / 5) * 5, hi = Math.min(100, Math.ceil(Math.max(...known) / 5) * 5 + 0);
-  const top = Math.max(hi, lo + 5);
+  // axis ends on multiples of 10, so the middle label is a round number too
+  const lo = Math.floor(Math.min(...known) / 10) * 10, hi = Math.min(100, Math.ceil(Math.max(...known) / 10) * 10);
+  const top = Math.max(hi, lo + 10);
   const x = (i) => pad + (i * (width - 2 * pad)) / (trend.length - 1);
   const y = (v) => pad + ((top - v) * (height - 2 * pad)) / (top - lo);
   const dots = trend.map((t, i) => (t.accuracy == null ? null : { x: x(i), y: y(t.accuracy), result: t.result, game: t.game_id }))
