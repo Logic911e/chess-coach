@@ -1,6 +1,6 @@
 // Theatre page. All text from the server is inserted with textContent, never innerHTML.
 import { getGames, getGame, explainMove, guessMove, chatMove, getPlayers, analysePosition } from "./api.js";
-import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides } from "./board.js";
+import { renderBoard, moveArrows, keyIndex, startIndex, clampIndex, pieceSlides, boardFen } from "./board.js";
 import { motionAllowed } from "./motion.js";
 import { createKeyHandler, toggleMute, escapeTarget, stepAction } from "./keys.js";
 import { createExplore, canExplore } from "./explore.js";
@@ -13,7 +13,7 @@ import { resolveMe, settleWithin } from "./me.js";
 import { scoreFromStored, createAnalysis, gameOverScore } from "./analysis.js";
 import { barView, renderBar, renderTabs, effectiveTab, renderLines, linesState, shouldRequest, barDim, bannerView, renderBanner, tabView, exploreAnnouncement, linesView, hiddenPositionKeys, isHiddenTarget, selectableLine, shouldExitExplore, focusTarget, linePlyCounts } from "./analysis-ui.js";
 
-const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: true, slides: [],
+const state = { me: null, players: [], games: [], game: null, idx: 0, flipped: false, showEngine: false, slides: [],
   guess: { from: null, busy: false, msg: "", kind: "" } };
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
@@ -84,8 +84,10 @@ let shownLines = null;
 // everything else (caption, chat, Explain) stays about the real game move.
 const explore = createExplore();
 let lastScore;  // what the bar last showed: kept (dimmed) while an explored position is still loading
-// The position the engine panel is about: the explored one, else the position before the selected move.
-const analysisTarget = (mv) => { const p = explore.position(); return p ? { fen_before: p.fen } : mv; };
+// The position the board shows for a move: after it by default, before it at a guess or with "Show engine move".
+const shownFen = (mv) => boardFen(mv, { hidden: hiddenNow(mv), showEngine: state.showEngine });
+// The position the engine panel is about: the explored one, else the one the board shows.
+const analysisTarget = (mv) => { const p = explore.position(); return p ? { fen_before: p.fen } : mv ? { fen_before: shownFen(mv) } : mv; };
 function renderAnalysisChrome() {
   const g = state.game, mv = g && g.moves.length ? cur() : null;
   // Asks only when analysis is on and the move is not hidden (no request at all at a guess); a repeat is a no-op.
@@ -120,7 +122,9 @@ function drawAnalysis() {
   // while loading only the fill is dimmed.
   const liveResp = ls.kind === "loaded" ? ls.response : null;
   const top = liveResp && liveResp.lines && liveResp.lines[0];
-  let score = top ? top.score : mv ? scoreFromStored(mv.cp_best, mv.color) : undefined;
+  // The stored value matches the position on the board: after the move it is the move's own score, before it the best one.
+  const onAfter = !!mv && shownFen(mv) !== mv.fen_before;
+  let score = top ? top.score : mv ? scoreFromStored(onAfter ? mv.cp_played : mv.cp_best, mv.color) : undefined;
   if (pos && !top) score = ls.kind === "gameOver" ? gameOverScore(ls.result, ls.fen) : lastScore;  // only live values apply
   lastScore = score;
   renderBar($("evalBar"), barView({ score, hidden: neutral, off: !on, flipped: state.flipped, live: !!top,
@@ -190,7 +194,7 @@ function focusTabs() {
 function exploreStep(d) {
   const before = explore.position().fen;
   if (d < 0 && explore.atStart()) {  // one step back from the first explored position leaves the line
-    exitExplore({ slides: pieceSlides(before, cur().fen_before), animate: motionAllowed() });
+    exitExplore({ slides: pieceSlides(before, shownFen(cur())), animate: motionAllowed() });
     const prevMv = state.game.moves[state.idx - 1]; if (prevMv) playBase(prevMv);
     return;
   }
@@ -224,19 +228,20 @@ function render(animate = false) {
     exitExplore({ render: false });
   }
   const xp = explore.position();
-  renderBoard($("boardWrap"), xp ? xp.fen : mv.fen_before, xp ? {
+  renderBoard($("boardWrap"), xp ? xp.fen : shownFen(mv), xp ? {
     flipped: state.flipped, highlight: [xp.move.uci.slice(0, 2), xp.move.uci.slice(2, 4)], arrows: [],
     slides: state.slides, motion: animate,
   } : {
     flipped: state.flipped,
     // Until the user guesses or asks, nothing on the board may give the answer away: no arrows, no played-move highlight.
     highlight: hidden ? (guessing && state.guess.from ? [state.guess.from] : []) : [mv.uci.slice(0, 2), mv.uci.slice(2, 4)],
-    arrows: hidden ? [] : moveArrows(mv, labelColors(), { hideBest: !state.showEngine }),
+    // Arrows start from the position before the move, so they appear only with "Show engine move" (which shows that position).
+    arrows: hidden || !state.showEngine ? [] : moveArrows(mv, labelColors(), { hideBest: false }),
     slides: state.slides,
     motion: animate,
   });
   state.slides = [];
-  renderBanner($("exploreBanner"), xp ? bannerView({ fen: mv.fen_before, path: explore.path(), step: xp.step }) : null,
+  renderBanner($("exploreBanner"), xp ? bannerView({ fen: shownFen(mv), path: explore.path(), step: xp.step }) : null,
     { onPrev: () => exploreStep(-1), onNext: () => exploreStep(1), onBack: () => leaveExplore(true) });
   $("boardWrap").dataset.guess = guessing ? "on" : "off";
 
@@ -445,7 +450,7 @@ function go(i) {
   const wasExploring = exitExplore({ render: false });  // any game navigation returns to the real position first
   if (moved) guessFlow.cancel();
   // Slide only single steps (either direction); jumps just redraw.
-  state.slides = !wasExploring && Math.abs(j - state.idx) === 1 ? pieceSlides(cur().fen_before, state.game.moves[j].fen_before) : [];
+  state.slides = !wasExploring && Math.abs(j - state.idx) === 1 ? pieceSlides(shownFen(cur()), shownFen(state.game.moves[j])) : [];
   state.idx = j;
   chat.sync();
   render(moved && motionAllowed());

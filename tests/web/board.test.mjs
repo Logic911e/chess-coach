@@ -90,3 +90,12 @@ test("test_piece_slides_nothing_when_unmatched_or_same", () => {
   // promotion: the pawn disappears and a queen appears; no match, no slide
   assert.deepEqual(pieceSlides("4k3/P7/8/8/8/8/8/4K3 w - - 0 1", "Q3k3/8/8/8/8/8/8/4K3 b - - 0 1"), []);
 });
+
+test("boardFen shows the move already played, except at a guess or with the engine move on", async () => {
+  const { boardFen } = await import("../../src/chess_coach/web/js/board.js");
+  const mv = { fen_before: "BEFORE", fen_after: "AFTER" };
+  assert.equal(boardFen(mv), "AFTER");                                   // the move is on the board
+  assert.equal(boardFen(mv, { hidden: true }), "BEFORE");                // a guess: nothing given away
+  assert.equal(boardFen(mv, { showEngine: true }), "BEFORE");            // arrows start from where the move starts
+  assert.equal(boardFen({ fen_before: "BEFORE" }), "BEFORE");            // no fen_after: fall back
+});

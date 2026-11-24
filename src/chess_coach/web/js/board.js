@@ -3,6 +3,16 @@
 const FILES = "abcdefgh";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/**
+ * Which position the board shows for a move. By default the move has already been played (the position
+ * AFTER it), so the coach never talks about a move that has not happened on the board. The position BEFORE
+ * the move is kept for a guess in progress (nothing may be given away) and for "Show engine move", which
+ * draws the move played and the engine's choice as arrows from where they start.
+ */
+export function boardFen(mv, { hidden = false, showEngine = false } = {}) {
+  return hidden || showEngine || !mv.fen_after ? mv.fen_before : mv.fen_after;
+}
+
 /** FEN placement field -> 8 rows (rank 8 first) of piece letters or null. */
 export function parseFen(fen) {
   return fen.split(" ")[0].split("/").map((row) => {
