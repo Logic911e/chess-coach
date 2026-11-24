@@ -481,3 +481,12 @@ def test_the_stats_endpoint_returns_a_players_stats_and_rejects_bad_requests(app
     assert http.get("/api/stats", params={"player": "  "}).status_code == 422
     assert http.get("/api/stats").status_code == 422
     assert http.get("/api/stats", params={"player": "x" * 101}).status_code == 422
+
+
+def test_the_stats_page_and_its_files_are_served(app_and_client):
+    http, _ = app_and_client
+    page = http.get("/stats")
+    assert page.status_code == 200 and "text/html" in page.headers["content-type"]
+    assert "/static/js/stats.js" in page.text
+    for path in ("/static/js/stats.js", "/static/js/stats-view.js", "/static/css/stats.css"):
+        assert http.get(path).status_code == 200, path

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="walnut">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Coach · Stats</title>
+<link rel="stylesheet" href="/static/css/themes.css">
+<link rel="stylesheet" href="/static/css/stats.css">
+<script>
+// Apply the theme saved by the board page before first paint (no flash); works without localStorage.
+try {
+  var t = JSON.parse(localStorage.getItem("chesscoach.theme"));
+  if (t === "walnut" || t === "slate" || t === "paper") document.documentElement.dataset.theme = t;
+} catch (e) {}
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="back" href="/">&larr; Board</a>
+  <h1>Your games</h1>
+  <label class="who">Player <select id="player" aria-label="Player"></select></label>
+</header>
+<main id="content" aria-live="polite"><p class="muted">Loading your games&hellip;</p></main>
+<script type="module" src="/static/js/stats.js"></script>
+</body>
+</html>

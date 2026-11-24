@@ -701,6 +701,10 @@ $("boardWrap").addEventListener("click", (e) => {
   if (sq) guessFlow.pick(sq.dataset.sq);  // data-sq is the true square, whatever the orientation
 });
 $("flip").onclick = () => { state.flipped = !state.flipped; if (state.game) render(); };
+// A link to the stats page beside "Games", made here so the board page's markup and styles are unchanged.
+const statsBtn = el("button", { type: "button", id: "statsBtn", textContent: "Stats", title: "Your stats across all stored games" });
+statsBtn.onclick = () => { location.href = "/stats" + (state.me ? "?player=" + encodeURIComponent(state.me) : ""); };
+$("gamesBtn").after(statsBtn);
 $("engineBtn").onclick = () => { state.showEngine = !state.showEngine; if (state.game) render(); };
 $("gamesBtn").onclick = () => setGames(true);
 $("gamesClose").onclick = () => setGames(false);
