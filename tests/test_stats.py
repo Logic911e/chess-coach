@@ -93,9 +93,11 @@ def test_time_stats_split_moves_by_how_long_they_took(pg):
         (180000,), (180000,), (179000,), (170000,), (10000,)]
     t = build_stats(pg, "Ann")["time"]
     # Ann's second move: 180 - 179 + 2 = 3 s. Her third: 179 - 10 + 2 = 171 s, with 10 s left.
-    assert {b["key"]: b["moves"] for b in t["by_time"]} == {"instant": 0, "quick": 1, "long": 1}
+    # 3 s is 1.7% of the 180 s start (fast); 171 s is 95% of it (slow). Shares, not seconds, so a
+    # bullet game and a rapid game are judged against their own pace.
+    assert {b["key"]: b["moves"] for b in t["by_time"]} == {"fast": 1, "medium": 0, "slow": 1}
     assert t["trouble"]["moves"] == 1 and t["not_trouble"]["moves"] == 1  # 10 s < a tenth of 180 s
-    assert t["games"] == 1 and t["thresholds"]["long_s"] == 10
+    assert t["games"] == 1 and t["thresholds"]["slow_share"] == 0.08
 
 
 def test_no_clock_times_means_no_time_section(seeded):

@@ -121,7 +121,8 @@ function timeSection(d) {
   const t = d.time;
   if (!t) return null;
   const th = t.thresholds;
-  const label = { instant: `Under ${th.instant_s} s`, quick: `${th.instant_s} to ${th.long_s} s`, long: `Over ${th.long_s} s` };
+  const fast = Math.round(th.fast_share * 100), slow = Math.round(th.slow_share * 100);
+  const label = { fast: `Fast: under ${fast}% of the starting time`, medium: `Medium: ${fast} to ${slow}%`, slow: `Slow: over ${slow}%` };
   const rowOf = (name, r, note) => el("tr", {}, el("td", { textContent: name }),
     el("td", { className: "num", textContent: String(r.moves) }),
     el("td", { className: "num", textContent: r.avg_loss == null ? "–" : `${(100 * r.avg_loss).toFixed(1)}%` }),
@@ -136,7 +137,7 @@ function timeSection(d) {
       rowOf("Everything else", t.not_trouble)));
   const per = el("p", { className: "sub", textContent: "Average time per move: " + t.phases.map((p) => `${p.key} ${p.avg_seconds} s`).join(", ") + "." });
   return el("section", {}, el("h2", { textContent: "Time" }),
-    el("p", { className: "sub", textContent: `From ${plural(t.games, "game")} with clock times. Time spent is the drop on your clock plus the increment, so the first move of each game is left out. This compares your own moves with each other; fast moves are often simple ones, so a low loss on instant moves is not proof that you could play faster.` }),
+    el("p", { className: "sub", textContent: `From ${plural(t.games, "game")} with clock times. Time spent is the drop on your clock plus the increment, so the first move of each game is left out. Fast and slow are shares of each game's starting time, so a bullet game and a rapid game are judged at their own pace (in a one-minute game, fast is under 1.2 s and slow is over 4.8 s). This compares your own moves with each other; fast moves are often simple ones, so a low loss on fast moves is not proof that you could play faster.` }),
     tbl, per);
 }
 

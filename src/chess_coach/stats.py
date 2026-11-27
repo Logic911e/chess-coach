@@ -67,8 +67,8 @@ def time_class(time_control: str | None) -> str:
             else "rapid" if total <= 1499 else "classical")
 
 
-INSTANT_MS = 2_000    # a move played in under 2 seconds
-LONG_MS = 10_000      # a move that took more than 10 seconds
+FAST_SHARE = 0.02     # a move that took under 2% of the starting time
+SLOW_SHARE = 0.08     # a move that took over 8% of it (1.2 s and 4.8 s in a 1-minute game)
 TROUBLE_SHARE = 0.10  # under a tenth of the starting time left
 
 _TIMED = r"""
@@ -96,8 +96,8 @@ def _time_section(conn: psycopg.Connection, player: str) -> dict | None:
     stored with each move. None when no game has them."""
     base = _MINE.rstrip().rstrip(")") + ")" + _TIMED
     sql = base + f"""
-        SELECT CASE WHEN spent_ms < {INSTANT_MS} THEN 'instant'
-                    WHEN spent_ms <= {LONG_MS} THEN 'quick' ELSE 'long' END AS bucket,
+        SELECT CASE WHEN spent_ms < {FAST_SHARE} * base_ms THEN 'fast'
+                    WHEN spent_ms <= {SLOW_SHARE} * base_ms THEN 'medium' ELSE 'slow' END AS bucket,
                CASE WHEN clock_ms < {TROUBLE_SHARE} * base_ms THEN 1 ELSE 0 END AS trouble,
                phase, loss, classification, game_id, spent_ms
         FROM (SELECT *, greatest(0, prev_ms - clock_ms + inc_ms) AS spent_ms FROM spent
@@ -114,7 +114,7 @@ def _time_section(conn: psycopg.Connection, player: str) -> dict | None:
                 "errors_per_100": _round(100 * errs / n, 1) if n else None,
                 "small": n < FEW_MOVES}
 
-    by_time = [{"key": k, **agg(lambda x, k=k: x[0] == k)} for k in ("instant", "quick", "long")]
+    by_time = [{"key": k, **agg(lambda x, k=k: x[0] == k)} for k in ("fast", "medium", "slow")]
     phases = []
     for ph in PHASE_ORDER:
         sp = [x[6] for x in rows if x[2] == ph]
@@ -124,7 +124,7 @@ def _time_section(conn: psycopg.Connection, player: str) -> dict | None:
         "games": len({x[5] for x in rows}), "moves": len(rows), "by_time": by_time,
         "trouble": agg(lambda x: x[1] == 1), "not_trouble": agg(lambda x: x[1] == 0),
         "phases": phases,
-        "thresholds": {"instant_s": INSTANT_MS // 1000, "long_s": LONG_MS // 1000,
+        "thresholds": {"fast_share": FAST_SHARE, "slow_share": SLOW_SHARE,
                        "trouble_share": TROUBLE_SHARE},
     }
 
